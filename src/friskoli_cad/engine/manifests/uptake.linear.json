@@ -1,0 +1,25 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "uptake.linear",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 5,
+  "scientific_role": "closure",
+  "maturity": "exploratory",
+  "description": "Exploratory linear uptake law J = k C; not a calibrated transporter model.",
+  "inputs": {
+    "local_concentration": {"shape": "cell.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+  },
+  "outputs": {
+    "uptake_flux": {"shape": "cell.scalar", "quantity": "uptake_flux", "unit": "molecule/s", "species_parameter": "species"},
+    "cumulative_uptake": {"shape": "cell.scalar", "quantity": "cumulative_uptake", "unit": "molecule", "species_parameter": "species"}
+  },
+  "parameters": {
+    "species": {"type": "string"},
+    "rate_constant": {"type": "number", "unit": "molecule/(s*uM)", "minimum": 0}
+  },
+  "state": {
+    "cumulative_uptake": {"shape": "cell.scalar", "unit": "molecule", "on_division": "split"}
+  },
+  "initial_outputs": ["uptake_flux", "cumulative_uptake"]
+}

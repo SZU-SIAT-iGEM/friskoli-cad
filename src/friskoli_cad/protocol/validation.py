@@ -260,8 +260,10 @@ class FrameSequenceValidator:
         self.alive: dict[str, str] = {}
         self.seen: set[str] = set()
 
-    def accept(self, frame: Mapping[str, object]) -> None:
-        _check_schema("frame", frame)
+    def accept(self, frame: Mapping[str, object], *, validate_schema: bool = True) -> None:
+        """Accept a frame; skip schema only for frames built by a trusted runtime."""
+        if validate_schema:
+            _check_schema("frame", frame)
         index = frame["frame_index"]
         if index != self.next_index:
             _fail("frame.order", "/frame_index", f"expected {self.next_index}")

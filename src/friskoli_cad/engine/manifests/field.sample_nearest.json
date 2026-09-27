@@ -1,0 +1,19 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "field.sample_nearest",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 4,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Read the field value in the voxel containing each cell center.",
+  "inputs": {
+    "concentration": {"shape": "field.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+  },
+  "outputs": {
+    "local_concentration": {"shape": "cell.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+  },
+  "parameters": {"species": {"type": "string"}},
+  "state": {},
+  "initial_outputs": ["local_concentration"]
+}

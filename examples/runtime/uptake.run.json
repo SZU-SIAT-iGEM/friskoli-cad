@@ -1,0 +1,10 @@
+{
+  "protocol_version": "0.1.0",
+  "run_id": "local-uptake-run",
+  "graph_id": "local-uptake-example",
+  "groups": ["group_1"],
+  "channels": {
+    "uptake.flux": {"node": "uptake", "port": "uptake_flux", "group_id": "group_1", "shape": "cell.scalar", "quantity": "uptake_flux", "unit": "molecule/s"},
+    "uptake.cumulative": {"node": "uptake", "port": "cumulative_uptake", "group_id": "group_1", "shape": "cell.scalar", "quantity": "cumulative_uptake", "unit": "molecule"}
+  }
+}

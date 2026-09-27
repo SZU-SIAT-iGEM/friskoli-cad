@@ -2,9 +2,9 @@
 
 Friskoli-CAD 是面向趋化工程菌设计的模块化仿真与可视化工具。空间场景提供初始条件；行为图用有类型、单位和时间语义的端口连接计算模块；运行结果保留单菌体身份与变化序列，供前端回放和检查。
 
-**当前状态：交付仓库、0.1.0 数据协议和行为图编译器已建立，数值计算与界面尚未接入。** 本仓库从空仓开始，旧版 WebUI、`friskoli-simulation` 和 `model-A-rebuilt` 只作为迁入时的参考。当前可运行的原型仍在各自原目录。
+**当前状态：交付仓库、0.1.0 数据协议、行为图编译器和首个无扩散摄取示例已建立；界面尚未接入。** 本仓库从空仓开始，旧版 WebUI、`friskoli-simulation` 和 `model-A-rebuilt` 只作为迁入时的参考。旧原型仍在各自原目录。
 
-开发状态和每阶段验收见 [PROGRESS.md](PROGRESS.md)。系统边界见 [架构约定](docs/architecture.md)，已实现的连接规则见 [协议 0.1.0](docs/protocol-0.1.md)，执行顺序见 [图编译器](docs/engine-compiler.md)，Git 与代码迁入规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+开发状态和每阶段验收见 [PROGRESS.md](PROGRESS.md)。系统边界见 [架构约定](docs/architecture.md)，已实现的连接规则见 [协议 0.1.0](docs/protocol-0.1.md)，执行顺序见 [图编译器](docs/engine-compiler.md)，第一个数值例子见 [无扩散摄取循环](docs/engine-runtime.md)，Git 与代码迁入规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 交付原则
 

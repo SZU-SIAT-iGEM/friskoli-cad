@@ -1,0 +1,19 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "field.deposit_nearest",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 6,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Sum cell uptake into containing voxels and convert molecules per second to uM per second.",
+  "inputs": {
+    "uptake_flux": {"shape": "cell.scalar", "quantity": "uptake_flux", "unit": "molecule/s", "species_parameter": "species"}
+  },
+  "outputs": {
+    "consumption_rate": {"shape": "field.scalar", "quantity": "consumption_rate", "unit": "uM/s", "species_parameter": "species"}
+  },
+  "parameters": {"species": {"type": "string"}},
+  "state": {},
+  "initial_outputs": ["consumption_rate"]
+}
