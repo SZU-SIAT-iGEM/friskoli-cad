@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
@@ -35,6 +36,56 @@ def make_simulation(
 
 
 class RuntimeTests(unittest.TestCase):
+    def test_two_species_use_the_same_modules_and_separate_concentration_fields(self):
+        template = load("uptake.graph.json")
+        graph = {"protocol_version": "0.1.0", "id": "two-species-demo", "nodes": [], "edges": []}
+        channels = {}
+        for species, initial_uM, rate in (("substrate", 10, 100), ("tracer", 4, 50)):
+            for original in template["nodes"]:
+                node = deepcopy(original)
+                node["id"] = f"{original['id']}_{species}"
+                node["parameters"]["species"]["value"] = species
+                if original["id"] == "field":
+                    node["parameters"]["initial_concentration"]["value"] = initial_uM
+                if original["id"] == "uptake":
+                    node["parameters"]["rate_constant"]["value"] = rate
+                graph["nodes"].append(node)
+            for original in template["edges"]:
+                edge = deepcopy(original)
+                edge["id"] = f"{original['id']}_{species}"
+                for endpoint in ("from", "to"):
+                    edge[endpoint]["node"] = f"{original[endpoint]['node']}_{species}"
+                graph["edges"].append(edge)
+            channel = deepcopy(load("uptake.run.json")["channels"]["uptake.cumulative"])
+            channel["node"] = f"uptake_{species}"
+            channels[f"{species}.uptake.cumulative"] = channel
+
+        run = load("uptake.run.json")
+        run["graph_id"] = graph["id"]
+        run["channels"] = channels
+        group = CellGroup(
+            "group_1", ("cell_0",), np.array([[2.5, 2.5, 0.5]]),
+            np.array([[0, 0, 0, 1]]),
+        )
+        grid = GridDomain.thin_layer(4, 2, 5, 5, 1)
+        simulation = Simulation(World(grid, {"group_1": group}), graph, run, default_registry())
+        initial = simulation.current
+        after = simulation.step(1)
+        self.assertEqual(set(after.concentration_fields), {"substrate", "tracer"})
+        self.assertEqual(after.environment_fields["field_tracer"]["concentration"].species, "tracer")
+        for species, initial_uM, uptake in (("substrate", 10, 1000), ("tracer", 4, 200)):
+            field = after.concentration_fields[species]
+            self.assertAlmostEqual(field[0, 0, 0], initial_uM - uptake / grid.molecules_per_uM_voxel)
+            self.assertAlmostEqual(field[0, 0, 1], initial_uM)
+            self.assertEqual(
+                after.cell_frame["cells"][0]["channels"][f"{species}.uptake.cumulative"], uptake,
+            )
+            field_loss = (
+                initial.concentration_fields[species].sum() - field.sum()
+            ) * grid.molecules_per_uM_voxel
+            self.assertAlmostEqual(field_loss, uptake, delta=1e-7)
+        validate_frame_sequence([initial.cell_frame, after.cell_frame], run)
+
     def test_local_field_change_and_single_cell_history(self):
         sim = make_simulation()
         initial = sim.current
