@@ -1,0 +1,37 @@
+[
+  {
+    "protocol_version": "0.1.0",
+    "run_id": "example-run",
+    "frame_index": 0,
+    "time_s": 0,
+    "cells": [
+      {"id": "cell_1", "group_id": "group_1", "position_um": [10, 20, 0], "orientation_xyzw": [0, 0, 0, 1], "channels": {"display.copies": 100}}
+    ],
+    "events": []
+  },
+  {
+    "protocol_version": "0.1.0",
+    "run_id": "example-run",
+    "frame_index": 1,
+    "time_s": 1,
+    "cells": [
+      {"id": "cell_1", "group_id": "group_1", "position_um": [12, 20, 0], "orientation_xyzw": [0, 0, 0, 1], "channels": {"display.copies": 51}},
+      {"id": "cell_2", "group_id": "group_1", "position_um": [11, 20, 0], "orientation_xyzw": [0, 0, 0, 1], "channels": {"display.copies": 51}}
+    ],
+    "events": [
+      {"type": "division", "time_s": 0.7, "parent_id": "cell_1", "child_id": "cell_2"}
+    ]
+  },
+  {
+    "protocol_version": "0.1.0",
+    "run_id": "example-run",
+    "frame_index": 2,
+    "time_s": 2,
+    "cells": [
+      {"id": "cell_2", "group_id": "group_1", "position_um": [14, 21, 0], "orientation_xyzw": [0, 0, 0, 1], "channels": {"display.copies": 52}}
+    ],
+    "events": [
+      {"type": "death", "time_s": 1.5, "cell_id": "cell_1"}
+    ]
+  }
+]

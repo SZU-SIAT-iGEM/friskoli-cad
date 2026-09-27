@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "friskoli-cad"
+version = "0.1.0"
+description = "Versioned contracts for a modular chemotaxis CAD engine"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.23,<5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"friskoli_cad.protocol" = ["schemas/*.json"]

@@ -1,0 +1,9 @@
+{
+  "protocol_version": "0.1.0",
+  "run_id": "example-run",
+  "graph_id": "contract-example",
+  "groups": ["group_1"],
+  "channels": {
+    "display.copies": {"node": "display", "port": "copies", "group_id": "group_1", "shape": "cell.scalar", "quantity": "protein_copies", "unit": "molecule"}
+  }
+}

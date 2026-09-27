@@ -1,0 +1,1 @@
+"""Friskoli-CAD shared code."""
