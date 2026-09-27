@@ -1,0 +1,25 @@
+# Local environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+node_modules/
+
+# Generated products and simulation data
+build/
+dist/
+coverage/
+runs/
+outputs/
+tmp/
+*.log
+
+# Local settings and operating-system files
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
