@@ -1,7 +1,7 @@
 """Array-based execution for typed graph modules.
 
 The first runtime supports scalar fields and per-cell scalar outputs in a
-2.5D grid. Unsupported port shapes fail explicitly before a run starts.
+thin layer or a full 3D grid. Unsupported port shapes fail explicitly.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ import math
 from copy import deepcopy
 from dataclasses import dataclass
 from types import MappingProxyType
-from typing import Iterable, Mapping, Protocol
+from typing import Iterable, Literal, Mapping, Protocol
 
 import numpy as np
 
@@ -30,38 +30,66 @@ class SimulationError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class GridDomain:
+    geometry: Literal["thin_layer", "volume"]
     nx: int
     ny: int
+    nz: int
     dx_um: float
-    depth_um: float
+    dy_um: float
+    dz_um: float
+
+    @classmethod
+    def thin_layer(
+        cls, nx: int, ny: int, dx_um: float, dy_um: float, thickness_um: float
+    ) -> GridDomain:
+        return cls("thin_layer", nx, ny, 1, dx_um, dy_um, thickness_um)
+
+    @classmethod
+    def volume(
+        cls, nx: int, ny: int, nz: int, dx_um: float, dy_um: float, dz_um: float
+    ) -> GridDomain:
+        return cls("volume", nx, ny, nz, dx_um, dy_um, dz_um)
 
     def __post_init__(self) -> None:
-        if type(self.nx) is not int or type(self.ny) is not int or self.nx <= 0 or self.ny <= 0:
-            raise SimulationError("domain.grid", "nx and ny must be positive integers")
-        if not math.isfinite(self.dx_um) or not math.isfinite(self.depth_um):
+        if self.geometry not in ("thin_layer", "volume"):
+            raise SimulationError("domain.geometry", "unknown geometry mode")
+        if any(type(n) is not int or n <= 0 for n in (self.nx, self.ny, self.nz)):
+            raise SimulationError("domain.grid", "grid counts must be positive integers")
+        if (self.geometry == "thin_layer" and self.nz != 1) or (
+            self.geometry == "volume" and self.nz < 2
+        ):
+            raise SimulationError("domain.geometry", "geometry mode and z layer count differ")
+        if not all(math.isfinite(step) for step in (self.dx_um, self.dy_um, self.dz_um)):
             raise SimulationError("domain.grid", "grid dimensions must be finite")
-        if self.dx_um <= 0 or self.depth_um <= 0:
+        if min(self.dx_um, self.dy_um, self.dz_um) <= 0:
             raise SimulationError("domain.grid", "grid dimensions must be positive")
 
     @property
-    def shape(self) -> tuple[int, int]:
-        return self.ny, self.nx
+    def shape(self) -> tuple[int, int, int]:
+        return self.nz, self.ny, self.nx
+
+    @property
+    def voxel_count(self) -> int:
+        return self.nx * self.ny * self.nz
+
+    @property
+    def extent_um(self) -> tuple[float, float, float]:
+        return self.nx * self.dx_um, self.ny * self.dy_um, self.nz * self.dz_um
 
     @property
     def molecules_per_uM_voxel(self) -> float:
-        return MOLECULES_PER_UM3_PER_UM * self.dx_um**2 * self.depth_um
+        return MOLECULES_PER_UM3_PER_UM * self.dx_um * self.dy_um * self.dz_um
 
     def flat_indices(self, positions_um: np.ndarray) -> np.ndarray:
         positions = np.asarray(positions_um, dtype=np.float64)
         if positions.ndim != 2 or positions.shape[1] != 3 or not np.isfinite(positions).all():
             raise SimulationError("cell.position", "cell positions must be finite XYZ rows")
-        if np.any(positions < 0) or np.any(positions[:, 0] >= self.nx * self.dx_um):
-            raise SimulationError("cell.position", "cell lies outside the grid")
-        if np.any(positions[:, 1] >= self.ny * self.dx_um) or np.any(positions[:, 2] >= self.depth_um):
+        if np.any(positions < 0) or np.any(positions >= self.extent_um):
             raise SimulationError("cell.position", "cell lies outside the grid")
         ix = np.floor(positions[:, 0] / self.dx_um).astype(np.int64)
-        iy = np.floor(positions[:, 1] / self.dx_um).astype(np.int64)
-        return iy * self.nx + ix
+        iy = np.floor(positions[:, 1] / self.dy_um).astype(np.int64)
+        iz = np.floor(positions[:, 2] / self.dz_um).astype(np.int64)
+        return (iz * self.ny + iy) * self.nx + ix
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,6 +188,7 @@ class Snapshot:
     cell_frame: Mapping[str, object]
     concentration_fields: Mapping[str, np.ndarray]
     concentration_units: Mapping[str, str]
+    domain: GridDomain
 
 
 class Simulation:
@@ -282,7 +311,7 @@ class Simulation:
                         raise SimulationError("field.duplicate", f"two concentration fields for {species}")
                     fields[species] = outputs[node.id][name]
                     field_units[species] = port["unit"]
-        return Snapshot(frame, MappingProxyType(fields), MappingProxyType(field_units))
+        return Snapshot(frame, MappingProxyType(fields), MappingProxyType(field_units), self.world.grid)
 
     def step(self, dt_s: float) -> Snapshot:
         if not math.isfinite(dt_s) or dt_s <= 0:

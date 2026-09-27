@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -18,13 +19,22 @@ def load(name: str) -> dict:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--geometry", choices=("thin_layer", "volume"), default="thin_layer")
+    args = parser.parse_args()
+    if args.geometry == "thin_layer":
+        grid = GridDomain.thin_layer(4, 2, 5, 5, 1)
+        positions = np.array([[2.5, 2.5, 0.5], [12.5, 2.5, 0.5]])
+    else:
+        grid = GridDomain.volume(4, 2, 2, 5, 5, 5)
+        positions = np.array([[2.5, 2.5, 2.5], [2.5, 2.5, 7.5]])
     group = CellGroup(
         "group_1",
         ("cell_0", "cell_1"),
-        np.array([[2.5, 2.5, 0.5], [12.5, 2.5, 0.5]]),
+        positions,
         np.array([[0, 0, 0, 1], [0, 0, 0, 1]]),
     )
-    world = World(GridDomain(nx=4, ny=2, dx_um=5, depth_um=1), {"group_1": group})
+    world = World(grid, {"group_1": group})
     simulation = Simulation(
         world, load("uptake.graph.json"), load("uptake.run.json"), default_registry()
     )
@@ -34,13 +44,15 @@ def main() -> None:
     )
     def report(snapshot) -> None:
         field = snapshot.concentration_fields["substrate"]
+        at_cells = field.ravel()[grid.flat_indices(group.positions_um)]
         cumulative = sum(
             cell["channels"]["uptake.cumulative"] for cell in snapshot.cell_frame["cells"]
         )
         record = {
+            "geometry": grid.geometry,
             "time_s": snapshot.cell_frame["time_s"],
-            "cell_0_concentration_uM": float(field[0, 0]),
-            "cell_1_concentration_uM": float(field[0, 2]),
+            "cell_0_concentration_uM": float(at_cells[0]),
+            "cell_1_concentration_uM": float(at_cells[1]),
             "cumulative_uptake_molecule": cumulative,
             "mass_balance_error_molecule": float(
                 initial_inventory - field.sum() * world.grid.molecules_per_uM_voxel - cumulative

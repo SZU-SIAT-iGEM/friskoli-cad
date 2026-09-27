@@ -94,7 +94,7 @@ class DepositNearest:
             raise SimulationError("cell.flux", "uptake flux cannot be negative")
         group = world.groups[node.owner_id]
         indices = world.grid.flat_indices(group.positions_um)
-        molecules_s = np.bincount(indices, weights=flux, minlength=world.grid.nx * world.grid.ny)
+        molecules_s = np.bincount(indices, weights=flux, minlength=world.grid.voxel_count)
         rate = molecules_s.reshape(world.grid.shape) / world.grid.molecules_per_uM_voxel
         return ModuleResult({"consumption_rate": rate}, {})
 
