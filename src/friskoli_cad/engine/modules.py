@@ -39,6 +39,39 @@ class LocalInventory:
         return ModuleResult({"concentration": concentration}, {"concentration": concentration})
 
 
+class IdealReservoir:
+    manifest = _manifest("field.ideal_reservoir")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        concentration = np.full(
+            world.grid.shape, node.parameters["initial_concentration"].value, dtype=np.float64
+        )
+        zeros = np.zeros(world.grid.shape, dtype=np.float64)
+        return ModuleResult(
+            {"concentration": concentration, "supply_flux": zeros, "cumulative_supply": zeros},
+            {"cumulative_supply": zeros},
+        )
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        rate = inputs["consumption_rate"]
+        if np.any(rate < 0):
+            raise SimulationError("field.rate", "consumption rate cannot be negative")
+        supply_flux = rate * world.grid.molecules_per_uM_voxel
+        cumulative_supply = previous_state["cumulative_supply"] + supply_flux * dt_s
+        return ModuleResult(
+            {
+                "concentration": previous_outputs["concentration"],
+                "supply_flux": supply_flux,
+                "cumulative_supply": cumulative_supply,
+            },
+            {"cumulative_supply": cumulative_supply},
+        )
+
+
 class SampleNearest:
     manifest = _manifest("field.sample_nearest")
 
@@ -110,4 +143,6 @@ class DepositNearest:
 
 
 def default_registry() -> ModuleRegistry:
-    return ModuleRegistry([LocalInventory(), SampleNearest(), LinearUptake(), DepositNearest()])
+    return ModuleRegistry([
+        LocalInventory(), IdealReservoir(), SampleNearest(), LinearUptake(), DepositNearest(),
+    ])

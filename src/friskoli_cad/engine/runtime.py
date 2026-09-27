@@ -184,10 +184,19 @@ class ModuleRegistry:
 
 
 @dataclass(frozen=True, slots=True)
+class FieldOutput:
+    values: np.ndarray
+    quantity: str
+    unit: str
+    species: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class Snapshot:
     cell_frame: Mapping[str, object]
     concentration_fields: Mapping[str, np.ndarray]
     concentration_units: Mapping[str, str]
+    environment_fields: Mapping[str, Mapping[str, FieldOutput]]
     domain: GridDomain
 
 
@@ -299,19 +308,31 @@ class Simulation:
         }
         fields = {}
         field_units = {}
+        environment_fields = {}
         for node in self.plan.nodes:
             if node.owner_kind != "environment":
                 continue
             manifest = self.registry.get(node.module_id, node.module_version).manifest
+            node_fields = {}
             for name, port in manifest["outputs"].items():
-                if port["shape"] == "field.scalar" and port["quantity"] == "concentration":
-                    binding = port.get("species_parameter")
+                if port["shape"] != "field.scalar":
+                    continue
+                binding = port.get("species_parameter")
+                species = node.parameters[binding].value if binding else None
+                node_fields[name] = FieldOutput(
+                    outputs[node.id][name], port["quantity"], port["unit"], species
+                )
+                if port["quantity"] == "concentration":
                     species = node.parameters[binding].value if binding else name
                     if species in fields:
                         raise SimulationError("field.duplicate", f"two concentration fields for {species}")
                     fields[species] = outputs[node.id][name]
                     field_units[species] = port["unit"]
-        return Snapshot(frame, MappingProxyType(fields), MappingProxyType(field_units), self.world.grid)
+            environment_fields[node.id] = MappingProxyType(node_fields)
+        return Snapshot(
+            frame, MappingProxyType(fields), MappingProxyType(field_units),
+            MappingProxyType(environment_fields), self.world.grid,
+        )
 
     def step(self, dt_s: float) -> Snapshot:
         if not math.isfinite(dt_s) or dt_s <= 0:
