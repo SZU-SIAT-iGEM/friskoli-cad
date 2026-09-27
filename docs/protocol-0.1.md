@@ -1,6 +1,6 @@
 # 模块与单菌体结果协议 · 0.1.0
 
-状态：已实现结构校验与跨文件检查，尚无计算模块或运行服务。本协议中的示例只用于证明数据能正确连接，不产生科学预测。
+状态：已实现结构校验、跨文件检查和第一批数值模块；运行服务尚未建立。本协议中的示例只用于证明数据能正确连接，不产生科学预测。数值示例与限制见[无扩散摄取循环](engine-runtime.md)。
 
 四份 JSON Schema 分别定义[模块声明](../src/friskoli_cad/protocol/schemas/module.schema.json)、[行为图](../src/friskoli_cad/protocol/schemas/graph.schema.json)、[运行元数据](../src/friskoli_cad/protocol/schemas/run.schema.json)和[单菌体帧](../src/friskoli_cad/protocol/schemas/frame.schema.json)。`friskoli_cad.protocol` 另检查 Schema 无法表达的引用、单位、物质、连接时序和事件连续性。
 
