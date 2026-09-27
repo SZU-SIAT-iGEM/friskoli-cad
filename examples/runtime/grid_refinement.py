@@ -48,9 +48,11 @@ def run_case(geometry: str, spacing_um: float, dt_s: float) -> dict:
     run = json.loads((EXAMPLE_DIR / "uptake.run.json").read_text(encoding="utf-8"))
     run["run_id"] = f"refinement-{geometry}-{spacing_um}-{dt_s}"
     simulation = Simulation(world, graph, run, default_registry())
-    initial_molecules = (
-        simulation.current.concentration_fields["substrate"].sum()
-        * grid.molecules_per_uM_voxel
+    cell_index = grid.flat_indices(group.positions_um)[0]
+    initial_field = simulation.current.concentration_fields["substrate"]
+    initial_molecules = initial_field.sum() * grid.molecules_per_uM_voxel
+    initial_cell_voxel_molecules = (
+        initial_field.ravel()[cell_index] * grid.molecules_per_uM_voxel
     )
 
     for _ in range(round(DURATION_S / dt_s)):
@@ -59,7 +61,6 @@ def run_case(geometry: str, spacing_um: float, dt_s: float) -> dict:
     field = snapshot.concentration_fields["substrate"]
     remaining = field.sum() * grid.molecules_per_uM_voxel
     uptake = snapshot.cell_frame["cells"][0]["channels"]["uptake.cumulative"]
-    cell_index = grid.flat_indices(group.positions_um)[0]
     return {
         "geometry": geometry,
         "grid_step_um": spacing_um,
@@ -69,7 +70,11 @@ def run_case(geometry: str, spacing_um: float, dt_s: float) -> dict:
         "dt_s": dt_s,
         "duration_s": DURATION_S,
         "initial_molecules": float(initial_molecules),
+        "initial_cell_voxel_molecules": float(initial_cell_voxel_molecules),
         "cell_voxel_concentration_uM": float(field.ravel()[cell_index]),
+        "final_cell_voxel_molecules": float(
+            field.ravel()[cell_index] * grid.molecules_per_uM_voxel
+        ),
         "cumulative_uptake_molecules": uptake,
         "mass_balance_error_molecules": float(initial_molecules - remaining - uptake),
     }

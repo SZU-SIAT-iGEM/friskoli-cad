@@ -37,12 +37,14 @@ class GridRefinementTests(unittest.TestCase):
         for geometry in ("thin_layer", "volume"):
             with self.subTest(geometry=geometry):
                 initial_amounts = []
+                voxel_amounts = []
                 for spacing_um in (5.0, 2.5, 1.25):
                     simulation = make_simulation(geometry, spacing_um)
                     grid = simulation.world.grid
                     initial = simulation.current.concentration_fields["substrate"]
                     initial_amount = initial.sum() * grid.molecules_per_uM_voxel
                     initial_amounts.append(initial_amount)
+                    voxel_amounts.append(initial[0, 0, 0] * grid.molecules_per_uM_voxel)
 
                     snapshot = simulation.step(0.25)
                     field = snapshot.concentration_fields["substrate"]
@@ -62,6 +64,9 @@ class GridRefinementTests(unittest.TestCase):
                     )
                 for amount in initial_amounts[1:]:
                     self.assertAlmostEqual(amount, initial_amounts[0], delta=1e-6)
+                child_count = 4 if geometry == "thin_layer" else 8
+                self.assertAlmostEqual(voxel_amounts[0], child_count * voxel_amounts[1])
+                self.assertAlmostEqual(voxel_amounts[1], child_count * voxel_amounts[2])
 
     def test_time_refinement_approaches_point_sink_solution(self):
         results = []
