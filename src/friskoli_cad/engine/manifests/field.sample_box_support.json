@@ -1,0 +1,24 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "field.sample_box_support",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 4,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Sample concentration over a box with fixed physical dimensions centered on each cell; overlap weights sum to one.",
+  "inputs": {
+    "concentration": {"shape": "field.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+  },
+  "outputs": {
+    "local_concentration": {"shape": "cell.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+  },
+  "parameters": {
+    "species": {"type": "string"},
+    "support_x_um": {"type": "number", "unit": "um", "minimum": 0},
+    "support_y_um": {"type": "number", "unit": "um", "minimum": 0},
+    "support_z_um": {"type": "number", "unit": "um", "minimum": 0}
+  },
+  "state": {},
+  "initial_outputs": ["local_concentration"]
+}

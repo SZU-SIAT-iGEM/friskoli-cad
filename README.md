@@ -4,7 +4,7 @@ Friskoli-CAD 是面向趋化工程菌设计的模块化仿真与可视化工具�
 
 **当前状态：交付仓库、0.1.0 数据协议、行为图编译器与可运行的两种环境实现已建立；界面尚未接入。** 本仓库从空仓开始，旧版 WebUI、`friskoli-simulation` 和 `model-A-rebuilt` 只作为迁入时的参考。旧原型仍在各自原目录。
 
-开发状态和每阶段验收见 [PROGRESS.md](PROGRESS.md)。系统边界见 [架构约定](docs/architecture.md)，已实现的连接规则见 [协议 0.1.0](docs/protocol-0.1.md)，执行顺序见 [图编译器](docs/engine-compiler.md)，第一个数值例子见 [无扩散摄取循环](docs/engine-runtime.md)，两种环境的实际替换见 [环境模块对照](docs/environment-swap.md)，薄层与 3D 的选择见 [空间尺度](docs/spatial-resolution.md)，当前格距的局限见 [格点细化诊断](docs/grid-refinement.md)，换格时的物质守恒见 [浓度场重划](docs/conservative-regrid.md)，后续界面需求见 [前端用户历程笔记](docs/frontend-user-journey.md)，Git 与代码迁入规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+开发状态和每阶段验收见 [PROGRESS.md](PROGRESS.md)。系统边界见 [架构约定](docs/architecture.md)，已实现的连接规则见 [协议 0.1.0](docs/protocol-0.1.md)，执行顺序见 [图编译器](docs/engine-compiler.md)，第一个数值例子见 [无扩散摄取循环](docs/engine-runtime.md)，两种环境的实际替换见 [环境模块对照](docs/environment-swap.md)，薄层与 3D 的选择见 [空间尺度](docs/spatial-resolution.md)，当前格距的局限见 [格点细化诊断](docs/grid-refinement.md)，换格时的物质守恒见 [浓度场重划](docs/conservative-regrid.md)，跨格采样与沉积见 [固定物理作用范围](docs/box-support.md)，后续界面需求见 [前端用户历程笔记](docs/frontend-user-journey.md)，Git 与代码迁入规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 交付原则
 

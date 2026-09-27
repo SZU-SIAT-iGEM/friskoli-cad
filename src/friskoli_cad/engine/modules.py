@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 from importlib.resources import files
 from typing import Mapping
 
@@ -10,6 +11,7 @@ import numpy as np
 
 from .compiler import CompiledNode
 from .runtime import ModuleRegistry, ModuleResult, SimulationError, World
+from .spatial import box_overlap_weights
 
 
 def _manifest(name: str) -> dict:
@@ -92,6 +94,37 @@ class SampleNearest:
         return self._sample(world, node, inputs["concentration"])
 
 
+def _box_support(node: CompiledNode) -> tuple[float, float, float]:
+    support = tuple(node.parameters[f"support_{axis}_um"].value for axis in "xyz")
+    if not all(math.isfinite(value) and value > 0 for value in support):
+        raise SimulationError("spatial.support", "support dimensions must be finite and positive")
+    return support
+
+
+class SampleBoxSupport:
+    manifest = _manifest("field.sample_box_support")
+
+    def _sample(self, world: World, node: CompiledNode, field: np.ndarray) -> ModuleResult:
+        group = world.groups[node.owner_id]
+        flattened = field.ravel()
+        values = np.empty(len(group.ids), dtype=np.float64)
+        support = _box_support(node)
+        for index, position in enumerate(group.positions_um):
+            voxels, weights = box_overlap_weights(world.grid, position, support)
+            values[index] = np.dot(flattened[voxels], weights)
+        return ModuleResult({"local_concentration": values}, {})
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        return self._sample(world, node, inputs["concentration"])
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        return self._sample(world, node, inputs["concentration"])
+
+
 class LinearUptake:
     manifest = _manifest("uptake.linear")
 
@@ -142,7 +175,34 @@ class DepositNearest:
         return self._deposit(world, node, inputs["uptake_flux"])
 
 
+class DepositBoxSupport:
+    manifest = _manifest("field.deposit_box_support")
+
+    def _deposit(self, world: World, node: CompiledNode, flux: np.ndarray) -> ModuleResult:
+        if np.any(flux < 0):
+            raise SimulationError("cell.flux", "uptake flux cannot be negative")
+        group = world.groups[node.owner_id]
+        molecules_s = np.zeros(world.grid.voxel_count, dtype=np.float64)
+        support = _box_support(node)
+        for position, cell_flux in zip(group.positions_um, flux):
+            voxels, weights = box_overlap_weights(world.grid, position, support)
+            np.add.at(molecules_s, voxels, cell_flux * weights)
+        rate = molecules_s.reshape(world.grid.shape) / world.grid.molecules_per_uM_voxel
+        return ModuleResult({"consumption_rate": rate}, {})
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        return self._deposit(world, node, inputs["uptake_flux"])
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        return self._deposit(world, node, inputs["uptake_flux"])
+
+
 def default_registry() -> ModuleRegistry:
     return ModuleRegistry([
-        LocalInventory(), IdealReservoir(), SampleNearest(), LinearUptake(), DepositNearest(),
+        LocalInventory(), IdealReservoir(), SampleNearest(), SampleBoxSupport(), LinearUptake(),
+        DepositNearest(), DepositBoxSupport(),
     ])

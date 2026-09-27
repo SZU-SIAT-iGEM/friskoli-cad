@@ -1,0 +1,24 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "field.deposit_box_support",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 6,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Distribute cell uptake over a box with fixed physical dimensions using normalized voxel overlap volumes.",
+  "inputs": {
+    "uptake_flux": {"shape": "cell.scalar", "quantity": "uptake_flux", "unit": "molecule/s", "species_parameter": "species"}
+  },
+  "outputs": {
+    "consumption_rate": {"shape": "field.scalar", "quantity": "consumption_rate", "unit": "uM/s", "species_parameter": "species"}
+  },
+  "parameters": {
+    "species": {"type": "string"},
+    "support_x_um": {"type": "number", "unit": "um", "minimum": 0},
+    "support_y_um": {"type": "number", "unit": "um", "minimum": 0},
+    "support_z_um": {"type": "number", "unit": "um", "minimum": 0}
+  },
+  "state": {},
+  "initial_outputs": ["consumption_rate"]
+}
