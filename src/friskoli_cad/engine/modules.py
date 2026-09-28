@@ -23,6 +23,26 @@ def _manifest(name: str) -> dict:
     return json.loads(resource.read_text(encoding="utf-8"))
 
 
+class StaticPopulation:
+    manifest = _manifest("population.static")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        return ModuleResult({}, {})
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        return ModuleResult({}, {})
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        return ModuleResult({}, {})
+
+
 class LocalInventory:
     manifest = _manifest("field.local_inventory")
 
@@ -583,6 +603,7 @@ class ReflectiveRun:
 
 def default_registry() -> ModuleRegistry:
     return ModuleRegistry([
+        StaticPopulation(),
         LocalInventory(), LocalInventoryWithDiffusion(), ScheduledLocalInventory(),
         ScheduledUniformRate(), LinearElongation(), LengthAdder(), DiffusionNoFlux(), IdealReservoir(),
         SampleNearest(), SampleBoxSupport(), SampleBoxSupportAtPosition(), LinearUptake(),

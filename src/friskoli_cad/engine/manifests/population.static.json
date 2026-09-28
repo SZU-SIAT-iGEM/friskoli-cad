@@ -1,0 +1,15 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "population.static",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 0,
+  "scientific_role": "numerical",
+  "maturity": "reference",
+  "description": "Registers a population that keeps its initial pose and geometry until other behavior modules are connected.",
+  "inputs": {},
+  "outputs": {},
+  "parameters": {},
+  "state": {},
+  "initial_outputs": []
+}
