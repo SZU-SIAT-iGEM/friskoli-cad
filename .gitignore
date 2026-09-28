@@ -11,6 +11,7 @@ node_modules/
 
 # Generated products and simulation data
 build/
+!src/friskoli_cad/web/vendor/three/build/
 dist/
 coverage/
 runs/

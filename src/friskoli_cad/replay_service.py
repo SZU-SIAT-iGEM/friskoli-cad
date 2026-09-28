@@ -1,0 +1,148 @@
+"""Small local HTTP service for protocol-based simulation replay."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import math
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.resources import files
+from typing import Mapping
+
+from friskoli_cad.engine import SimulationError
+from friskoli_cad.engine.modules import default_registry
+from friskoli_cad.project import simulation_from_project
+from friskoli_cad.protocol import ProtocolError, validate_frame_sequence
+
+
+EXAMPLE_PROJECT = files("friskoli_cad").joinpath("examples", "workspace_3d.project.json")
+MAX_REQUEST_BYTES = 1_000_000
+MAX_REPLAY_VALUES = 1_000_000
+MAX_VIEW_TILES = 4_096
+MAX_VIEW_CELLS = 2_000
+STATIC_FILES = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/style.css": ("style.css", "text/css; charset=utf-8"),
+    "/app.mjs": ("app.mjs", "text/javascript; charset=utf-8"),
+    "/replay.mjs": ("replay.mjs", "text/javascript; charset=utf-8"),
+    "/i18n.mjs": ("i18n.mjs", "text/javascript; charset=utf-8"),
+    "/scene3d.mjs": ("scene3d.mjs", "text/javascript; charset=utf-8"),
+    "/catalog.mjs": ("catalog.mjs", "text/javascript; charset=utf-8"),
+    "/population.mjs": ("population.mjs", "text/javascript; charset=utf-8"),
+    "/workflow.mjs": ("workflow.mjs", "text/javascript; charset=utf-8"),
+    "/vendor/three/build/three.module.js": ("vendor/three/build/three.module.js", "text/javascript; charset=utf-8"),
+    "/vendor/three/build/three.core.js": ("vendor/three/build/three.core.js", "text/javascript; charset=utf-8"),
+    "/vendor/three/examples/jsm/controls/OrbitControls.js": ("vendor/three/examples/jsm/controls/OrbitControls.js", "text/javascript; charset=utf-8"),
+    "/assets/friskoli.svg": ("assets/friskoli.svg", "image/svg+xml"),
+    "/assets/cad.svg": ("assets/cad.svg", "image/svg+xml"),
+}
+
+
+class ReplayRequestError(ValueError):
+    def __init__(self, code: str, message: str, status: int = 400):
+        self.code = code
+        self.status = status
+        super().__init__(message)
+
+
+def _snapshot_payload(snapshot) -> dict:
+    return {
+        "frame": snapshot.cell_frame,
+        "concentrations": {
+            species: {"unit": snapshot.concentration_units[species], "values_zyx": values.tolist()}
+            for species, values in snapshot.concentration_fields.items()
+        },
+    }
+
+
+def build_replay(project: Mapping[str, object], *, dt_s: float, steps: int) -> dict:
+    """Run a project and expose its existing frames without changing their schema."""
+    if type(steps) is not int or not 1 <= steps <= 100:
+        raise ReplayRequestError("replay.steps", "steps must be an integer from 1 to 100")
+    if type(dt_s) not in (int, float) or not math.isfinite(dt_s) or dt_s <= 0:
+        raise ReplayRequestError("replay.dt", "dt_s must be positive and finite")
+    simulation = simulation_from_project(project)
+    initial = simulation.current
+    field_count = max(1, len(initial.concentration_fields))
+    if initial.domain.nx * initial.domain.ny > MAX_VIEW_TILES:
+        raise ReplayRequestError("replay.view_size", "XY slice exceeds the local viewer limit", 413)
+    if len(initial.cell_frame["cells"]) > MAX_VIEW_CELLS:
+        raise ReplayRequestError("replay.cell_count", "cell count exceeds the local viewer limit", 413)
+    if initial.domain.voxel_count * field_count * (steps + 1) > MAX_REPLAY_VALUES:
+        raise ReplayRequestError("replay.size", "replay field data exceeds the local viewer limit", 413)
+    snapshots = [_snapshot_payload(initial)]
+    for _ in range(steps):
+        snapshots.append(_snapshot_payload(simulation.step(dt_s)))
+        if len(snapshots[-1]["frame"]["cells"]) > MAX_VIEW_CELLS:
+            raise ReplayRequestError("replay.cell_count", "cell count exceeds the local viewer limit", 413)
+    validate_frame_sequence((item["frame"] for item in snapshots), project["run"])
+    return {
+        "replay_format_version": "0.1.0",
+        "project_id": project["id"],
+        "run": project["run"],
+        "domain": project["domain"],
+        "snapshots": snapshots,
+    }
+
+
+class ReplayHandler(BaseHTTPRequestHandler):
+    def _send(self, status: int, body: bytes, content_type: str) -> None:
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _json(self, status: int, value: object) -> None:
+        body = json.dumps(value, ensure_ascii=False, allow_nan=False).encode("utf-8")
+        self._send(status, body, "application/json; charset=utf-8")
+
+    def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
+        path = self.path.split("?", 1)[0]
+        if path == "/api/example-project":
+            self._send(200, EXAMPLE_PROJECT.read_bytes(), "application/json; charset=utf-8")
+        elif path == "/api/modules":
+            self._json(200, {"protocol_version": "0.1.0", "modules": default_registry().manifests})
+        elif path in STATIC_FILES:
+            filename, content_type = STATIC_FILES[path]
+            body = files("friskoli_cad").joinpath("web", filename).read_bytes()
+            self._send(200, body, content_type)
+        else:
+            self._json(404, {"error": {"code": "http.not_found", "message": "unknown path"}})
+
+    def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
+        if self.path != "/api/replay":
+            self._json(404, {"error": {"code": "http.not_found", "message": "unknown path"}})
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            if length <= 0 or length > MAX_REQUEST_BYTES:
+                raise ReplayRequestError("request.size", "request size must be between 1 and 1000000 bytes", 413)
+            request = json.loads(self.rfile.read(length))
+            if not isinstance(request, dict) or set(request) != {"project", "dt_s", "steps"}:
+                raise ReplayRequestError("request.shape", "expected project, dt_s and steps")
+            replay = build_replay(request["project"], dt_s=request["dt_s"], steps=request["steps"])
+            self._json(200, replay)
+        except (ReplayRequestError, ProtocolError, SimulationError, ValueError, TypeError, KeyError) as error:
+            status = error.status if isinstance(error, ReplayRequestError) else 422
+            code = getattr(error, "code", "request.invalid")
+            self._json(status, {"error": {"code": code, "message": str(error)}})
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Serve the local Friskoli-CAD replay viewer")
+    parser.add_argument("--port", type=int, default=8765)
+    arguments = parser.parse_args()
+    server = ThreadingHTTPServer(("127.0.0.1", arguments.port), ReplayHandler)
+    print(f"Friskoli-CAD replay: http://127.0.0.1:{server.server_port}", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+if __name__ == "__main__":
+    main()
