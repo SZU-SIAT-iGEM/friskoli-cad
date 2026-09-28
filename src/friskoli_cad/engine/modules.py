@@ -10,6 +10,7 @@ from typing import Mapping
 import numpy as np
 
 from .compiler import CompiledNode
+from .diffusion import explicit_no_flux_limit, no_flux_diffusion_rate
 from .runtime import ModuleRegistry, ModuleResult, SimulationError, World
 from .spatial import box_overlap_weights
 
@@ -39,6 +40,48 @@ class LocalInventory:
         if np.any(concentration < 0):
             raise SimulationError("field.depleted", "requested uptake exceeds local inventory; reduce dt_s")
         return ModuleResult({"concentration": concentration}, {"concentration": concentration})
+
+
+class LocalInventoryWithDiffusion(LocalInventory):
+    """Version 2 combines declared diffusion and consumption rates."""
+
+    manifest = _manifest("field.local_inventory.v2")
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        consumption = inputs["consumption_rate"]
+        if np.any(consumption < 0):
+            raise SimulationError("field.rate", "consumption rate cannot be negative")
+        concentration = previous_state["concentration"] + (
+            inputs["diffusion_rate"] - consumption
+        ) * dt_s
+        if np.any(concentration < 0):
+            raise SimulationError("field.depleted", "net loss exceeds local inventory; reduce dt_s")
+        return ModuleResult({"concentration": concentration}, {"concentration": concentration})
+
+
+class DiffusionNoFlux:
+    manifest = _manifest("field.diffusion_no_flux")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        explicit_no_flux_limit(world.grid, node.parameters["diffusivity"].value)
+        return ModuleResult({"diffusion_rate": np.zeros(world.grid.shape, dtype=np.float64)}, {})
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        coefficient = node.parameters["diffusivity"].value
+        limit = explicit_no_flux_limit(world.grid, coefficient)
+        if dt_s > limit * (1 + 1e-12):
+            raise SimulationError("diffusion.stability", f"dt_s exceeds the {limit:g} s explicit limit")
+        return ModuleResult({
+            "diffusion_rate": no_flux_diffusion_rate(inputs["concentration"], world.grid, coefficient)
+        }, {})
 
 
 class IdealReservoir:
@@ -203,6 +246,6 @@ class DepositBoxSupport:
 
 def default_registry() -> ModuleRegistry:
     return ModuleRegistry([
-        LocalInventory(), IdealReservoir(), SampleNearest(), SampleBoxSupport(), LinearUptake(),
-        DepositNearest(), DepositBoxSupport(),
+        LocalInventory(), LocalInventoryWithDiffusion(), DiffusionNoFlux(), IdealReservoir(),
+        SampleNearest(), SampleBoxSupport(), LinearUptake(), DepositNearest(), DepositBoxSupport(),
     ])

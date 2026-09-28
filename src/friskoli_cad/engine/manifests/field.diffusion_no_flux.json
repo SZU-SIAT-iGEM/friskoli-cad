@@ -1,0 +1,22 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "field.diffusion_no_flux",
+  "version": "1.0.0",
+  "scope": "environment",
+  "phase": 2,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Explicit finite-volume diffusion with no-flux boundaries and uniform diffusivity.",
+  "inputs": {
+    "concentration": {"shape": "field.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+  },
+  "outputs": {
+    "diffusion_rate": {"shape": "field.scalar", "quantity": "diffusion_rate", "unit": "uM/s", "species_parameter": "species"}
+  },
+  "parameters": {
+    "species": {"type": "string"},
+    "diffusivity": {"type": "number", "unit": "um2/s", "minimum": 0}
+  },
+  "state": {},
+  "initial_outputs": ["diffusion_rate"]
+}

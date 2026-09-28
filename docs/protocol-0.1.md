@@ -19,7 +19,7 @@
 
 必需输入要有且仅有一个提供者。图检查还拒绝重复节点、未知模块版本、跨菌体组的 `cell.*` 连接，以及不匹配的端口。
 
-[常量场图](../examples/protocol/graph.json)和[扩散场图](../examples/protocol/graph-diffusion.json)使用相同的菌体采样模块，展示环境模块的替换。[表面展示模块](../examples/protocol/modules/display.surface_copies.json)的功能名称不依赖蛋白；图中的 `INP` 只是 `protein_id` 的示例值。
+[常量场图](../examples/protocol/graph.json)和[扩散场图](../examples/protocol/graph-diffusion.json)使用相同的菌体采样模块，展示环境模块的替换；两图是早期协议示例，其中的 `field.diffusion` 未接入数值运行器。实际可运行的独立扩散模块与环境连接见[无通量扩散](no-flux-diffusion.md)。[表面展示模块](../examples/protocol/modules/display.surface_copies.json)的功能名称不依赖蛋白；图中的 `INP` 只是 `protein_id` 的示例值。
 
 ## 运行与单菌体序列
 
