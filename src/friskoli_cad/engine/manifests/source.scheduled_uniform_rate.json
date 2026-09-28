@@ -1,0 +1,22 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "source.scheduled_uniform_rate",
+  "version": "1.0.0",
+  "scope": "source",
+  "phase": 2,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Apply a project-declared, whole-domain external concentration rate during each aligned time interval.",
+  "inputs": {},
+  "outputs": {
+    "external_rate": {"shape": "field.scalar", "quantity": "external_rate", "unit": "uM/s", "species_parameter": "species"}
+  },
+  "parameters": {
+    "species": {"type": "string"},
+    "schedule_id": {"type": "string"}
+  },
+  "state": {
+    "time_s": {"shape": "global.scalar", "unit": "s", "on_division": "not_applicable"}
+  },
+  "initial_outputs": ["external_rate"]
+}

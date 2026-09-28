@@ -2,9 +2,9 @@
 
 Friskoli-CAD 是面向趋化工程菌设计的模块化仿真与可视化工具。空间场景提供初始条件；行为图用有类型、单位和时间语义的端口连接计算模块；运行结果保留单菌体身份与变化序列，供前端回放和检查。
 
-**当前状态：交付仓库、0.1.0 数据协议和可运行的数值核心已建立；运行服务与新前端尚未接入。** 数值核心支持两种环境实现、薄层与 3D、按物种区分的浓度场、基础扩散、演示性的单菌体移动和逐菌体结果帧；生长与分裂尚未运行。本仓库从空仓开始，旧版 WebUI、`friskoli-simulation` 和 `model-A-rebuilt` 只作为迁入时的参考。旧原型仍在各自原目录。
+**当前状态：交付仓库、0.1.0 数据协议和可运行的数值核心已建立；运行服务与新前端尚未接入。** 数值核心支持两种环境实现、薄层与 3D、项目级物种目录和外部输入日程、基础扩散、演示性的单菌体移动和逐菌体结果帧；生长与分裂尚未运行。本仓库从空仓开始，旧版 WebUI、`friskoli-simulation` 和 `model-A-rebuilt` 只作为迁入时的参考。旧原型仍在各自原目录。
 
-开发状态和每阶段验收见 [PROGRESS.md](PROGRESS.md)，后续顺序见[开发安排](docs/development-order.md)。系统边界见 [架构约定](docs/architecture.md)，已实现的连接规则见 [协议 0.1.0](docs/protocol-0.1.md)，执行顺序见 [图编译器](docs/engine-compiler.md)，第一个数值例子见 [无扩散摄取循环](docs/engine-runtime.md)，基础输运见[无通量扩散](docs/no-flux-diffusion.md)，移动与摄取时序见[移动菌体](docs/moving-cells.md)，两种环境的实际替换见 [环境模块对照](docs/environment-swap.md)，薄层与 3D 的选择见 [空间尺度](docs/spatial-resolution.md)，当前格距的局限见 [格点细化诊断](docs/grid-refinement.md)与[固定作用范围格距对照](docs/fixed-support-refinement.md)，换格时的物质守恒见 [浓度场重划](docs/conservative-regrid.md)，跨格采样与沉积见 [固定物理作用范围](docs/box-support.md)，状态归属与扩展规则见[状态归属说明](docs/state-ownership.md)，后续界面需求见 [前端用户历程笔记](docs/frontend-user-journey.md)，Git 与代码迁入规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+开发状态和每阶段验收见 [PROGRESS.md](PROGRESS.md)，后续顺序见[开发安排](docs/development-order.md)。系统边界见 [架构约定](docs/architecture.md)，已实现的连接规则见 [协议 0.1.0](docs/protocol-0.1.md)，执行顺序见 [图编译器](docs/engine-compiler.md)，第一个数值例子见 [无扩散摄取循环](docs/engine-runtime.md)，基础输运见[无通量扩散](docs/no-flux-diffusion.md)，移动与摄取时序见[移动菌体](docs/moving-cells.md)，项目格式与外部输入见[物种目录和输入日程](docs/project-schedule.md)，两种环境的实际替换见 [环境模块对照](docs/environment-swap.md)，薄层与 3D 的选择见 [空间尺度](docs/spatial-resolution.md)，当前格距的局限见 [格点细化诊断](docs/grid-refinement.md)与[固定作用范围格距对照](docs/fixed-support-refinement.md)，换格时的物质守恒见 [浓度场重划](docs/conservative-regrid.md)，跨格采样与沉积见 [固定物理作用范围](docs/box-support.md)，状态归属与扩展规则见[状态归属说明](docs/state-ownership.md)，后续界面需求见 [前端用户历程笔记](docs/frontend-user-journey.md)，Git 与代码迁入规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 交付原则
 

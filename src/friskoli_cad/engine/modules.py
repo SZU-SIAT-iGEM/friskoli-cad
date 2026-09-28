@@ -9,6 +9,8 @@ from typing import Mapping
 
 import numpy as np
 
+from friskoli_cad.project import ControlSchedule
+
 from .compiler import CompiledNode
 from .diffusion import explicit_no_flux_limit, no_flux_diffusion_rate
 from .motion import heading_from_orientation, reflect_in_box, turn_about_z
@@ -62,6 +64,77 @@ class LocalInventoryWithDiffusion(LocalInventory):
         if np.any(concentration < 0):
             raise SimulationError("field.depleted", "net loss exceeds local inventory; reduce dt_s")
         return ModuleResult({"concentration": concentration}, {"concentration": concentration})
+
+
+class ScheduledLocalInventory:
+    manifest = _manifest("field.local_inventory.v3")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        species = node.parameters["species"].value
+        if species not in world.species_initial_uM:
+            raise SimulationError("project.species", f"initial concentration missing for {species}")
+        concentration = np.full(world.grid.shape, world.species_initial_uM[species], dtype=np.float64)
+        zeros = np.zeros(world.grid.shape, dtype=np.float64)
+        return ModuleResult(
+            {"concentration": concentration, "external_flux": zeros, "cumulative_external": zeros},
+            {"concentration": concentration, "cumulative_external": zeros},
+        )
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        consumption = inputs.get("consumption_rate", 0)
+        if np.any(consumption < 0):
+            raise SimulationError("field.rate", "consumption rate cannot be negative")
+        external = inputs["external_rate"]
+        concentration = previous_state["concentration"] + dt_s * (
+            inputs.get("diffusion_rate", 0) - consumption + external
+        )
+        if np.any(concentration < 0):
+            raise SimulationError("field.depleted", "net loss exceeds local inventory; reduce dt_s")
+        external_flux = external * world.grid.molecules_per_uM_voxel
+        cumulative = previous_state["cumulative_external"] + external_flux * dt_s
+        return ModuleResult(
+            {"concentration": concentration, "external_flux": external_flux,
+             "cumulative_external": cumulative},
+            {"concentration": concentration, "cumulative_external": cumulative},
+        )
+
+
+class ScheduledUniformRate:
+    manifest = _manifest("source.scheduled_uniform_rate")
+
+    def _schedule(self, world: World, node: CompiledNode) -> ControlSchedule:
+        schedule = world.schedules.get(node.parameters["schedule_id"].value)
+        if not isinstance(schedule, ControlSchedule) or schedule.species != node.parameters["species"].value:
+            raise SimulationError("schedule.missing", "matching project control is required")
+        return schedule
+
+    def _result(self, world: World, rate: float, time_s: float) -> ModuleResult:
+        field = np.full(world.grid.shape, rate, dtype=np.float64)
+        return ModuleResult({"external_rate": field}, {"time_s": np.array(time_s)})
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        self._schedule(world, node)
+        return self._result(world, 0, 0)
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        start = float(previous_state["time_s"])
+        end = start + dt_s
+        if not math.isfinite(end):
+            raise SimulationError("time.overflow", "schedule time must remain finite")
+        rate, next_change = self._schedule(world, node).rate_and_next_change(start)
+        if next_change < end - 8 * math.ulp(end):
+            raise SimulationError(
+                "schedule.boundary", f"step crosses an input change at {next_change:g} s"
+            )
+        return self._result(world, rate, end)
 
 
 class DiffusionNoFlux:
@@ -324,7 +397,8 @@ class ReflectiveRun:
 
 def default_registry() -> ModuleRegistry:
     return ModuleRegistry([
-        LocalInventory(), LocalInventoryWithDiffusion(), DiffusionNoFlux(), IdealReservoir(),
+        LocalInventory(), LocalInventoryWithDiffusion(), ScheduledLocalInventory(),
+        ScheduledUniformRate(), DiffusionNoFlux(), IdealReservoir(),
         SampleNearest(), SampleBoxSupport(), SampleBoxSupportAtPosition(), LinearUptake(),
         DepositNearest(), DepositBoxSupport(), DepositBoxSupportAtPosition(),
         PeriodicTurn(), ReflectiveRun(),

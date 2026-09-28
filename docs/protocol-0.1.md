@@ -4,6 +4,8 @@
 
 四份 JSON Schema 分别定义[模块声明](../src/friskoli_cad/protocol/schemas/module.schema.json)、[行为图](../src/friskoli_cad/protocol/schemas/graph.schema.json)、[运行元数据](../src/friskoli_cad/protocol/schemas/run.schema.json)和[单菌体帧](../src/friskoli_cad/protocol/schemas/frame.schema.json)。`friskoli_cad.protocol` 另检查 Schema 无法表达的引用、单位、物质、连接时序和事件连续性。
 
+[项目快照](project-schedule.md)另有自己的 `project_version: 0.1.0` 格式与 [Schema](../src/friskoli_cad/protocol/schemas/project.schema.json)，把场地、菌体、物种、日程、行为图和运行元数据一起保存；它不改变这里的模块与帧协议版本。
+
 ## 模块声明与连接
 
 模块声明包含标识、版本、作用范围、执行相位、科学角色、成熟度、端口、参数、内部状态，以及在 `t=0` 可读取的输出。作用范围为 `environment`、`source` 或 `population`；菌体组内的计算以 `cell.*` 端口表达逐菌体数组。运行器已把 `cell.vector` 用于逐菌体 XYZ 三维位置和方向，见[移动行为图](../examples/runtime/moving_uptake.graph.json)。一个图可以同时包含环境与菌体组模块，计算核心没有预先写死的模块插槽。

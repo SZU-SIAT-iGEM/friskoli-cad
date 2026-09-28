@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Iterable, Literal, Mapping, Protocol
 
@@ -128,6 +128,8 @@ class CellGroup:
 class World:
     grid: GridDomain
     groups: Mapping[str, CellGroup]
+    species_initial_uM: Mapping[str, float] = field(default_factory=dict)
+    schedules: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         groups = dict(self.groups)
@@ -139,7 +141,16 @@ class World:
                 raise SimulationError("cell.identity", "cell IDs must be unique across groups")
             seen.update(group.ids)
             self.grid.flat_indices(group.positions_um)
+        species = dict(self.species_initial_uM)
+        if any(
+            type(name) is not str or not name
+            or type(level) not in (int, float) or not math.isfinite(level) or level < 0
+            for name, level in species.items()
+        ):
+            raise SimulationError("project.species", "species initial concentrations must be nonnegative")
         object.__setattr__(self, "groups", MappingProxyType(groups))
+        object.__setattr__(self, "species_initial_uM", MappingProxyType(species))
+        object.__setattr__(self, "schedules", MappingProxyType(dict(self.schedules)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -247,6 +258,8 @@ class Simulation:
             return (len(self.world.groups[node.owner_id].ids),)
         if shape == "cell.vector":
             return (len(self.world.groups[node.owner_id].ids), 3)
+        if shape == "global.scalar":
+            return ()
         raise SimulationError("runtime.shape", f"port shape {shape} has no executor yet")
 
     def _apply_pose(
@@ -263,7 +276,10 @@ class Simulation:
             group.id, group.ids, positions,
             orientation_after_heading(group.orientation_xyzw, heading),
         )
-        return World(world.grid, {**world.groups, node.owner_id: updated})
+        return World(
+            world.grid, {**world.groups, node.owner_id: updated},
+            world.species_initial_uM, world.schedules,
+        )
 
     def _freeze_result(
         self, node: CompiledNode, result: ModuleResult
@@ -352,7 +368,7 @@ class Simulation:
         field_units = {}
         environment_fields = {}
         for node in self.plan.nodes:
-            if node.owner_kind != "environment":
+            if node.owner_kind not in ("environment", "source"):
                 continue
             manifest = self.registry.get(node.module_id, node.module_version).manifest
             node_fields = {}

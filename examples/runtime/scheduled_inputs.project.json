@@ -1,0 +1,143 @@
+{
+  "project_version": "0.1.0",
+  "id": "two-species-scheduled-input-demo",
+  "domain": {
+    "geometry": "thin_layer",
+    "counts_xyz": [4, 2, 1],
+    "spacing_um_xyz": [5, 5, 1]
+  },
+  "groups": {
+    "group_1": {
+      "ids": ["cell_0"],
+      "positions_um": [[2.5, 2.5, 0.5]],
+      "orientation_xyzw": [[0, 0, 0, 1]]
+    }
+  },
+  "species": {
+    "substrate": {
+      "concentration_unit": "uM",
+      "initial_concentration": {
+        "value": 10, "unit": "uM",
+        "provenance": {"kind": "example", "reference": "illustrative starting concentration"}
+      }
+    },
+    "oxygen": {
+      "concentration_unit": "uM",
+      "initial_concentration": {
+        "value": 5, "unit": "uM",
+        "provenance": {"kind": "example", "reference": "illustrative independent species; no oxygen biology"}
+      }
+    }
+  },
+  "controls": {
+    "substrate_feed": {
+      "species": "substrate", "scope": "whole_domain", "rate_unit": "uM/s",
+      "repeat_period_s": 1.5,
+      "changes": [
+        {"time_s": 0, "rate_uM_s": 0, "provenance": {"kind": "example", "reference": "initially no external input"}},
+        {"time_s": 0.5, "rate_uM_s": 0.2, "provenance": {"kind": "example", "reference": "illustrative input pulse"}},
+        {"time_s": 1.0, "rate_uM_s": 0, "provenance": {"kind": "example", "reference": "end input pulse"}}
+      ]
+    },
+    "oxygen_feed": {
+      "species": "oxygen", "scope": "whole_domain", "rate_unit": "uM/s",
+      "changes": [
+        {"time_s": 0, "rate_uM_s": 0, "provenance": {"kind": "example", "reference": "initially no external input"}},
+        {"time_s": 1.0, "rate_uM_s": 0.1, "provenance": {"kind": "example", "reference": "external input only; no gas exchange mechanism"}},
+        {"time_s": 1.5, "rate_uM_s": 0, "provenance": {"kind": "example", "reference": "end oxygen input"}}
+      ]
+    }
+  },
+  "graph": {
+    "protocol_version": "0.1.0",
+    "id": "two-species-scheduled-input-graph",
+    "nodes": [
+      {
+        "id": "substrate_field", "module_id": "field.local_inventory", "module_version": "3.0.0",
+        "owner": {"kind": "environment", "id": "domain"},
+        "parameters": {
+          "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "project species catalog"}}
+        }
+      },
+      {
+        "id": "substrate_input", "module_id": "source.scheduled_uniform_rate", "module_version": "1.0.0",
+        "owner": {"kind": "source", "id": "substrate_feed"},
+        "parameters": {
+          "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "project species catalog"}},
+          "schedule_id": {"value": "substrate_feed", "provenance": {"kind": "example", "reference": "project control"}}
+        }
+      },
+      {
+        "id": "substrate_diffusion", "module_id": "field.diffusion_no_flux", "module_version": "1.0.0",
+        "owner": {"kind": "environment", "id": "domain"},
+        "parameters": {
+          "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "project species catalog"}},
+          "diffusivity": {"value": 1, "unit": "um2/s", "provenance": {"kind": "example", "reference": "illustrative, uncalibrated"}}
+        }
+      },
+      {
+        "id": "oxygen_field", "module_id": "field.local_inventory", "module_version": "3.0.0",
+        "owner": {"kind": "environment", "id": "domain"},
+        "parameters": {
+          "species": {"value": "oxygen", "provenance": {"kind": "example", "reference": "project species catalog"}}
+        }
+      },
+      {
+        "id": "oxygen_input", "module_id": "source.scheduled_uniform_rate", "module_version": "1.0.0",
+        "owner": {"kind": "source", "id": "oxygen_feed"},
+        "parameters": {
+          "species": {"value": "oxygen", "provenance": {"kind": "example", "reference": "project species catalog"}},
+          "schedule_id": {"value": "oxygen_feed", "provenance": {"kind": "example", "reference": "project control"}}
+        }
+      },
+      {
+        "id": "sampler", "module_id": "field.sample_box_support", "module_version": "1.0.0",
+        "owner": {"kind": "population", "id": "group_1"},
+        "parameters": {
+          "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "substrate uptake"}},
+          "support_x_um": {"value": 2, "unit": "um", "provenance": {"kind": "example", "reference": "interaction support, not cell size"}},
+          "support_y_um": {"value": 2, "unit": "um", "provenance": {"kind": "example", "reference": "interaction support, not cell size"}},
+          "support_z_um": {"value": 0.8, "unit": "um", "provenance": {"kind": "example", "reference": "interaction support, not cell size"}}
+        }
+      },
+      {
+        "id": "uptake", "module_id": "uptake.linear", "module_version": "1.0.0",
+        "owner": {"kind": "population", "id": "group_1"},
+        "parameters": {
+          "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "substrate uptake"}},
+          "rate_constant": {"value": 100, "unit": "molecule/(s*uM)", "provenance": {"kind": "example", "reference": "illustrative, uncalibrated"}}
+        }
+      },
+      {
+        "id": "deposit", "module_id": "field.deposit_box_support", "module_version": "1.0.0",
+        "owner": {"kind": "population", "id": "group_1"},
+        "parameters": {
+          "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "substrate uptake"}},
+          "support_x_um": {"value": 2, "unit": "um", "provenance": {"kind": "example", "reference": "interaction support, not cell size"}},
+          "support_y_um": {"value": 2, "unit": "um", "provenance": {"kind": "example", "reference": "interaction support, not cell size"}},
+          "support_z_um": {"value": 0.8, "unit": "um", "provenance": {"kind": "example", "reference": "interaction support, not cell size"}}
+        }
+      }
+    ],
+    "edges": [
+      {"id": "substrate_input_to_field", "from": {"node": "substrate_input", "port": "external_rate"}, "to": {"node": "substrate_field", "port": "external_rate"}, "timing": "same_step"},
+      {"id": "substrate_field_to_diffusion", "from": {"node": "substrate_field", "port": "concentration"}, "to": {"node": "substrate_diffusion", "port": "concentration"}, "timing": "previous_step"},
+      {"id": "substrate_diffusion_to_field", "from": {"node": "substrate_diffusion", "port": "diffusion_rate"}, "to": {"node": "substrate_field", "port": "diffusion_rate"}, "timing": "same_step"},
+      {"id": "substrate_field_to_sampler", "from": {"node": "substrate_field", "port": "concentration"}, "to": {"node": "sampler", "port": "concentration"}, "timing": "same_step"},
+      {"id": "sampler_to_uptake", "from": {"node": "sampler", "port": "local_concentration"}, "to": {"node": "uptake", "port": "local_concentration"}, "timing": "same_step"},
+      {"id": "uptake_to_deposit", "from": {"node": "uptake", "port": "uptake_flux"}, "to": {"node": "deposit", "port": "uptake_flux"}, "timing": "same_step"},
+      {"id": "deposit_to_substrate_field", "from": {"node": "deposit", "port": "consumption_rate"}, "to": {"node": "substrate_field", "port": "consumption_rate"}, "timing": "previous_step"},
+      {"id": "oxygen_input_to_field", "from": {"node": "oxygen_input", "port": "external_rate"}, "to": {"node": "oxygen_field", "port": "external_rate"}, "timing": "same_step"}
+    ]
+  },
+  "run": {
+    "protocol_version": "0.1.0",
+    "run_id": "two-species-scheduled-input-run",
+    "graph_id": "two-species-scheduled-input-graph",
+    "groups": ["group_1"],
+    "channels": {
+      "uptake.flux": {"node": "uptake", "port": "uptake_flux", "group_id": "group_1", "shape": "cell.scalar", "quantity": "uptake_flux", "unit": "molecule/s"},
+      "uptake.cumulative": {"node": "uptake", "port": "cumulative_uptake", "group_id": "group_1", "shape": "cell.scalar", "quantity": "cumulative_uptake", "unit": "molecule"}
+    }
+  }
+}
