@@ -1,7 +1,7 @@
 """Array-based execution for typed graph modules.
 
-The first runtime supports scalar fields and per-cell scalar outputs in a
-thin layer or a full 3D grid. Unsupported port shapes fail explicitly.
+The runtime supports scalar fields, per-cell scalars, and per-cell vectors
+in a thin layer or a full 3D grid. Unsupported port shapes fail explicitly.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ import numpy as np
 from friskoli_cad.protocol import FrameSequenceValidator, validate_manifest, validate_run_metadata
 
 from .compiler import CompiledNode, compile_graph
+from .motion import orientation_after_heading
 
 
 MOLECULES_PER_UM3_PER_UM = 6.02214076e23 * 1e-21
@@ -211,12 +212,31 @@ class Simulation:
         validate_run_metadata(run, graph, registry.manifests)
         if set(world.groups) != set(run["groups"]):
             raise SimulationError("run.groups", "world groups differ from run metadata")
+        self._pose_nodes = set()
+        pose_groups = set()
+        for node in self.plan.nodes:
+            outputs = registry.get(node.module_id, node.module_version).manifest["outputs"]
+            pose = {name: outputs.get(name) for name in ("position", "heading")}
+            if pose["position"] is not None:
+                if (
+                    node.owner_kind != "population"
+                    or pose["position"] is None or pose["heading"] is None
+                    or (pose["position"]["shape"], pose["position"]["quantity"], pose["position"]["unit"])
+                    != ("cell.vector", "position", "um")
+                    or (pose["heading"]["shape"], pose["heading"]["quantity"], pose["heading"]["unit"])
+                    != ("cell.vector", "heading", "1")
+                ):
+                    raise SimulationError("motion.pose", f"{node.id} has an invalid pose output pair")
+                if node.owner_id in pose_groups:
+                    raise SimulationError("motion.pose", f"group {node.owner_id} has two pose providers")
+                pose_groups.add(node.owner_id)
+                self._pose_nodes.add(node.id)
         self.run = deepcopy(run)
         self.time_s = 0.0
         self.frame_index = 0
-        self.outputs, self.state = self._execute(initial=True, dt_s=0.0)
+        self.outputs, self.state, _ = self._execute(initial=True, dt_s=0.0)
         self.frame_validator = FrameSequenceValidator(run)
-        initial = self._snapshot(self.outputs, 0.0, 0)
+        initial = self._snapshot(self.outputs, self.world, 0.0, 0)
         self.frame_validator.accept(initial.cell_frame, validate_schema=False)
         self.current = initial
 
@@ -225,7 +245,25 @@ class Simulation:
             return self.world.grid.shape
         if shape == "cell.scalar":
             return (len(self.world.groups[node.owner_id].ids),)
+        if shape == "cell.vector":
+            return (len(self.world.groups[node.owner_id].ids), 3)
         raise SimulationError("runtime.shape", f"port shape {shape} has no executor yet")
+
+    def _apply_pose(
+        self, world: World, node: CompiledNode, outputs: Mapping[str, np.ndarray]
+    ) -> World:
+        positions, heading = outputs["position"], outputs["heading"]
+        norms = np.linalg.norm(heading, axis=1)
+        if not np.allclose(norms, 1, rtol=0, atol=1e-9):
+            raise SimulationError("motion.heading", "headings must have unit length")
+        if world.grid.geometry == "thin_layer" and np.any(np.abs(heading[:, 2]) > 1e-9):
+            raise SimulationError("motion.plane", "thin-layer headings must lie in XY")
+        group = world.groups[node.owner_id]
+        updated = CellGroup(
+            group.id, group.ids, positions,
+            orientation_after_heading(group.orientation_xyzw, heading),
+        )
+        return World(world.grid, {**world.groups, node.owner_id: updated})
 
     def _freeze_result(
         self, node: CompiledNode, result: ModuleResult
@@ -260,9 +298,10 @@ class Simulation:
 
     def _execute(
         self, initial: bool, dt_s: float
-    ) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, dict[str, np.ndarray]]]:
+    ) -> tuple[dict[str, dict[str, np.ndarray]], dict[str, dict[str, np.ndarray]], World]:
         outputs: dict[str, dict[str, np.ndarray]] = {}
         state: dict[str, dict[str, np.ndarray]] = {}
+        working_world = self.world
         for node in self.plan.nodes:
             inputs = {}
             for name, binding in node.inputs.items():
@@ -272,25 +311,28 @@ class Simulation:
                 inputs[name] = source_outputs[binding.source_node][binding.source_port]
             module = self.registry.get(node.module_id, node.module_version)
             if initial:
-                result = module.initialize(self.world, node, MappingProxyType(inputs))
+                result = module.initialize(working_world, node, MappingProxyType(inputs))
             else:
                 result = module.advance(
-                    self.world, node, MappingProxyType(inputs),
+                    working_world, node, MappingProxyType(inputs),
                     MappingProxyType(self.state[node.id]), MappingProxyType(self.outputs[node.id]), dt_s,
                 )
             outputs[node.id], state[node.id] = self._freeze_result(node, result)
-        return outputs, state
+            if not initial and node.id in self._pose_nodes:
+                working_world = self._apply_pose(working_world, node, outputs[node.id])
+        return outputs, state, working_world
 
     def _snapshot(
-        self, outputs: Mapping[str, Mapping[str, np.ndarray]], time_s: float, index: int
+        self, outputs: Mapping[str, Mapping[str, np.ndarray]], world: World,
+        time_s: float, index: int,
     ) -> Snapshot:
-        channels_by_group: dict[str, list[tuple[str, np.ndarray]]] = {key: [] for key in self.world.groups}
+        channels_by_group: dict[str, list[tuple[str, np.ndarray]]] = {key: [] for key in world.groups}
         for channel_id, channel in self.run["channels"].items():
             values = outputs[channel["node"]][channel["port"]]
             channels_by_group[channel["group_id"]].append((channel_id, values))
         cells = []
-        for group_id in sorted(self.world.groups):
-            group = self.world.groups[group_id]
+        for group_id in sorted(world.groups):
+            group = world.groups[group_id]
             for index_in_group, cell_id in enumerate(group.ids):
                 cells.append({
                     "id": cell_id,
@@ -331,19 +373,20 @@ class Simulation:
             environment_fields[node.id] = MappingProxyType(node_fields)
         return Snapshot(
             frame, MappingProxyType(fields), MappingProxyType(field_units),
-            MappingProxyType(environment_fields), self.world.grid,
+            MappingProxyType(environment_fields), world.grid,
         )
 
     def step(self, dt_s: float) -> Snapshot:
         if not math.isfinite(dt_s) or dt_s <= 0:
             raise SimulationError("time.step", "dt_s must be positive and finite")
-        outputs, state = self._execute(initial=False, dt_s=dt_s)
+        outputs, state, next_world = self._execute(initial=False, dt_s=dt_s)
         next_time = self.time_s + dt_s
         if not math.isfinite(next_time):
             raise SimulationError("time.overflow", "simulation time must remain finite")
-        snapshot = self._snapshot(outputs, next_time, self.frame_index + 1)
+        snapshot = self._snapshot(outputs, next_world, next_time, self.frame_index + 1)
         self.frame_validator.accept(snapshot.cell_frame, validate_schema=False)
         self.outputs, self.state = outputs, state
+        self.world = next_world
         self.time_s = next_time
         self.frame_index += 1
         self.current = snapshot

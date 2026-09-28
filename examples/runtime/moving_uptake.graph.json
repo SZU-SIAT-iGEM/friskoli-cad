@@ -1,0 +1,76 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "moving-no-flux-uptake-example",
+  "nodes": [
+    {
+      "id": "field", "module_id": "field.local_inventory", "module_version": "2.0.0",
+      "owner": {"kind": "environment", "id": "domain"},
+      "parameters": {
+        "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "moving-demo"}},
+        "initial_concentration": {"value": 10, "unit": "uM", "provenance": {"kind": "example", "reference": "moving-demo"}}
+      }
+    },
+    {
+      "id": "diffusion", "module_id": "field.diffusion_no_flux", "module_version": "1.0.0",
+      "owner": {"kind": "environment", "id": "domain"},
+      "parameters": {
+        "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "moving-demo"}},
+        "diffusivity": {"value": 5, "unit": "um2/s", "provenance": {"kind": "example", "reference": "illustrative, uncalibrated"}}
+      }
+    },
+    {
+      "id": "motion", "module_id": "motion.reflective_run", "module_version": "1.0.0",
+      "owner": {"kind": "population", "id": "group_1"},
+      "parameters": {
+        "speed_um_s": {"value": 6, "unit": "um/s", "provenance": {"kind": "example", "reference": "illustrative, uncalibrated"}}
+      }
+    },
+    {
+      "id": "sampler", "module_id": "field.sample_box_support", "module_version": "2.0.0",
+      "owner": {"kind": "population", "id": "group_1"},
+      "parameters": {
+        "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "moving-demo"}},
+        "support_x_um": {"value": 2, "unit": "um", "provenance": {"kind": "example", "reference": "illustrative interaction support, not cell size"}},
+        "support_y_um": {"value": 2, "unit": "um", "provenance": {"kind": "example", "reference": "illustrative interaction support, not cell size"}},
+        "support_z_um": {"value": 0.8, "unit": "um", "provenance": {"kind": "example", "reference": "illustrative interaction support, not cell size"}}
+      }
+    },
+    {
+      "id": "uptake", "module_id": "uptake.linear", "module_version": "1.0.0",
+      "owner": {"kind": "population", "id": "group_1"},
+      "parameters": {
+        "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "moving-demo"}},
+        "rate_constant": {"value": 100, "unit": "molecule/(s*uM)", "provenance": {"kind": "example", "reference": "illustrative, uncalibrated"}}
+      }
+    },
+    {
+      "id": "deposit", "module_id": "field.deposit_box_support", "module_version": "2.0.0",
+      "owner": {"kind": "population", "id": "group_1"},
+      "parameters": {
+        "species": {"value": "substrate", "provenance": {"kind": "example", "reference": "moving-demo"}},
+        "support_x_um": {"value": 2, "unit": "um", "provenance": {"kind": "example", "reference": "illustrative interaction support, not cell size"}},
+        "support_y_um": {"value": 2, "unit": "um", "provenance": {"kind": "example", "reference": "illustrative interaction support, not cell size"}},
+        "support_z_um": {"value": 0.8, "unit": "um", "provenance": {"kind": "example", "reference": "illustrative interaction support, not cell size"}}
+      }
+    },
+    {
+      "id": "turn", "module_id": "motion.periodic_turn", "module_version": "1.0.0",
+      "owner": {"kind": "population", "id": "group_1"},
+      "parameters": {
+        "turn_interval_s": {"value": 1, "unit": "s", "provenance": {"kind": "example", "reference": "illustrative, deterministic"}},
+        "turn_angle_rad": {"value": 1.5707963267948966, "unit": "rad", "provenance": {"kind": "example", "reference": "illustrative, deterministic"}}
+      }
+    }
+  ],
+  "edges": [
+    {"id": "field_to_diffusion", "from": {"node": "field", "port": "concentration"}, "to": {"node": "diffusion", "port": "concentration"}, "timing": "previous_step"},
+    {"id": "diffusion_to_field", "from": {"node": "diffusion", "port": "diffusion_rate"}, "to": {"node": "field", "port": "diffusion_rate"}, "timing": "same_step"},
+    {"id": "field_to_sampler", "from": {"node": "field", "port": "concentration"}, "to": {"node": "sampler", "port": "concentration"}, "timing": "same_step"},
+    {"id": "motion_to_sampler", "from": {"node": "motion", "port": "position"}, "to": {"node": "sampler", "port": "position"}, "timing": "same_step"},
+    {"id": "sampler_to_uptake", "from": {"node": "sampler", "port": "local_concentration"}, "to": {"node": "uptake", "port": "local_concentration"}, "timing": "same_step"},
+    {"id": "uptake_to_deposit", "from": {"node": "uptake", "port": "uptake_flux"}, "to": {"node": "deposit", "port": "uptake_flux"}, "timing": "same_step"},
+    {"id": "motion_to_deposit", "from": {"node": "motion", "port": "position"}, "to": {"node": "deposit", "port": "position"}, "timing": "same_step"},
+    {"id": "deposit_to_field", "from": {"node": "deposit", "port": "consumption_rate"}, "to": {"node": "field", "port": "consumption_rate"}, "timing": "previous_step"},
+    {"id": "turn_to_motion", "from": {"node": "turn", "port": "turn_angle"}, "to": {"node": "motion", "port": "turn_angle"}, "timing": "previous_step"}
+  ]
+}

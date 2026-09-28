@@ -11,6 +11,7 @@ import numpy as np
 
 from .compiler import CompiledNode
 from .diffusion import explicit_no_flux_limit, no_flux_diffusion_rate
+from .motion import heading_from_orientation, reflect_in_box, turn_about_z
 from .runtime import ModuleRegistry, ModuleResult, SimulationError, World
 from .spatial import box_overlap_weights
 
@@ -147,25 +148,35 @@ def _box_support(node: CompiledNode) -> tuple[float, float, float]:
 class SampleBoxSupport:
     manifest = _manifest("field.sample_box_support")
 
-    def _sample(self, world: World, node: CompiledNode, field: np.ndarray) -> ModuleResult:
-        group = world.groups[node.owner_id]
+    def _sample(
+        self, world: World, node: CompiledNode, field: np.ndarray, positions: np.ndarray
+    ) -> ModuleResult:
         flattened = field.ravel()
-        values = np.empty(len(group.ids), dtype=np.float64)
+        values = np.empty(len(positions), dtype=np.float64)
         support = _box_support(node)
-        for index, position in enumerate(group.positions_um):
+        for index, position in enumerate(positions):
             voxels, weights = box_overlap_weights(world.grid, position, support)
             values[index] = np.dot(flattened[voxels], weights)
         return ModuleResult({"local_concentration": values}, {})
 
     def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
-        return self._sample(world, node, inputs["concentration"])
+        return self._sample(
+            world, node, inputs["concentration"], world.groups[node.owner_id].positions_um
+        )
 
     def advance(
         self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
         previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
         dt_s: float,
     ) -> ModuleResult:
-        return self._sample(world, node, inputs["concentration"])
+        return self.initialize(world, node, inputs)
+
+
+class SampleBoxSupportAtPosition(SampleBoxSupport):
+    manifest = _manifest("field.sample_box_support.v2")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        return self._sample(world, node, inputs["concentration"], inputs["position"])
 
 
 class LinearUptake:
@@ -221,31 +232,100 @@ class DepositNearest:
 class DepositBoxSupport:
     manifest = _manifest("field.deposit_box_support")
 
-    def _deposit(self, world: World, node: CompiledNode, flux: np.ndarray) -> ModuleResult:
+    def _deposit(
+        self, world: World, node: CompiledNode, flux: np.ndarray, positions: np.ndarray
+    ) -> ModuleResult:
         if np.any(flux < 0):
             raise SimulationError("cell.flux", "uptake flux cannot be negative")
-        group = world.groups[node.owner_id]
         molecules_s = np.zeros(world.grid.voxel_count, dtype=np.float64)
         support = _box_support(node)
-        for position, cell_flux in zip(group.positions_um, flux):
+        for position, cell_flux in zip(positions, flux):
             voxels, weights = box_overlap_weights(world.grid, position, support)
             np.add.at(molecules_s, voxels, cell_flux * weights)
         rate = molecules_s.reshape(world.grid.shape) / world.grid.molecules_per_uM_voxel
         return ModuleResult({"consumption_rate": rate}, {})
 
     def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
-        return self._deposit(world, node, inputs["uptake_flux"])
+        return self._deposit(
+            world, node, inputs["uptake_flux"], world.groups[node.owner_id].positions_um
+        )
 
     def advance(
         self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
         previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
         dt_s: float,
     ) -> ModuleResult:
-        return self._deposit(world, node, inputs["uptake_flux"])
+        return self.initialize(world, node, inputs)
+
+
+class DepositBoxSupportAtPosition(DepositBoxSupport):
+    manifest = _manifest("field.deposit_box_support.v2")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        return self._deposit(world, node, inputs["uptake_flux"], inputs["position"])
+
+
+class PeriodicTurn:
+    manifest = _manifest("motion.periodic_turn")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        if node.parameters["turn_interval_s"].value <= 0:
+            raise SimulationError("motion.turn_interval", "turn interval must be positive")
+        zeros = np.zeros(len(world.groups[node.owner_id].ids), dtype=np.float64)
+        return ModuleResult({"turn_angle": zeros}, {"elapsed_s": zeros})
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        interval = node.parameters["turn_interval_s"].value
+        if dt_s > interval:
+            raise SimulationError("motion.turn_step", "dt_s exceeds the turn interval")
+        elapsed = previous_state["elapsed_s"] + dt_s
+        crossed = elapsed >= interval - 1e-12 * interval
+        elapsed = np.where(crossed, np.maximum(0, elapsed - interval), elapsed)
+        angle = np.where(crossed, node.parameters["turn_angle_rad"].value, 0.0)
+        return ModuleResult({"turn_angle": angle}, {"elapsed_s": elapsed})
+
+
+class ReflectiveRun:
+    manifest = _manifest("motion.reflective_run")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        group = world.groups[node.owner_id]
+        positions = group.positions_um
+        heading = heading_from_orientation(group.orientation_xyzw)
+        if world.grid.geometry == "thin_layer" and np.any(np.abs(heading[:, 2]) > 1e-9):
+            raise SimulationError("motion.plane", "thin-layer headings must lie in XY")
+        return ModuleResult(
+            {"position": positions, "heading": heading},
+            {"position": positions, "heading": heading},
+        )
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        distance = node.parameters["speed_um_s"].value * dt_s
+        if not math.isfinite(distance):
+            raise SimulationError("motion.distance", "travel distance is not finite")
+        heading = turn_about_z(previous_state["heading"], inputs["turn_angle"])
+        positions, heading = reflect_in_box(
+            previous_state["position"], heading, distance, world.grid.extent_um,
+            thin_layer=world.grid.geometry == "thin_layer",
+        )
+        return ModuleResult(
+            {"position": positions, "heading": heading},
+            {"position": positions, "heading": heading},
+        )
 
 
 def default_registry() -> ModuleRegistry:
     return ModuleRegistry([
         LocalInventory(), LocalInventoryWithDiffusion(), DiffusionNoFlux(), IdealReservoir(),
-        SampleNearest(), SampleBoxSupport(), LinearUptake(), DepositNearest(), DepositBoxSupport(),
+        SampleNearest(), SampleBoxSupport(), SampleBoxSupportAtPosition(), LinearUptake(),
+        DepositNearest(), DepositBoxSupport(), DepositBoxSupportAtPosition(),
+        PeriodicTurn(), ReflectiveRun(),
     ])

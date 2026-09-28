@@ -1,0 +1,25 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "field.sample_box_support",
+  "version": "2.0.0",
+  "scope": "population",
+  "phase": 4,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Sample a concentration field over fixed physical supports centered on declared cell positions.",
+  "inputs": {
+    "concentration": {"shape": "field.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"},
+    "position": {"shape": "cell.vector", "quantity": "position", "unit": "um"}
+  },
+  "outputs": {
+    "local_concentration": {"shape": "cell.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+  },
+  "parameters": {
+    "species": {"type": "string"},
+    "support_x_um": {"type": "number", "unit": "um", "minimum": 0},
+    "support_y_um": {"type": "number", "unit": "um", "minimum": 0},
+    "support_z_um": {"type": "number", "unit": "um", "minimum": 0}
+  },
+  "state": {},
+  "initial_outputs": ["local_concentration"]
+}

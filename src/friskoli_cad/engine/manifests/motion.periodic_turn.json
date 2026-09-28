@@ -1,0 +1,22 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "motion.periodic_turn",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 5,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Issue a deterministic turn command at each configured time boundary for the next motion interval.",
+  "inputs": {},
+  "outputs": {
+    "turn_angle": {"shape": "cell.scalar", "quantity": "turn_angle", "unit": "rad"}
+  },
+  "parameters": {
+    "turn_interval_s": {"type": "number", "unit": "s", "minimum": 0},
+    "turn_angle_rad": {"type": "number", "unit": "rad"}
+  },
+  "state": {
+    "elapsed_s": {"shape": "cell.scalar", "unit": "s", "on_division": "copy"}
+  },
+  "initial_outputs": ["turn_angle"]
+}

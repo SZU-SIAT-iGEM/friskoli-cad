@@ -1,0 +1,25 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "motion.reflective_run",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 2,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Turn at the interval start, then move at constant speed with specular center-point reflection at the domain faces.",
+  "inputs": {
+    "turn_angle": {"shape": "cell.scalar", "quantity": "turn_angle", "unit": "rad"}
+  },
+  "outputs": {
+    "position": {"shape": "cell.vector", "quantity": "position", "unit": "um"},
+    "heading": {"shape": "cell.vector", "quantity": "heading", "unit": "1"}
+  },
+  "parameters": {
+    "speed_um_s": {"type": "number", "unit": "um/s", "minimum": 0}
+  },
+  "state": {
+    "position": {"shape": "cell.vector", "unit": "um", "on_division": "copy"},
+    "heading": {"shape": "cell.vector", "unit": "1", "on_division": "copy"}
+  },
+  "initial_outputs": ["position", "heading"]
+}
