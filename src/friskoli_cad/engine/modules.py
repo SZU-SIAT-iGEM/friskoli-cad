@@ -137,6 +137,32 @@ class ScheduledUniformRate:
         return self._result(world, rate, end)
 
 
+class LinearElongation:
+    manifest = _manifest("growth.linear_elongation")
+
+    def _current(self, world: World, node: CompiledNode) -> tuple[np.ndarray, np.ndarray]:
+        geometry = world.groups[node.owner_id].geometry
+        if any(capsule is None for capsule in geometry):
+            raise SimulationError("growth.geometry", "every cell needs a declared capsule size")
+        return (
+            np.array([capsule.length_um for capsule in geometry], dtype=np.float64),
+            np.array([capsule.diameter_um for capsule in geometry], dtype=np.float64),
+        )
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        length, diameter = self._current(world, node)
+        return ModuleResult({"length": length, "diameter": diameter}, {})
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        length, diameter = self._current(world, node)
+        length += node.parameters["elongation_rate"].value * dt_s
+        return ModuleResult({"length": length, "diameter": diameter}, {})
+
+
 class DiffusionNoFlux:
     manifest = _manifest("field.diffusion_no_flux")
 
@@ -398,7 +424,7 @@ class ReflectiveRun:
 def default_registry() -> ModuleRegistry:
     return ModuleRegistry([
         LocalInventory(), LocalInventoryWithDiffusion(), ScheduledLocalInventory(),
-        ScheduledUniformRate(), DiffusionNoFlux(), IdealReservoir(),
+        ScheduledUniformRate(), LinearElongation(), DiffusionNoFlux(), IdealReservoir(),
         SampleNearest(), SampleBoxSupport(), SampleBoxSupportAtPosition(), LinearUptake(),
         DepositNearest(), DepositBoxSupport(), DepositBoxSupportAtPosition(),
         PeriodicTurn(), ReflectiveRun(),

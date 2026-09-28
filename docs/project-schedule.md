@@ -1,6 +1,6 @@
 # 项目物种目录与环境输入日程 · 阶段 3k
 
-[完整项目快照](../examples/runtime/scheduled_inputs.project.json)把场地、初始菌体、行为图、运行元数据、物种目录和外部输入日程保存在同一份 JSON 中。此示例的项目格式为 `project_version: 0.1.0`；新增的 `0.2.0` 可选[初始胶囊尺寸](capsule-geometry.md)。项目格式版本独立于图和模块仍使用的共享协议 `protocol_version: 0.1.0`。旧版行为图和 `field.local_inventory` 的 `1.0.0`、`2.0.0` 可以继续按原有方式运行。
+[完整项目快照](../examples/runtime/scheduled_inputs.project.json)把场地、初始菌体、行为图、运行元数据、物种目录和外部输入日程保存在同一份 JSON 中。此示例的项目格式为 `project_version: 0.1.0`；新增的 `0.2.0` 可选[初始胶囊尺寸](capsule-geometry.md)，并使用[逐帧几何格式](growth-frames.md)。项目格式版本独立于图和模块仍使用的共享协议 `protocol_version: 0.1.0`。旧版行为图和 `field.local_inventory` 的 `1.0.0`、`2.0.0` 可以继续按原有方式运行。
 
 物种目录给每种物质声明初始浓度、`uM` 单位和来源。新环境模块 `field.local_inventory@3.0.0` 从目录读取初始浓度，避免在该图的多个位置重复声明。运行前会检查图中各物种引用均有登记、每种实际参与计算的物质最多有一个浓度场，日程对应一个同物种的输入模块。只登记、不在行为图中配置场或输入模块的物质，不生成格点数组，也不参加每步计算。目录仍需在创建运行时读取和校验一次。
 

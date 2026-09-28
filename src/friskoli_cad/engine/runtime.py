@@ -254,7 +254,7 @@ class Snapshot:
 class Simulation:
     def __init__(
         self, world: World, graph: Mapping[str, object], run: Mapping[str, object],
-        registry: ModuleRegistry,
+        registry: ModuleRegistry, frame_version: str | None = None,
     ) -> None:
         self.world = world
         self.registry = registry
@@ -263,7 +263,9 @@ class Simulation:
         if set(world.groups) != set(run["groups"]):
             raise SimulationError("run.groups", "world groups differ from run metadata")
         self._pose_nodes = set()
+        self._geometry_nodes = set()
         pose_groups = set()
+        geometry_groups = set()
         for node in self.plan.nodes:
             outputs = registry.get(node.module_id, node.module_version).manifest["outputs"]
             pose = {name: outputs.get(name) for name in ("position", "heading")}
@@ -281,6 +283,33 @@ class Simulation:
                     raise SimulationError("motion.pose", f"group {node.owner_id} has two pose providers")
                 pose_groups.add(node.owner_id)
                 self._pose_nodes.add(node.id)
+            geometry_ports = {name: outputs.get(name) for name in ("length", "diameter")}
+            if any(port is not None for port in geometry_ports.values()):
+                if (
+                    node.owner_kind != "population"
+                    or geometry_ports["length"] is None or geometry_ports["diameter"] is None
+                    or (
+                        geometry_ports["length"]["shape"], geometry_ports["length"]["quantity"],
+                        geometry_ports["length"]["unit"],
+                    ) != ("cell.scalar", "capsule_length", "um")
+                    or (
+                        geometry_ports["diameter"]["shape"], geometry_ports["diameter"]["quantity"],
+                        geometry_ports["diameter"]["unit"],
+                    ) != ("cell.scalar", "capsule_diameter", "um")
+                ):
+                    raise SimulationError("growth.geometry", f"{node.id} has an invalid geometry output pair")
+                if node.owner_id in geometry_groups:
+                    raise SimulationError("growth.geometry", f"group {node.owner_id} has two geometry providers")
+                geometry_groups.add(node.owner_id)
+                self._geometry_nodes.add(node.id)
+        has_known_geometry = any(group.has_known_geometry for group in world.groups.values())
+        self.frame_version = frame_version if frame_version is not None else (
+            "0.2.0" if has_known_geometry or self._geometry_nodes else "0.1.0"
+        )
+        if self.frame_version not in ("0.1.0", "0.2.0"):
+            raise SimulationError("frame.version", "unknown frame version")
+        if (has_known_geometry or self._geometry_nodes) and self.frame_version != "0.2.0":
+            raise SimulationError("frame.geometry", "known or changing geometry requires frame 0.2.0")
         self.run = deepcopy(run)
         self.time_s = 0.0
         self.frame_index = 0
@@ -315,6 +344,22 @@ class Simulation:
             group.id, group.ids, positions,
             orientation_after_heading(group.orientation_xyzw, heading),
             group.geometry if group.has_known_geometry else None,
+        )
+        return World(
+            world.grid, {**world.groups, node.owner_id: updated},
+            world.species_initial_uM, world.schedules,
+        )
+
+    def _apply_geometry(
+        self, world: World, node: CompiledNode, outputs: Mapping[str, np.ndarray]
+    ) -> World:
+        group = world.groups[node.owner_id]
+        geometry = tuple(
+            CapsuleGeometry(float(length), float(diameter))
+            for length, diameter in zip(outputs["length"], outputs["diameter"])
+        )
+        updated = CellGroup(
+            group.id, group.ids, group.positions_um, group.orientation_xyzw, geometry,
         )
         return World(
             world.grid, {**world.groups, node.owner_id: updated},
@@ -376,6 +421,8 @@ class Simulation:
             outputs[node.id], state[node.id] = self._freeze_result(node, result)
             if not initial and node.id in self._pose_nodes:
                 working_world = self._apply_pose(working_world, node, outputs[node.id])
+            if not initial and node.id in self._geometry_nodes:
+                working_world = self._apply_geometry(working_world, node, outputs[node.id])
         return outputs, state, working_world
 
     def _snapshot(
@@ -390,7 +437,7 @@ class Simulation:
         for group_id in sorted(world.groups):
             group = world.groups[group_id]
             for index_in_group, cell_id in enumerate(group.ids):
-                cells.append({
+                cell = {
                     "id": cell_id,
                     "group_id": group_id,
                     "position_um": group.positions_um[index_in_group].tolist(),
@@ -399,11 +446,20 @@ class Simulation:
                         channel_id: float(values[index_in_group])
                         for channel_id, values in channels_by_group[group_id]
                     },
-                })
+                }
+                if self.frame_version == "0.2.0":
+                    capsule = group.geometry[index_in_group]
+                    cell["geometry"] = None if capsule is None else {
+                        "shape": "capsule", "length_um": capsule.length_um,
+                        "diameter_um": capsule.diameter_um,
+                    }
+                cells.append(cell)
         frame = {
             "protocol_version": "0.1.0", "run_id": self.run["run_id"],
             "frame_index": index, "time_s": time_s, "cells": cells, "events": [],
         }
+        if self.frame_version == "0.2.0":
+            frame["frame_version"] = self.frame_version
         fields = {}
         field_units = {}
         environment_fields = {}

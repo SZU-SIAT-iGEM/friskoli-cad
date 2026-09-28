@@ -1,4 +1,4 @@
-"""Structural and cross-reference checks for protocol version 0.1.0.
+"""Structural and cross-reference checks for graph 0.1.0 and versioned frames.
 
 These checks are shared by importers and the future graph compiler. They do not
 execute a model or claim scientific validity for any module.
@@ -257,13 +257,19 @@ class FrameSequenceValidator:
         self.run_id: str | None = None
         self.next_index = 0
         self.previous_time: float | None = None
+        self.frame_version: str | None = None
         self.alive: dict[str, str] = {}
         self.seen: set[str] = set()
 
     def accept(self, frame: Mapping[str, object], *, validate_schema: bool = True) -> None:
         """Accept a frame; skip schema only for frames built by a trusted runtime."""
+        frame_version = frame.get("frame_version", "0.1.0")
+        if frame_version not in ("0.1.0", "0.2.0"):
+            _fail("frame.version", "/frame_version", "unsupported frame version")
         if validate_schema:
-            _check_schema("frame", frame)
+            _check_schema("frame-v0.2" if frame_version == "0.2.0" else "frame", frame)
+        if self.frame_version is not None and frame_version != self.frame_version:
+            _fail("frame.version", "/frame_version", "frame version changed within a sequence")
         index = frame["frame_index"]
         if index != self.next_index:
             _fail("frame.order", "/frame_index", f"expected {self.next_index}")
@@ -329,12 +335,17 @@ class FrameSequenceValidator:
             norm = sum(component * component for component in quaternion)
             if not math.isclose(norm, 1.0, rel_tol=0, abs_tol=1e-3):
                 _fail("cell.orientation", f"/cells/{cell_index}/orientation_xyzw", "quaternion must have unit length")
+            if frame_version == "0.2.0" and cell["geometry"] is not None:
+                geometry = cell["geometry"]
+                if geometry["length_um"] < geometry["diameter_um"]:
+                    _fail("cell.geometry", f"/cells/{cell_index}/geometry", "capsule length is below diameter")
         if self.previous_time is None:
             alive = observed.copy()
         elif observed != alive:
             _fail("frame.cells", "/cells", "cell snapshot does not match the event history")
 
         self.run_id = frame["run_id"]
+        self.frame_version = frame_version
         self.next_index += 1
         self.previous_time = time
         self.alive = alive

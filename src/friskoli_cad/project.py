@@ -182,4 +182,5 @@ def simulation_from_project(document: Mapping[str, object], registry=None):
         for schedule_id, entry in document["controls"].items()
     }
     world = World(grid, groups, initial, controls)
-    return Simulation(world, document["graph"], document["run"], registry)
+    frame_version = "0.2.0" if document["project_version"] == "0.2.0" else "0.1.0"
+    return Simulation(world, document["graph"], document["run"], registry, frame_version)

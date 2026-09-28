@@ -2,7 +2,7 @@
 
 状态：已实现结构校验、跨文件检查和第一批数值模块；运行服务尚未建立。本协议中的示例只用于证明数据能正确连接，不产生科学预测。数值示例与限制见[无扩散摄取循环](engine-runtime.md)。
 
-四份 JSON Schema 分别定义[模块声明](../src/friskoli_cad/protocol/schemas/module.schema.json)、[行为图](../src/friskoli_cad/protocol/schemas/graph.schema.json)、[运行元数据](../src/friskoli_cad/protocol/schemas/run.schema.json)和[单菌体帧](../src/friskoli_cad/protocol/schemas/frame.schema.json)。`friskoli_cad.protocol` 另检查 Schema 无法表达的引用、单位、物质、连接时序和事件连续性。
+四份 JSON Schema 分别定义[模块声明](../src/friskoli_cad/protocol/schemas/module.schema.json)、[行为图](../src/friskoli_cad/protocol/schemas/graph.schema.json)、[运行元数据](../src/friskoli_cad/protocol/schemas/run.schema.json)和[原始单菌体帧](../src/friskoli_cad/protocol/schemas/frame.schema.json)。[逐帧几何格式](../src/friskoli_cad/protocol/schemas/frame-v0.2.schema.json)新增 `frame_version: 0.2.0`，仍沿用图与模块的 `protocol_version: 0.1.0`；详见[生长帧说明](growth-frames.md)。`friskoli_cad.protocol` 另检查 Schema 无法表达的引用、单位、物质、连接时序和事件连续性。
 
 [项目快照](project-schedule.md)另有自己的格式版本。[项目 `0.1.0` Schema](../src/friskoli_cad/protocol/schemas/project.schema.json)保存场地、菌体、物种、日程、行为图和运行元数据；[项目 `0.2.0` Schema](../src/friskoli_cad/protocol/schemas/project-v0.2.schema.json)新增可选的[逐菌体初始尺寸](capsule-geometry.md)。两版项目均可读取，模块、行为图和结果帧仍使用这里的共享协议 `0.1.0`。
 
