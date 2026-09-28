@@ -25,7 +25,45 @@ def project_document(geometry: str = "thin_layer") -> dict:
     return document
 
 
+def registered_only_oxygen(document: dict) -> dict:
+    document = deepcopy(document)
+    document["controls"].pop("oxygen_feed")
+    inactive_nodes = {"oxygen_field", "oxygen_input"}
+    document["graph"]["nodes"] = [
+        node for node in document["graph"]["nodes"] if node["id"] not in inactive_nodes
+    ]
+    document["graph"]["edges"] = [
+        edge for edge in document["graph"]["edges"]
+        if edge["from"]["node"] not in inactive_nodes
+        and edge["to"]["node"] not in inactive_nodes
+    ]
+    return document
+
+
 class ProjectScheduleTests(unittest.TestCase):
+    def test_registered_only_oxygen_does_not_enter_runtime_or_change_results(self):
+        document = registered_only_oxygen(project_document())
+        without_oxygen = deepcopy(document)
+        without_oxygen["species"].pop("oxygen")
+        registered = simulation_from_project(document)
+        omitted = simulation_from_project(without_oxygen)
+        self.assertIn("oxygen", document["species"])
+        self.assertEqual(set(registered.world.species_initial_uM), {"substrate"})
+        self.assertEqual(set(registered.current.concentration_fields), {"substrate"})
+        self.assertNotIn("oxygen_field", registered.current.environment_fields)
+        self.assertEqual(
+            tuple(node.id for node in registered.plan.nodes),
+            tuple(node.id for node in omitted.plan.nodes),
+        )
+        for _ in range(4):
+            with_registered = registered.step(0.25)
+            without_registered = omitted.step(0.25)
+            np.testing.assert_array_equal(
+                with_registered.concentration_fields["substrate"],
+                without_registered.concentration_fields["substrate"],
+            )
+            self.assertEqual(with_registered.cell_frame, without_registered.cell_frame)
+
     def test_rate_does_not_change_before_a_nearby_boundary(self):
         schedule = ControlSchedule("substrate", ((0, 0), (0.5, 0.2), (1.0, 0)), 1.5)
         self.assertEqual(schedule.rate_and_next_change(0.5 - 5e-13), (0, 0.5))

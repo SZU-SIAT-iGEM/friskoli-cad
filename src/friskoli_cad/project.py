@@ -123,8 +123,8 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
             if node["parameters"]["species"]["value"] != schedule["species"]:
                 _fail("project.control", "/graph", f"species differs for control {schedule_id}")
             control_uses[schedule_id] = control_uses.get(schedule_id, 0) + 1
-    if set(providers) != set(document["species"]) or any(count != 1 for count in providers.values()):
-        _fail("project.species", "/species", "each declared species needs one concentration field")
+    if any(count != 1 for count in providers.values()):
+        _fail("project.species", "/graph", "an active species needs exactly one concentration field")
     if set(control_uses) != set(document["controls"]) or any(count != 1 for count in control_uses.values()):
         _fail("project.control", "/controls", "each control needs exactly one source node")
     for schedule_id, schedule in document["controls"].items():
@@ -156,9 +156,14 @@ def simulation_from_project(document: Mapping[str, object], registry=None):
         )
         for group_id, group in document["groups"].items()
     }
+    active_inventory_species = {
+        node["parameters"]["species"]["value"]
+        for node in document["graph"]["nodes"]
+        if (node["module_id"], node["module_version"]) == ("field.local_inventory", "3.0.0")
+    }
     initial = {
-        species: entry["initial_concentration"]["value"]
-        for species, entry in document["species"].items()
+        species: document["species"][species]["initial_concentration"]["value"]
+        for species in active_inventory_species
     }
     controls = {
         schedule_id: ControlSchedule(
