@@ -64,10 +64,13 @@ class ControlSchedule:
         return self.changes[index][1], next_change
 
 
-@lru_cache(maxsize=1)
-def _project_validator() -> Draft202012Validator:
+@lru_cache(maxsize=2)
+def _project_validator(version: str) -> Draft202012Validator:
+    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json"}.get(version)
+    if schema_file is None:
+        _fail("project.version", "/project_version", f"unsupported project version {version}")
     schema = json.loads(
-        files("friskoli_cad.protocol").joinpath("schemas", "project.schema.json")
+        files("friskoli_cad.protocol").joinpath("schemas", schema_file)
         .read_text(encoding="utf-8")
     )
     Draft202012Validator.check_schema(schema)
@@ -84,7 +87,8 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
         json.dumps(document, allow_nan=False)
     except (TypeError, ValueError):
         _fail("project.number", "/", "project must contain finite JSON values")
-    error = next(_project_validator().iter_errors(document), None)
+    version = document.get("project_version") if isinstance(document, Mapping) else None
+    error = next(_project_validator(version).iter_errors(document), None)
     if error is not None:
         path = "/" + "/".join(str(part) for part in error.absolute_path)
         _fail("project.schema", path, error.message)
@@ -140,7 +144,7 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
 
 def simulation_from_project(document: Mapping[str, object], registry=None):
     """Build a simulation from a complete snapshot; old graph-only callers remain valid."""
-    from friskoli_cad.engine import CellGroup, GridDomain, Simulation, World, default_registry
+    from friskoli_cad.engine import CapsuleGeometry, CellGroup, GridDomain, Simulation, World, default_registry
 
     registry = default_registry() if registry is None else registry
     validate_project(document, registry.manifests)
@@ -153,6 +157,10 @@ def simulation_from_project(document: Mapping[str, object], registry=None):
             group_id, tuple(group["ids"]),
             np.array(group["positions_um"], dtype=np.float64).reshape((-1, 3)),
             np.array(group["orientation_xyzw"], dtype=np.float64).reshape((-1, 4)),
+            tuple(
+                None if entry is None else CapsuleGeometry(entry["length_um"], entry["diameter_um"])
+                for entry in group["initial_geometry"]
+            ) if "initial_geometry" in group else None,
         )
         for group_id, group in document["groups"].items()
     }

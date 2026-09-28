@@ -17,7 +17,7 @@ import numpy as np
 from friskoli_cad.protocol import FrameSequenceValidator, validate_manifest, validate_run_metadata
 
 from .compiler import CompiledNode, compile_graph
-from .motion import orientation_after_heading
+from .motion import heading_from_orientation, orientation_after_heading
 
 
 MOLECULES_PER_UM3_PER_UM = 6.02214076e23 * 1e-21
@@ -94,17 +94,36 @@ class GridDomain:
 
 
 @dataclass(frozen=True, slots=True)
+class CapsuleGeometry:
+    """Pole-to-pole length and transverse diameter of an axisymmetric capsule."""
+
+    length_um: float
+    diameter_um: float
+
+    def __post_init__(self) -> None:
+        if (
+            not math.isfinite(self.length_um) or not math.isfinite(self.diameter_um)
+            or self.diameter_um <= 0 or self.length_um < self.diameter_um
+        ):
+            raise SimulationError("cell.geometry", "capsule needs length >= diameter > 0")
+
+
+@dataclass(frozen=True, slots=True)
 class CellGroup:
     id: str
     ids: tuple[str, ...]
     positions_um: np.ndarray
     orientation_xyzw: np.ndarray
+    geometry: tuple[CapsuleGeometry | None, ...] | None = None
+    has_known_geometry: bool = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         ids = tuple(self.ids)
         positions = np.array(self.positions_um, dtype=np.float64, copy=True)
         orientations = np.array(self.orientation_xyzw, dtype=np.float64, copy=True)
         count = len(ids)
+        geometry = (None,) * count if self.geometry is None else tuple(self.geometry)
+        has_known_geometry = False if self.geometry is None else any(entry is not None for entry in geometry)
         if (
             type(self.id) is not str or not self.id
             or any(type(cell_id) is not str or not cell_id for cell_id in ids)
@@ -117,11 +136,17 @@ class CellGroup:
             raise SimulationError("cell.orientation", "orientations must have one finite XYZW row per cell")
         if not np.allclose(np.sum(orientations**2, axis=1), 1.0, rtol=0, atol=1e-3):
             raise SimulationError("cell.orientation", "orientation quaternions must have unit length")
+        if len(geometry) != count or any(
+            entry is not None and not isinstance(entry, CapsuleGeometry) for entry in geometry
+        ):
+            raise SimulationError("cell.geometry", "geometry needs one capsule or unknown entry per cell")
         positions.setflags(write=False)
         orientations.setflags(write=False)
         object.__setattr__(self, "ids", ids)
         object.__setattr__(self, "positions_um", positions)
         object.__setattr__(self, "orientation_xyzw", orientations)
+        object.__setattr__(self, "geometry", geometry)
+        object.__setattr__(self, "has_known_geometry", has_known_geometry)
 
 
 @dataclass(frozen=True, slots=True)
@@ -141,6 +166,20 @@ class World:
                 raise SimulationError("cell.identity", "cell IDs must be unique across groups")
             seen.update(group.ids)
             self.grid.flat_indices(group.positions_um)
+            if self.grid.geometry == "thin_layer" and group.has_known_geometry:
+                axial_z = heading_from_orientation(group.orientation_xyzw)[:, 2]
+                for index, capsule in enumerate(group.geometry):
+                    if capsule is None:
+                        continue
+                    half_height = 0.5 * (
+                        capsule.diameter_um
+                        + (capsule.length_um - capsule.diameter_um) * abs(axial_z[index])
+                    )
+                    center_z = group.positions_um[index, 2]
+                    if center_z - half_height <= 0 or center_z + half_height >= self.grid.dz_um:
+                        raise SimulationError(
+                            "cell.geometry", f"capsule {group.ids[index]} does not fit inside the thin layer"
+                        )
         species = dict(self.species_initial_uM)
         if any(
             type(name) is not str or not name
@@ -275,6 +314,7 @@ class Simulation:
         updated = CellGroup(
             group.id, group.ids, positions,
             orientation_after_heading(group.orientation_xyzw, heading),
+            group.geometry if group.has_known_geometry else None,
         )
         return World(
             world.grid, {**world.groups, node.owner_id: updated},

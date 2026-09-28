@@ -8,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-from friskoli_cad.engine import CellGroup, GridDomain, Simulation, SimulationError, World, default_registry
+from friskoli_cad.engine import CapsuleGeometry, CellGroup, GridDomain, Simulation, SimulationError, World, default_registry
 from friskoli_cad.engine.motion import reflect_in_box
 from friskoli_cad.protocol import validate_frame_sequence
 
@@ -144,6 +144,22 @@ class MotionTests(unittest.TestCase):
         np.testing.assert_allclose(
             frame["cells"][0]["orientation_xyzw"], orientation, atol=1e-12
         )
+
+    def test_movement_preserves_declared_capsule_geometry(self):
+        graph = json.loads((EXAMPLES / "moving_uptake.graph.json").read_text(encoding="utf-8"))
+        run = json.loads((EXAMPLES / "uptake.run.json").read_text(encoding="utf-8"))
+        run["graph_id"] = graph["id"]
+        capsule = CapsuleGeometry(2.0, 0.8)
+        group = CellGroup(
+            "group_1", ("cell_0",), np.array([[2.5, 7.5, 0.5]]),
+            np.array([[0, 0, 0, 1]]), (capsule,)
+        )
+        motion = Simulation(
+            World(GridDomain.thin_layer(3, 3, 5, 5, 1), {group.id: group}),
+            graph, run, default_registry(),
+        )
+        motion.step(0.25)
+        self.assertEqual(motion.world.groups["group_1"].geometry, (capsule,))
 
     def test_failed_step_does_not_commit_a_moved_pose(self):
         simulation, _ = make_simulation(

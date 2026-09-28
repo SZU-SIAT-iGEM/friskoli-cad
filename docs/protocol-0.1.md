@@ -4,7 +4,7 @@
 
 四份 JSON Schema 分别定义[模块声明](../src/friskoli_cad/protocol/schemas/module.schema.json)、[行为图](../src/friskoli_cad/protocol/schemas/graph.schema.json)、[运行元数据](../src/friskoli_cad/protocol/schemas/run.schema.json)和[单菌体帧](../src/friskoli_cad/protocol/schemas/frame.schema.json)。`friskoli_cad.protocol` 另检查 Schema 无法表达的引用、单位、物质、连接时序和事件连续性。
 
-[项目快照](project-schedule.md)另有自己的 `project_version: 0.1.0` 格式与 [Schema](../src/friskoli_cad/protocol/schemas/project.schema.json)，把场地、菌体、物种、日程、行为图和运行元数据一起保存；它不改变这里的模块与帧协议版本。
+[项目快照](project-schedule.md)另有自己的格式版本。[项目 `0.1.0` Schema](../src/friskoli_cad/protocol/schemas/project.schema.json)保存场地、菌体、物种、日程、行为图和运行元数据；[项目 `0.2.0` Schema](../src/friskoli_cad/protocol/schemas/project-v0.2.schema.json)新增可选的[逐菌体初始尺寸](capsule-geometry.md)。两版项目均可读取，模块、行为图和结果帧仍使用这里的共享协议 `0.1.0`。
 
 ## 模块声明与连接
 

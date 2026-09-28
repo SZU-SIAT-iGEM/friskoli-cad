@@ -64,6 +64,77 @@ class ProjectScheduleTests(unittest.TestCase):
             )
             self.assertEqual(with_registered.cell_frame, without_registered.cell_frame)
 
+    def test_versioned_capsule_geometry_is_known_only_when_declared(self):
+        legacy = project_document()
+        self.assertEqual(simulation_from_project(legacy).world.groups["group_1"].geometry, (None,))
+        upgraded = deepcopy(legacy)
+        upgraded["project_version"] = "0.2.0"
+        upgraded["groups"]["group_1"]["initial_geometry"] = [{
+            "shape": "capsule", "length_um": 2.0, "diameter_um": 0.8,
+            "provenance": {"kind": "example", "reference": "illustrative dimensions only"},
+        }]
+        known = simulation_from_project(upgraded)
+        capsule = known.world.groups["group_1"].geometry[0]
+        self.assertEqual((capsule.length_um, capsule.diameter_um), (2.0, 0.8))
+        old_step = simulation_from_project(legacy).step(0.25)
+        new_step = known.step(0.25)
+        np.testing.assert_array_equal(
+            old_step.concentration_fields["substrate"], new_step.concentration_fields["substrate"]
+        )
+        self.assertEqual(known.world.groups["group_1"].geometry[0], capsule)
+        unknown = deepcopy(upgraded)
+        unknown["groups"]["group_1"]["initial_geometry"] = [None]
+        self.assertEqual(simulation_from_project(unknown).world.groups["group_1"].geometry, (None,))
+        mixed = deepcopy(upgraded)
+        group = mixed["groups"]["group_1"]
+        group["ids"].append("cell_1")
+        group["positions_um"].append([7.5, 2.5, 0.5])
+        group["orientation_xyzw"].append([0, 0, 0, 1])
+        group["initial_geometry"].append(None)
+        self.assertEqual(
+            tuple(item is not None for item in simulation_from_project(mixed).world.groups["group_1"].geometry),
+            (True, False),
+        )
+        with self.assertRaises(ProtocolError) as caught:
+            wrong_version = deepcopy(upgraded)
+            wrong_version["project_version"] = "0.1.0"
+            simulation_from_project(wrong_version)
+        self.assertEqual(caught.exception.code, "project.schema")
+
+    def test_thin_layer_rejects_capsules_that_do_not_fit(self):
+        document = project_document()
+        document["project_version"] = "0.2.0"
+        geometry = {
+            "shape": "capsule", "length_um": 2.0, "diameter_um": 0.8,
+            "provenance": {"kind": "example", "reference": "geometry check"},
+        }
+        document["groups"]["group_1"]["initial_geometry"] = [geometry]
+        simulation_from_project(document)
+        too_wide = deepcopy(document)
+        too_wide["groups"]["group_1"]["initial_geometry"][0]["diameter_um"] = 1.0
+        with self.assertRaises(SimulationError) as caught:
+            simulation_from_project(too_wide)
+        self.assertEqual(caught.exception.code, "cell.geometry")
+        pitched = deepcopy(document)
+        pitched["groups"]["group_1"]["orientation_xyzw"] = [[0, 2**-0.5, 0, 2**-0.5]]
+        with self.assertRaises(SimulationError) as caught:
+            simulation_from_project(pitched)
+        self.assertEqual(caught.exception.code, "cell.geometry")
+        off_center = deepcopy(document)
+        off_center["groups"]["group_1"]["positions_um"] = [[2.5, 2.5, 0.3]]
+        with self.assertRaises(SimulationError) as caught:
+            simulation_from_project(off_center)
+        self.assertEqual(caught.exception.code, "cell.geometry")
+        malformed = deepcopy(document)
+        malformed["groups"]["group_1"]["initial_geometry"][0]["length_um"] = 0.7
+        with self.assertRaises(SimulationError) as caught:
+            simulation_from_project(malformed)
+        self.assertEqual(caught.exception.code, "cell.geometry")
+        volume = project_document("volume")
+        volume["project_version"] = "0.2.0"
+        volume["groups"]["group_1"]["initial_geometry"] = [geometry]
+        simulation_from_project(volume)
+
     def test_rate_does_not_change_before_a_nearby_boundary(self):
         schedule = ControlSchedule("substrate", ((0, 0), (0.5, 0.2), (1.0, 0)), 1.5)
         self.assertEqual(schedule.rate_and_next_change(0.5 - 5e-13), (0, 0.5))
