@@ -1,0 +1,25 @@
+{
+  "protocol_version": "0.1.0",
+  "id": "division.length_adder",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 3,
+  "scientific_role": "numerical",
+  "maturity": "exploratory",
+  "description": "Illustrative length adder: divide at a step boundary after a fixed pole-to-pole extension since birth.",
+  "inputs": {
+    "length": {"shape": "cell.scalar", "quantity": "capsule_length", "unit": "um"}
+  },
+  "outputs": {
+    "observed_length": {"shape": "cell.scalar", "quantity": "capsule_length", "unit": "um"},
+    "added_length": {"shape": "cell.scalar", "quantity": "added_length", "unit": "um"},
+    "divide": {"shape": "cell.scalar", "quantity": "division_trigger", "unit": "1"}
+  },
+  "parameters": {
+    "added_length_um": {"type": "number", "unit": "um", "minimum": 0}
+  },
+  "state": {
+    "added_length": {"shape": "cell.scalar", "unit": "um", "on_division": "reset"}
+  },
+  "initial_outputs": ["observed_length", "added_length", "divide"]
+}

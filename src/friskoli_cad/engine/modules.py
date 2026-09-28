@@ -44,6 +44,12 @@ class LocalInventory:
             raise SimulationError("field.depleted", "requested uptake exceeds local inventory; reduce dt_s")
         return ModuleResult({"concentration": concentration}, {"concentration": concentration})
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        return ModuleResult({"concentration": state["concentration"]}, state)
+
 
 class LocalInventoryWithDiffusion(LocalInventory):
     """Version 2 combines declared diffusion and consumption rates."""
@@ -102,6 +108,15 @@ class ScheduledLocalInventory:
             {"concentration": concentration, "cumulative_external": cumulative},
         )
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        return ModuleResult(
+            {"concentration": state["concentration"], "external_flux": previous_outputs["external_flux"],
+             "cumulative_external": state["cumulative_external"]}, state,
+        )
+
 
 class ScheduledUniformRate:
     manifest = _manifest("source.scheduled_uniform_rate")
@@ -136,6 +151,12 @@ class ScheduledUniformRate:
             )
         return self._result(world, rate, end)
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        return ModuleResult(previous_outputs, state)
+
 
 class LinearElongation:
     manifest = _manifest("growth.linear_elongation")
@@ -162,6 +183,54 @@ class LinearElongation:
         length += node.parameters["elongation_rate"].value * dt_s
         return ModuleResult({"length": length, "diameter": diameter}, {})
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        length, diameter = self._current(world, node)
+        return ModuleResult({"length": length, "diameter": diameter}, state)
+
+
+class LengthAdder:
+    manifest = _manifest("division.length_adder")
+
+    def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
+        if node.parameters["added_length_um"].value <= 0:
+            raise SimulationError("division.threshold", "added length must be positive")
+        length = np.asarray(inputs["length"], dtype=np.float64)
+        zero = np.zeros_like(length)
+        return ModuleResult(
+            {"observed_length": length, "added_length": zero, "divide": zero},
+            {"added_length": zero},
+        )
+
+    def advance(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        previous_state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+        dt_s: float,
+    ) -> ModuleResult:
+        length = np.asarray(inputs["length"], dtype=np.float64)
+        change = length - previous_outputs["observed_length"]
+        if np.any(change < -1e-12):
+            raise SimulationError("division.growth", "length adder requires nondecreasing cell length")
+        added = previous_state["added_length"] + np.maximum(change, 0)
+        threshold = node.parameters["added_length_um"].value
+        divide = (added >= threshold - 1e-12 * threshold).astype(np.float64)
+        return ModuleResult(
+            {"observed_length": length, "added_length": added, "divide": divide},
+            {"added_length": added},
+        )
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        length = np.asarray(inputs["length"], dtype=np.float64)
+        zero = np.zeros_like(length)
+        return ModuleResult(
+            {"observed_length": length, "added_length": state["added_length"], "divide": zero}, state,
+        )
+
 
 class DiffusionNoFlux:
     manifest = _manifest("field.diffusion_no_flux")
@@ -182,6 +251,16 @@ class DiffusionNoFlux:
         return ModuleResult({
             "diffusion_rate": no_flux_diffusion_rate(inputs["concentration"], world.grid, coefficient)
         }, {})
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        return ModuleResult({
+            "diffusion_rate": no_flux_diffusion_rate(
+                inputs["concentration"], world.grid, node.parameters["diffusivity"].value,
+            )
+        }, state)
 
 
 class IdealReservoir:
@@ -216,6 +295,16 @@ class IdealReservoir:
             {"cumulative_supply": cumulative_supply},
         )
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        return ModuleResult({
+            "concentration": previous_outputs["concentration"],
+            "supply_flux": previous_outputs["supply_flux"],
+            "cumulative_supply": state["cumulative_supply"],
+        }, state)
+
 
 class SampleNearest:
     manifest = _manifest("field.sample_nearest")
@@ -235,6 +324,13 @@ class SampleNearest:
         dt_s: float,
     ) -> ModuleResult:
         return self._sample(world, node, inputs["concentration"])
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        sampled = self._sample(world, node, inputs["concentration"])
+        return ModuleResult(sampled.outputs, state)
 
 
 def _box_support(node: CompiledNode) -> tuple[float, float, float]:
@@ -270,12 +366,28 @@ class SampleBoxSupport:
     ) -> ModuleResult:
         return self.initialize(world, node, inputs)
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        sampled = self._sample(
+            world, node, inputs["concentration"], world.groups[node.owner_id].positions_um,
+        )
+        return ModuleResult(sampled.outputs, state)
+
 
 class SampleBoxSupportAtPosition(SampleBoxSupport):
     manifest = _manifest("field.sample_box_support.v2")
 
     def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
         return self._sample(world, node, inputs["concentration"], inputs["position"])
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        sampled = self._sample(world, node, inputs["concentration"], inputs["position"])
+        return ModuleResult(sampled.outputs, state)
 
 
 class LinearUptake:
@@ -304,6 +416,15 @@ class LinearUptake:
             {"cumulative_uptake": cumulative},
         )
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        return ModuleResult({
+            "uptake_flux": self._flux(node, inputs["local_concentration"]),
+            "cumulative_uptake": state["cumulative_uptake"],
+        }, state)
+
 
 class DepositNearest:
     manifest = _manifest("field.deposit_nearest")
@@ -326,6 +447,13 @@ class DepositNearest:
         dt_s: float,
     ) -> ModuleResult:
         return self._deposit(world, node, inputs["uptake_flux"])
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        deposited = self._deposit(world, node, inputs["uptake_flux"])
+        return ModuleResult(deposited.outputs, state)
 
 
 class DepositBoxSupport:
@@ -356,12 +484,28 @@ class DepositBoxSupport:
     ) -> ModuleResult:
         return self.initialize(world, node, inputs)
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        deposited = self._deposit(
+            world, node, inputs["uptake_flux"], world.groups[node.owner_id].positions_um,
+        )
+        return ModuleResult(deposited.outputs, state)
+
 
 class DepositBoxSupportAtPosition(DepositBoxSupport):
     manifest = _manifest("field.deposit_box_support.v2")
 
     def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
         return self._deposit(world, node, inputs["uptake_flux"], inputs["position"])
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        deposited = self._deposit(world, node, inputs["uptake_flux"], inputs["position"])
+        return ModuleResult(deposited.outputs, state)
 
 
 class PeriodicTurn:
@@ -386,6 +530,12 @@ class PeriodicTurn:
         elapsed = np.where(crossed, np.maximum(0, elapsed - interval), elapsed)
         angle = np.where(crossed, node.parameters["turn_angle_rad"].value, 0.0)
         return ModuleResult({"turn_angle": angle}, {"elapsed_s": elapsed})
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        return ModuleResult({"turn_angle": previous_outputs["turn_angle"]}, state)
 
 
 class ReflectiveRun:
@@ -420,11 +570,21 @@ class ReflectiveRun:
             {"position": positions, "heading": heading},
         )
 
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult:
+        group = world.groups[node.owner_id]
+        return ModuleResult({
+            "position": group.positions_um,
+            "heading": heading_from_orientation(group.orientation_xyzw),
+        }, state)
+
 
 def default_registry() -> ModuleRegistry:
     return ModuleRegistry([
         LocalInventory(), LocalInventoryWithDiffusion(), ScheduledLocalInventory(),
-        ScheduledUniformRate(), LinearElongation(), DiffusionNoFlux(), IdealReservoir(),
+        ScheduledUniformRate(), LinearElongation(), LengthAdder(), DiffusionNoFlux(), IdealReservoir(),
         SampleNearest(), SampleBoxSupport(), SampleBoxSupportAtPosition(), LinearUptake(),
         DepositNearest(), DepositBoxSupport(), DepositBoxSupportAtPosition(),
         PeriodicTurn(), ReflectiveRun(),

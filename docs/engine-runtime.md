@@ -43,4 +43,4 @@ python examples/runtime/benchmark.py --geometry volume --cells 10000 --steps 3
 
 ## 本例边界
 
-运行器支持 `field.scalar`、`cell.scalar` 和用于移动的 `cell.vector` 数值执行，薄层与完整 3D 均可运行；本例仍只有一个菌体组、一个均匀初始浓度的物种和固定菌体位置。本例的场没有扩散；扩散版行为图见[无通量扩散](no-flux-diffusion.md)，移动版见[移动菌体](moving-cells.md)。可选最近格点或[固定物理作用范围](box-support.md)的空间耦合；尚无真实菌体形状、出生、分裂、死亡和前端回放。协议可以表达比运行器更多的形状与事件；未实现的形状会明确报错。两种环境实现通过同一套菌体模块运行，限制见[环境模块对照](environment-swap.md)。
+运行器支持 `field.scalar`、`cell.scalar` 和用于移动的 `cell.vector` 数值执行，薄层与完整 3D 均可运行；本例仍只有一个菌体组、一个均匀初始浓度的物种和固定菌体位置。本例的场没有扩散；扩散版行为图见[无通量扩散](no-flux-diffusion.md)，移动版见[移动菌体](moving-cells.md)，分裂版见[长度 adder](adder-division.md)。可选最近格点或[固定物理作用范围](box-support.md)的空间耦合；当前尚无细胞间形状碰撞、独立出生、死亡和前端回放。协议可以表达比运行器更多的形状与事件；未实现的形状会明确报错。两种环境实现通过同一套菌体模块运行，限制见[环境模块对照](environment-swap.md)。

@@ -1,0 +1,76 @@
+{
+  "project_version": "0.2.0",
+  "id": "illustrative-length-adder",
+  "domain": {
+    "geometry": "thin_layer",
+    "counts_xyz": [4, 1, 1],
+    "spacing_um_xyz": [5, 5, 1]
+  },
+  "groups": {
+    "group_1": {
+      "ids": ["cell_0"],
+      "positions_um": [[10, 2.5, 0.5]],
+      "orientation_xyzw": [[0, 0, 0, 1]],
+      "initial_geometry": [
+        {
+          "shape": "capsule", "length_um": 2.0, "diameter_um": 0.8,
+          "provenance": {"kind": "example", "reference": "illustrative starting size"}
+        }
+      ]
+    }
+  },
+  "species": {
+    "oxygen": {
+      "concentration_unit": "uM",
+      "initial_concentration": {
+        "value": 5, "unit": "uM",
+        "provenance": {"kind": "example", "reference": "registered only; no oxygen module is active"}
+      }
+    }
+  },
+  "controls": {},
+  "graph": {
+    "protocol_version": "0.1.0",
+    "id": "illustrative-length-adder-graph",
+    "nodes": [
+      {
+        "id": "elongation", "module_id": "growth.linear_elongation", "module_version": "1.0.0",
+        "owner": {"kind": "population", "id": "group_1"},
+        "parameters": {
+          "elongation_rate": {
+            "value": 0.5, "unit": "um/s",
+            "provenance": {"kind": "example", "reference": "illustrative, without nutrient coupling"}
+          }
+        }
+      },
+      {
+        "id": "adder", "module_id": "division.length_adder", "module_version": "1.0.0",
+        "owner": {"kind": "population", "id": "group_1"},
+        "parameters": {
+          "added_length_um": {
+            "value": 1.0, "unit": "um",
+            "provenance": {"kind": "example", "reference": "illustrative adder increment, not a measured strain"}
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "growth_to_adder", "from": {"node": "elongation", "port": "length"},
+        "to": {"node": "adder", "port": "length"}, "timing": "same_step"
+      }
+    ]
+  },
+  "run": {
+    "protocol_version": "0.1.0",
+    "run_id": "illustrative-length-adder-run",
+    "graph_id": "illustrative-length-adder-graph",
+    "groups": ["group_1"],
+    "channels": {
+      "adder.added_length": {
+        "node": "adder", "port": "added_length", "group_id": "group_1",
+        "shape": "cell.scalar", "quantity": "added_length", "unit": "um"
+      }
+    }
+  }
+}

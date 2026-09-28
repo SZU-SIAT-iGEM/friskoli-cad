@@ -212,6 +212,15 @@ class RuntimeModule(Protocol):
     ) -> ModuleResult: ...
 
 
+class DivisionRefreshModule(RuntimeModule, Protocol):
+    """Additional output refresh required only in a graph with division."""
+
+    def refresh(
+        self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray],
+        state: Mapping[str, np.ndarray], previous_outputs: Mapping[str, np.ndarray],
+    ) -> ModuleResult: ...
+
+
 class ModuleRegistry:
     def __init__(self, modules: Iterable[RuntimeModule]):
         by_key = {}
@@ -264,8 +273,10 @@ class Simulation:
             raise SimulationError("run.groups", "world groups differ from run metadata")
         self._pose_nodes = set()
         self._geometry_nodes = set()
+        self._division_nodes = set()
         pose_groups = set()
         geometry_groups = set()
+        division_groups = set()
         for node in self.plan.nodes:
             outputs = registry.get(node.module_id, node.module_version).manifest["outputs"]
             pose = {name: outputs.get(name) for name in ("position", "heading")}
@@ -302,30 +313,47 @@ class Simulation:
                     raise SimulationError("growth.geometry", f"group {node.owner_id} has two geometry providers")
                 geometry_groups.add(node.owner_id)
                 self._geometry_nodes.add(node.id)
+            division_port = outputs.get("divide")
+            if division_port is not None:
+                if (
+                    node.owner_kind != "population"
+                    or (division_port["shape"], division_port["quantity"], division_port["unit"])
+                    != ("cell.scalar", "division_trigger", "1")
+                ):
+                    raise SimulationError("division.provider", f"{node.id} has an invalid division output")
+                if node.owner_id in division_groups:
+                    raise SimulationError("division.provider", f"group {node.owner_id} has two division providers")
+                division_groups.add(node.owner_id)
+                self._division_nodes.add(node.id)
+        if self._division_nodes:
+            for node in self.plan.nodes:
+                if not callable(getattr(registry.get(node.module_id, node.module_version), "refresh", None)):
+                    raise SimulationError("division.refresh", f"module {node.id} cannot refresh after division")
         has_known_geometry = any(group.has_known_geometry for group in world.groups.values())
         self.frame_version = frame_version if frame_version is not None else (
-            "0.2.0" if has_known_geometry or self._geometry_nodes else "0.1.0"
+            "0.2.0" if has_known_geometry or self._geometry_nodes or self._division_nodes else "0.1.0"
         )
         if self.frame_version not in ("0.1.0", "0.2.0"):
             raise SimulationError("frame.version", "unknown frame version")
-        if (has_known_geometry or self._geometry_nodes) and self.frame_version != "0.2.0":
+        if (has_known_geometry or self._geometry_nodes or self._division_nodes) and self.frame_version != "0.2.0":
             raise SimulationError("frame.geometry", "known or changing geometry requires frame 0.2.0")
         self.run = deepcopy(run)
         self.time_s = 0.0
         self.frame_index = 0
+        self._next_cell_serial = 1
         self.outputs, self.state, _ = self._execute(initial=True, dt_s=0.0)
         self.frame_validator = FrameSequenceValidator(run)
         initial = self._snapshot(self.outputs, self.world, 0.0, 0)
         self.frame_validator.accept(initial.cell_frame, validate_schema=False)
         self.current = initial
 
-    def _shape(self, node: CompiledNode, shape: str) -> tuple[int, ...]:
+    def _shape(self, node: CompiledNode, shape: str, world: World) -> tuple[int, ...]:
         if shape == "field.scalar":
-            return self.world.grid.shape
+            return world.grid.shape
         if shape == "cell.scalar":
-            return (len(self.world.groups[node.owner_id].ids),)
+            return (len(world.groups[node.owner_id].ids),)
         if shape == "cell.vector":
-            return (len(self.world.groups[node.owner_id].ids), 3)
+            return (len(world.groups[node.owner_id].ids), 3)
         if shape == "global.scalar":
             return ()
         raise SimulationError("runtime.shape", f"port shape {shape} has no executor yet")
@@ -367,7 +395,7 @@ class Simulation:
         )
 
     def _freeze_result(
-        self, node: CompiledNode, result: ModuleResult
+        self, node: CompiledNode, result: ModuleResult, world: World,
     ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray]]:
         manifest = self.registry.get(node.module_id, node.module_version).manifest
         frozen = []
@@ -383,7 +411,7 @@ class Simulation:
                     array = np.array(value, dtype=np.float64, copy=True)
                 except (TypeError, ValueError) as error:
                     raise SimulationError("module.result", f"{node.id}.{name} is not numeric") from error
-                expected = self._shape(node, declared[name]["shape"])
+                expected = self._shape(node, declared[name]["shape"], world)
                 if array.shape != expected or not np.isfinite(array).all():
                     raise SimulationError("module.result", f"{node.id}.{name} has invalid shape or values")
                 if (
@@ -418,16 +446,143 @@ class Simulation:
                     working_world, node, MappingProxyType(inputs),
                     MappingProxyType(self.state[node.id]), MappingProxyType(self.outputs[node.id]), dt_s,
                 )
-            outputs[node.id], state[node.id] = self._freeze_result(node, result)
+            outputs[node.id], state[node.id] = self._freeze_result(node, result, working_world)
             if not initial and node.id in self._pose_nodes:
                 working_world = self._apply_pose(working_world, node, outputs[node.id])
             if not initial and node.id in self._geometry_nodes:
                 working_world = self._apply_geometry(working_world, node, outputs[node.id])
         return outputs, state, working_world
 
+    def _divide(
+        self, world: World, outputs: dict[str, dict[str, np.ndarray]],
+        state: dict[str, dict[str, np.ndarray]], time_s: float,
+    ) -> tuple[World, dict[str, dict[str, np.ndarray]], dict[str, dict[str, np.ndarray]], list[dict], int]:
+        requests = {}
+        for node in self.plan.nodes:
+            if node.id not in self._division_nodes:
+                continue
+            values = outputs[node.id]["divide"]
+            if not np.all((values == 0) | (values == 1)):
+                raise SimulationError("division.trigger", f"{node.id} must return zero or one per cell")
+            if np.any(values == 1):
+                requests[node.owner_id] = values == 1
+        if not requests:
+            return world, outputs, state, [], self._next_cell_serial
+
+        groups = dict(world.groups)
+        sources: dict[str, np.ndarray] = {}
+        divided: dict[str, list[tuple[int, int]]] = {}
+        events: list[dict] = []
+        serial = self._next_cell_serial
+        used_ids = set(self.frame_validator.seen)
+        for group_id in sorted(requests):
+            group = world.groups[group_id]
+            ids = list(group.ids)
+            positions = group.positions_um.tolist()
+            orientations = group.orientation_xyzw.tolist()
+            geometry = list(group.geometry)
+            source = list(range(len(ids)))
+            pairs = []
+            headings = heading_from_orientation(group.orientation_xyzw)
+            for parent_index in np.flatnonzero(requests[group_id]):
+                capsule = geometry[parent_index]
+                if capsule is None:
+                    raise SimulationError("division.geometry", "a dividing cell needs known capsule geometry")
+                daughter_length = (capsule.length_um + capsule.diameter_um / 3) / 2
+                if daughter_length < capsule.diameter_um:
+                    raise SimulationError("division.geometry", "equal-volume daughters would be shorter than their diameter")
+                daughter = CapsuleGeometry(daughter_length, capsule.diameter_um)
+                center = group.positions_um[parent_index]
+                offset = headings[parent_index] * (daughter_length / 2)
+                positions[parent_index] = (center - offset).tolist()
+                positions.append((center + offset).tolist())
+                orientations.append(group.orientation_xyzw[parent_index].tolist())
+                geometry[parent_index] = daughter
+                geometry.append(daughter)
+                while True:
+                    child_id = f"{ids[parent_index]}~{serial}"
+                    serial += 1
+                    if child_id not in used_ids:
+                        break
+                used_ids.add(child_id)
+                ids.append(child_id)
+                child_index = len(ids) - 1
+                source.append(int(parent_index))
+                pairs.append((int(parent_index), child_index))
+                events.append({
+                    "type": "division", "time_s": time_s,
+                    "parent_id": group.ids[parent_index], "child_id": child_id,
+                })
+            groups[group_id] = CellGroup(
+                group_id, tuple(ids), np.asarray(positions), np.asarray(orientations), tuple(geometry),
+            )
+            sources[group_id] = np.asarray(source, dtype=np.int64)
+            divided[group_id] = pairs
+        divided_world = World(world.grid, groups, world.species_initial_uM, world.schedules)
+
+        inherited_state: dict[str, dict[str, np.ndarray]] = {}
+        boundary_outputs: dict[str, dict[str, np.ndarray]] = {}
+        for node in self.plan.nodes:
+            manifest = self.registry.get(node.module_id, node.module_version).manifest
+            source = sources.get(node.owner_id) if node.owner_kind == "population" else None
+            pairs = divided.get(node.owner_id, [])
+            node_state = {}
+            for name, values in state[node.id].items():
+                definition = manifest["state"][name]
+                if source is None or not definition["shape"].startswith("cell."):
+                    node_state[name] = values
+                    continue
+                inherited = values[source].copy()
+                for parent_index, child_index in pairs:
+                    rule = definition["on_division"]
+                    if rule == "split":
+                        inherited[parent_index] = values[parent_index] / 2
+                        inherited[child_index] = values[parent_index] / 2
+                    elif rule == "reset":
+                        inherited[parent_index] = 0
+                        inherited[child_index] = 0
+                    elif rule != "copy":
+                        raise SimulationError("division.state", f"unsupported rule {rule} for {node.id}.{name}")
+                node_state[name] = inherited
+            if node.id in self._pose_nodes and source is not None:
+                daughter_group = divided_world.groups[node.owner_id]
+                node_state["position"] = daughter_group.positions_um
+                node_state["heading"] = heading_from_orientation(daughter_group.orientation_xyzw)
+            inherited_state[node.id] = node_state
+
+            node_outputs = {}
+            for name, values in outputs[node.id].items():
+                definition = manifest["outputs"][name]
+                if source is None or not definition["shape"].startswith("cell."):
+                    node_outputs[name] = values
+                elif name in node_state and node_state[name].shape == values[source].shape:
+                    node_outputs[name] = node_state[name]
+                else:
+                    node_outputs[name] = values[source].copy()
+            boundary_outputs[node.id] = node_outputs
+
+        refreshed_outputs: dict[str, dict[str, np.ndarray]] = {}
+        refreshed_state: dict[str, dict[str, np.ndarray]] = {}
+        for node in self.plan.nodes:
+            inputs = {}
+            for name, binding in node.inputs.items():
+                source_outputs = refreshed_outputs if binding.timing == "same_step" else boundary_outputs
+                inputs[name] = source_outputs[binding.source_node][binding.source_port]
+            module = self.registry.get(node.module_id, node.module_version)
+            result = module.refresh(
+                divided_world, node, MappingProxyType(inputs),
+                MappingProxyType(inherited_state[node.id]), MappingProxyType(boundary_outputs[node.id]),
+            )
+            node_outputs, node_state = self._freeze_result(node, result, divided_world)
+            if any(not np.array_equal(node_state[name], value) for name, value in inherited_state[node.id].items()):
+                raise SimulationError("division.refresh", f"{node.id} changed state while refreshing outputs")
+            refreshed_outputs[node.id] = node_outputs
+            refreshed_state[node.id] = node_state
+        return divided_world, refreshed_outputs, refreshed_state, events, serial
+
     def _snapshot(
         self, outputs: Mapping[str, Mapping[str, np.ndarray]], world: World,
-        time_s: float, index: int,
+        time_s: float, index: int, events: list[dict] | None = None,
     ) -> Snapshot:
         channels_by_group: dict[str, list[tuple[str, np.ndarray]]] = {key: [] for key in world.groups}
         for channel_id, channel in self.run["channels"].items():
@@ -456,7 +611,7 @@ class Simulation:
                 cells.append(cell)
         frame = {
             "protocol_version": "0.1.0", "run_id": self.run["run_id"],
-            "frame_index": index, "time_s": time_s, "cells": cells, "events": [],
+            "frame_index": index, "time_s": time_s, "cells": cells, "events": events or [],
         }
         if self.frame_version == "0.2.0":
             frame["frame_version"] = self.frame_version
@@ -495,11 +650,13 @@ class Simulation:
         next_time = self.time_s + dt_s
         if not math.isfinite(next_time):
             raise SimulationError("time.overflow", "simulation time must remain finite")
-        snapshot = self._snapshot(outputs, next_world, next_time, self.frame_index + 1)
+        next_world, outputs, state, events, serial = self._divide(next_world, outputs, state, next_time)
+        snapshot = self._snapshot(outputs, next_world, next_time, self.frame_index + 1, events)
         self.frame_validator.accept(snapshot.cell_frame, validate_schema=False)
         self.outputs, self.state = outputs, state
         self.world = next_world
         self.time_s = next_time
         self.frame_index += 1
+        self._next_cell_serial = serial
         self.current = snapshot
         return snapshot
