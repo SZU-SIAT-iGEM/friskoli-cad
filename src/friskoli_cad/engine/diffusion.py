@@ -10,7 +10,7 @@ from .runtime import GridDomain, SimulationError
 
 
 def explicit_no_flux_limit(grid: GridDomain, diffusivity_um2_s: float) -> float:
-    """Largest explicit Euler step for a uniform diffusion coefficient."""
+    """Conservative explicit Euler step bound for nonnegative diffusion weights."""
     if not math.isfinite(diffusivity_um2_s) or diffusivity_um2_s < 0:
         raise SimulationError("diffusion.coefficient", "diffusivity must be finite and nonnegative")
     inverse_square_sum = sum(
