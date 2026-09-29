@@ -1,0 +1,1366 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://friskoli.invalid/schemas/task-draft.schema.json",
+  "title": "Friskoli task contract draft 0.1.0-draft.1",
+  "description": "N1 contract only; no asynchronous endpoints are implemented. Digest examples are illustrative. Cross-record transactional invariants are specified in docs/protocol/task-contract.md.",
+  "$ref": "#/$defs/Task",
+  "$defs": {
+    "Issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "severity",
+        "phase",
+        "path",
+        "targets",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "string",
+          "minLength": 1
+        },
+        "severity": {
+          "enum": [
+            "error",
+            "warning",
+            "info"
+          ]
+        },
+        "phase": {
+          "enum": [
+            "request",
+            "resolve",
+            "validate",
+            "estimate",
+            "queue",
+            "initialize",
+            "execute",
+            "publish",
+            "recover"
+          ]
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^(?:/(?:[^~/]|~[01])*)*$"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "id"
+            ],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "minLength": 1
+              },
+              "id": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_contract_version",
+        "issues"
+      ],
+      "properties": {
+        "task_contract_version": {
+          "const": "0.1.0-draft.1"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Issue"
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "Lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "registry_sha256",
+        "implementations"
+      ],
+      "properties": {
+        "registry_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "implementations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "version",
+              "sha256"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "version": {
+                "type": "string",
+                "minLength": 1
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          },
+          "minItems": 1
+        }
+      }
+    },
+    "Submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_contract_version",
+        "request_id",
+        "project",
+        "version_lock",
+        "execution",
+        "output_plan",
+        "edit_revision"
+      ],
+      "properties": {
+        "task_contract_version": {
+          "const": "0.1.0-draft.1"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "project": {
+          "oneOf": [
+            {
+              "$ref": "project.schema.json"
+            },
+            {
+              "$ref": "project-v0.2.schema.json"
+            }
+          ]
+        },
+        "version_lock": {
+          "$ref": "#/$defs/Lock"
+        },
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "semantics",
+            "backend",
+            "dt_s",
+            "steps",
+            "seed"
+          ],
+          "properties": {
+            "semantics": {
+              "type": "string",
+              "minLength": 1
+            },
+            "backend": {
+              "type": "string",
+              "minLength": 1
+            },
+            "dt_s": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "steps": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "seed": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        },
+        "output_plan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "frame_every_steps",
+            "observables",
+            "include_fields"
+          ],
+          "properties": {
+            "frame_every_steps": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "observables": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "uniqueItems": true
+            },
+            "include_fields": {
+              "const": false,
+              "description": "Field binary containers are outside this first draft."
+            }
+          }
+        },
+        "edit_revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "request_bytes",
+        "cells",
+        "voxels",
+        "steps",
+        "estimated_memory_bytes",
+        "output_bytes",
+        "queued_runs",
+        "active_runs",
+        "wall_time_s",
+        "event_page_size",
+        "chunk_bytes",
+        "retention_seconds",
+        "idempotency_retention_seconds"
+      ],
+      "properties": {
+        "request_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "cells": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "voxels": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "estimated_memory_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "output_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "queued_runs": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "active_runs": {
+          "const": 1
+        },
+        "wall_time_s": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "event_page_size": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "chunk_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "retention_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "idempotency_retention_seconds": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "Estimate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cells",
+        "voxels",
+        "steps",
+        "memory_bytes",
+        "output_bytes"
+      ],
+      "properties": {
+        "cells": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "voxels": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "memory_bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "output_bytes": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "TaskCapabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_contract_version",
+        "mode",
+        "pause",
+        "resume",
+        "checkpoint",
+        "partial_results",
+        "hash_canonicalization",
+        "limits"
+      ],
+      "properties": {
+        "task_contract_version": {
+          "const": "0.1.0-draft.1"
+        },
+        "mode": {
+          "const": "single-worker"
+        },
+        "pause": {
+          "const": false
+        },
+        "resume": {
+          "const": false
+        },
+        "checkpoint": {
+          "const": false
+        },
+        "partial_results": {
+          "const": true
+        },
+        "hash_canonicalization": {
+          "const": "RFC8785"
+        },
+        "limits": {
+          "$ref": "#/$defs/Limits"
+        }
+      }
+    },
+    "InputSnapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "href",
+        "document_sha256",
+        "scientific_sha256",
+        "plan_sha256",
+        "registry_sha256",
+        "canonicalization",
+        "edit_revision"
+      ],
+      "properties": {
+        "href": {
+          "type": "string",
+          "pattern": "^/api/runs/[A-Za-z0-9_-]{1,128}/input$"
+        },
+        "document_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "scientific_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "plan_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "registry_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "canonicalization": {
+          "const": "RFC8785"
+        },
+        "edit_revision": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "Progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "committed_step",
+        "simulation_time_s"
+      ],
+      "properties": {
+        "committed_step": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "simulation_time_s": {
+          "type": "number",
+          "minimum": 0
+        }
+      }
+    },
+    "Task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_contract_version",
+        "run_id",
+        "status",
+        "created_at",
+        "updated_at",
+        "finished_at",
+        "cancel_requested",
+        "input_snapshot",
+        "estimate",
+        "progress",
+        "last_event_seq",
+        "result",
+        "issues"
+      ],
+      "properties": {
+        "task_contract_version": {
+          "const": "0.1.0-draft.1"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "status": {
+          "enum": [
+            "queued",
+            "running",
+            "completed",
+            "failed",
+            "cancelled",
+            "interrupted"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "type": "string",
+              "format": "date-time"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "cancel_requested": {
+          "type": "boolean"
+        },
+        "input_snapshot": {
+          "$ref": "#/$defs/InputSnapshot"
+        },
+        "estimate": {
+          "$ref": "#/$defs/Estimate"
+        },
+        "progress": {
+          "$ref": "#/$defs/Progress"
+        },
+        "last_event_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "href",
+            "completeness"
+          ],
+          "properties": {
+            "href": {
+              "type": "string",
+              "pattern": "^/api/runs/[A-Za-z0-9_-]{1,128}/result$"
+            },
+            "completeness": {
+              "enum": [
+                "none",
+                "partial",
+                "complete"
+              ]
+            }
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Issue"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "queued",
+                  "running"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "finished_at": {
+                "type": "null"
+              },
+              "result": {
+                "properties": {
+                  "completeness": {
+                    "enum": [
+                      "none",
+                      "partial"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "completed",
+                  "failed",
+                  "cancelled",
+                  "interrupted"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "finished_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "completed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "properties": {
+                  "completeness": {
+                    "enum": [
+                      "complete"
+                    ]
+                  }
+                }
+              },
+              "issues": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "severity": {
+                        "const": "error"
+                      }
+                    },
+                    "required": [
+                      "severity"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "failed",
+                  "cancelled",
+                  "interrupted"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "result": {
+                "properties": {
+                  "completeness": {
+                    "enum": [
+                      "none",
+                      "partial"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "failed",
+                  "interrupted"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "issues": {
+                "contains": {
+                  "properties": {
+                    "severity": {
+                      "const": "error"
+                    }
+                  },
+                  "required": [
+                    "severity"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "cancelled"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cancel_requested": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "queued"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cancel_requested": {
+                "const": false
+              },
+              "progress": {
+                "properties": {
+                  "committed_step": {
+                    "const": 0
+                  },
+                  "simulation_time_s": {
+                    "const": 0
+                  }
+                }
+              },
+              "result": {
+                "properties": {
+                  "completeness": {
+                    "enum": [
+                      "none"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "Event": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seq",
+        "type",
+        "created_at",
+        "task"
+      ],
+      "properties": {
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "type": {
+          "enum": [
+            "accepted",
+            "started",
+            "progress",
+            "cancel_requested",
+            "completed",
+            "failed",
+            "cancelled",
+            "interrupted"
+          ]
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "task": {
+          "$ref": "#/$defs/Task"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "accepted"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": {
+                  "status": {
+                    "const": "queued"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "started"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": {
+                  "status": {
+                    "const": "running"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "progress"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": {
+                  "status": {
+                    "const": "running"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": {
+                  "status": {
+                    "const": "completed"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "failed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": {
+                  "status": {
+                    "const": "failed"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cancelled"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": {
+                  "status": {
+                    "const": "cancelled"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "interrupted"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": {
+                  "status": {
+                    "const": "interrupted"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "cancel_requested"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "task": {
+                "properties": {
+                  "status": {
+                    "const": "running"
+                  },
+                  "cancel_requested": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "EventPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "events",
+        "next_after",
+        "has_more",
+        "latest_seq"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Event"
+          }
+        },
+        "next_after": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "has_more": {
+          "type": "boolean"
+        },
+        "latest_seq": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Chunk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "chunk_id",
+        "href",
+        "sha256",
+        "bytes",
+        "media_type",
+        "first_step",
+        "last_step"
+      ],
+      "properties": {
+        "chunk_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "href": {
+          "type": "string",
+          "pattern": "^/api/runs/[A-Za-z0-9_-]{1,128}/chunks/[A-Za-z0-9_-]{1,128}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "media_type": {
+          "const": "application/json"
+        },
+        "first_step": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_step": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "Manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_contract_version",
+        "run_id",
+        "status",
+        "completeness",
+        "input_snapshot",
+        "progress",
+        "chunks",
+        "issues"
+      ],
+      "properties": {
+        "task_contract_version": {
+          "const": "0.1.0-draft.1"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "status": {
+          "enum": [
+            "running",
+            "completed",
+            "failed",
+            "cancelled",
+            "interrupted"
+          ]
+        },
+        "completeness": {
+          "enum": [
+            "partial",
+            "complete"
+          ]
+        },
+        "input_snapshot": {
+          "$ref": "#/$defs/InputSnapshot"
+        },
+        "progress": {
+          "$ref": "#/$defs/Progress"
+        },
+        "chunks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Chunk"
+          },
+          "minItems": 1
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Issue"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "completeness": {
+                "const": "complete"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "completeness": {
+                "const": "partial"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "failed",
+                  "interrupted"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "issues": {
+                "contains": {
+                  "properties": {
+                    "severity": {
+                      "const": "error"
+                    }
+                  },
+                  "required": [
+                    "severity"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "completed"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "issues": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "severity": {
+                        "const": "error"
+                      }
+                    },
+                    "required": [
+                      "severity"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ChunkBody": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_contract_version",
+        "run_id",
+        "chunk_id",
+        "frames"
+      ],
+      "properties": {
+        "task_contract_version": {
+          "const": "0.1.0-draft.1"
+        },
+        "run_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "chunk_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
+        },
+        "frames": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "sequence",
+              "step_index",
+              "time_s",
+              "grid_revision",
+              "frame"
+            ],
+            "properties": {
+              "sequence": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "step_index": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "time_s": {
+                "type": "number",
+                "minimum": 0
+              },
+              "grid_revision": {
+                "type": "string",
+                "minLength": 1
+              },
+              "frame": {
+                "oneOf": [
+                  {
+                    "$ref": "frame.schema.json"
+                  },
+                  {
+                    "$ref": "frame-v0.2.schema.json"
+                  }
+                ]
+              }
+            }
+          },
+          "minItems": 1
+        }
+      }
+    }
+  },
+  "examples": [
+    {
+      "task_contract_version": "0.1.0-draft.1",
+      "run_id": "run_example",
+      "status": "completed",
+      "created_at": "2026-09-29T00:00:00Z",
+      "updated_at": "2026-09-29T00:00:01Z",
+      "finished_at": "2026-09-29T00:00:01Z",
+      "cancel_requested": false,
+      "input_snapshot": {
+        "href": "/api/runs/run_example/input",
+        "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "scientific_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "plan_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "registry_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "canonicalization": "RFC8785",
+        "edit_revision": "edit-3"
+      },
+      "estimate": {
+        "cells": 4,
+        "voxels": 64,
+        "steps": 10,
+        "memory_bytes": 65536,
+        "output_bytes": 32768
+      },
+      "progress": {
+        "committed_step": 10,
+        "simulation_time_s": 1
+      },
+      "last_event_seq": 4,
+      "result": {
+        "href": "/api/runs/run_example/result",
+        "completeness": "complete"
+      },
+      "issues": []
+    },
+    {
+      "task_contract_version": "0.1.0-draft.1",
+      "run_id": "run_example",
+      "status": "failed",
+      "created_at": "2026-09-29T00:00:00Z",
+      "updated_at": "2026-09-29T00:00:01Z",
+      "finished_at": "2026-09-29T00:00:01Z",
+      "cancel_requested": false,
+      "input_snapshot": {
+        "href": "/api/runs/run_example/input",
+        "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "scientific_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "plan_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "registry_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "canonicalization": "RFC8785",
+        "edit_revision": "edit-3"
+      },
+      "estimate": {
+        "cells": 4,
+        "voxels": 64,
+        "steps": 10,
+        "memory_bytes": 65536,
+        "output_bytes": 32768
+      },
+      "progress": {
+        "committed_step": 3,
+        "simulation_time_s": 0.3
+      },
+      "last_event_seq": 4,
+      "result": {
+        "href": "/api/runs/run_example/result",
+        "completeness": "partial"
+      },
+      "issues": [
+        {
+          "code": "task.output_write_failed",
+          "severity": "error",
+          "phase": "publish",
+          "path": "/output_plan",
+          "targets": [
+            {
+              "kind": "run",
+              "id": "run_example"
+            }
+          ],
+          "message": "Failed to publish the next chunk; only previously published chunks remain available."
+        }
+      ]
+    },
+    {
+      "task_contract_version": "0.1.0-draft.1",
+      "run_id": "run_example",
+      "status": "cancelled",
+      "created_at": "2026-09-29T00:00:00Z",
+      "updated_at": "2026-09-29T00:00:01Z",
+      "finished_at": "2026-09-29T00:00:01Z",
+      "cancel_requested": true,
+      "input_snapshot": {
+        "href": "/api/runs/run_example/input",
+        "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "scientific_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "plan_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "registry_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "canonicalization": "RFC8785",
+        "edit_revision": "edit-3"
+      },
+      "estimate": {
+        "cells": 4,
+        "voxels": 64,
+        "steps": 10,
+        "memory_bytes": 65536,
+        "output_bytes": 32768
+      },
+      "progress": {
+        "committed_step": 0,
+        "simulation_time_s": 0
+      },
+      "last_event_seq": 4,
+      "result": {
+        "href": "/api/runs/run_example/result",
+        "completeness": "none"
+      },
+      "issues": []
+    }
+  ],
+  "x-state-transitions": {
+    "queued": [
+      "running",
+      "cancelled",
+      "failed",
+      "interrupted"
+    ],
+    "running": [
+      "completed",
+      "failed",
+      "cancelled",
+      "interrupted"
+    ],
+    "completed": [],
+    "failed": [],
+    "cancelled": [],
+    "interrupted": []
+  }
+}
