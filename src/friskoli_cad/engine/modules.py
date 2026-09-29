@@ -13,6 +13,7 @@ from friskoli_cad.project import ControlSchedule
 
 from .compiler import CompiledNode
 from .diffusion import explicit_no_flux_limit, no_flux_diffusion_rate
+from .geometry import CapsuleReadout
 from .motion import heading_from_orientation, reflect_in_box, turn_about_z
 from .runtime import ModuleRegistry, ModuleResult, SimulationError, World
 from .spatial import box_overlap_weights
@@ -23,8 +24,15 @@ def _manifest(name: str) -> dict:
     return json.loads(resource.read_text(encoding="utf-8"))
 
 
+def _declaration(name: str) -> dict:
+    resource = files("friskoli_cad.engine").joinpath("declarations", f"{name}.json")
+    return json.loads(resource.read_text(encoding="utf-8"))
+
+
 class StaticPopulation:
     manifest = _manifest("population.static")
+    declaration = _declaration("population.static")
+    object_types = [_declaration("population.object")]
 
     def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
         return ModuleResult({}, {})
@@ -398,6 +406,7 @@ class SampleBoxSupport:
 
 class SampleBoxSupportAtPosition(SampleBoxSupport):
     manifest = _manifest("field.sample_box_support.v2")
+    declaration = _declaration("field.sample_box_support.v2")
 
     def initialize(self, world: World, node: CompiledNode, inputs: Mapping[str, np.ndarray]) -> ModuleResult:
         return self._sample(world, node, inputs["concentration"], inputs["position"])
@@ -604,6 +613,7 @@ class ReflectiveRun:
 def default_registry() -> ModuleRegistry:
     return ModuleRegistry([
         StaticPopulation(),
+        CapsuleReadout(_manifest("geometry.capsule_readout"), _declaration("geometry.capsule_readout")),
         LocalInventory(), LocalInventoryWithDiffusion(), ScheduledLocalInventory(),
         ScheduledUniformRate(), LinearElongation(), LengthAdder(), DiffusionNoFlux(), IdealReservoir(),
         SampleNearest(), SampleBoxSupport(), SampleBoxSupportAtPosition(), LinearUptake(),

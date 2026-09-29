@@ -1,5 +1,7 @@
 # 工作区与服务协议 · 0.2.0
 
+本页保留 0.2 格式与兼容接口记录。新保存格式为 Workspace 0.3，新增对象关联和数据节点折叠；API 仍是同步 0.2，详见[注册目录与工作区 0.3](registry-contract.md)。
+
 状态：2026-09-29 已实现。适用于当前本地服务；交互规则见 [Interaction Specification](interaction-specification.md)，机器接口见 [OpenAPI](openapi.json)，工作区格式见 [JSON Schema](../src/friskoli_cad/protocol/schemas/workspace-v0.2.schema.json)。
 
 ## 版本与对象关系

@@ -1,7 +1,9 @@
 import { normalizeReplay, cellHistory } from './replay.mjs';
-import { registerModules, resolveGraph } from './catalog.mjs';
-import { blocksFromProject, createBlock, scatterBlock, checkBlock } from './population.mjs';
-import { readWorkspace, writeWorkspace, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
+import { registerCatalog, resolveGraph, readableManifest, unavailableModules } from './catalog.mjs';
+import { adaptWorkspace } from './migration.mjs';
+import { renderModuleDocumentation } from './math-inspector.mjs';
+import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
+import { writeWorkspace, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
 import { renderResultData } from './results.mjs';
 import { installDockSizing } from './panels.mjs';
@@ -10,7 +12,7 @@ import { GraphEditor, autoLayout } from './workflow.mjs';
 import { addNode, connect, connectionProblem, disconnect, missingInputs, preferredTiming, removeNode,
   setParameter } from './graph-edit.mjs';
 import { applyLanguage, currentLanguage, setLanguage, t } from './i18n.mjs';
-import { availablePlaceables } from './placeables.mjs';
+import { availablePlaceables, objectForBlock, initializeObject } from './placeables.mjs';
 import { icon } from './icons.mjs';
 
 const $ = id => document.getElementById(id);
@@ -27,6 +29,8 @@ const state = { project: null, blocks: [], modules: new Map(), replay: null, vie
   history: [], future: [], tool: 'select', snap: false, settings: {dt_s: .5, steps: 8},
   revision: 0, saved: '', busy: false, checks: [], runs: [], activeRun: null, template: null, capabilities: null };
 const kernel = new KernelClient();
+state.objects = new Map();
+state.activeObject = null;
 const TOOLS = { select: 'select-tool', population: 'population-tool', move: 'move-tool', scale: 'scale-tool',
   rotate: 'rotate-tool', hand: 'hand-tool', orbit: 'orbit-tool', measure: 'measure-tool' };
 let viewport;
@@ -262,7 +266,7 @@ function renderLeft() {
     container.append(el('div', 'tree-heading', `${t('compiled')} · ${state.modules.size}`));
     for (const [key, manifest] of state.modules) {
       if (filter && !`${key} ${manifest.description}`.toLowerCase().includes(filter)) continue;
-      treeRow(container, manifest.id, manifest.version, state.selectedManifest === key,
+      treeRow(container, manifest.declaration?.label ?? manifest.id, manifest.version, state.selectedManifest === key,
         () => { state.selectedManifest = key; renderLeft(); renderInspector(); closeDocks(); }, '⬡');
     }
     return;
@@ -282,7 +286,7 @@ function renderLeft() {
   }
   if (state.view === 'space') {
     container.append(el('div', 'tree-heading', t('library')));
-    for (const item of availablePlaceables(state.modules, state.capabilities)) {
+    for (const item of availablePlaceables(state.modules, state.capabilities, state.objects)) {
       const ready = item.status === 'ready';
       const row = el('button', `tree-row library-row${ready ? '' : ' unavailable'}${ready && state.tool === item.tool ? ' active' : ''}`);
       row.type = 'button';
@@ -295,8 +299,8 @@ function renderLeft() {
       row.append(glyph, name);
       if (ready) {
         row.draggable = true;
-        row.addEventListener('dragstart', event => event.dataTransfer.setData('application/friskoli-object', item.kind));
-        row.addEventListener('click', () => { useTool(item.tool); closeDocks(); });
+        row.addEventListener('dragstart', event => { state.activeObject = item.id; event.dataTransfer.setData('application/friskoli-object', item.kind); });
+        row.addEventListener('click', () => { state.activeObject = item.id; useTool(item.tool); closeDocks(); });
       } else { row.disabled = true; row.title = t(item.status); }
       container.append(row);
     }
@@ -321,10 +325,12 @@ function renderLeft() {
   }
 }
 
-function numberField(parent, label, block, key, axis = null) {
+function numberField(parent, label, block, key, axis = null, definition = {}) {
   const row = el('label', 'edit-row');
   const input = el('input');
   input.type = 'number';
+  if (definition.minimum !== undefined) input.min = definition.minimum;
+  if (definition.maximum !== undefined) input.max = definition.maximum;
   input.step = key === 'count' || key === 'seed' ? '1' : '.1';
   input.value = axis === null ? block[key] : block[key][axis];
   input.setAttribute('aria-label', label);
@@ -332,6 +338,8 @@ function numberField(parent, label, block, key, axis = null) {
   const update = () => {
     if (input.value === '') return;
     const value = Number(input.value);
+    if ((definition.minimum !== undefined && value < definition.minimum) ||
+        (definition.maximum !== undefined && value > definition.maximum)) { input.reportValidity(); return; }
     if (!Number.isFinite(value) || ((key === 'count' || key === 'seed') && !Number.isInteger(value))) {
       input.setCustomValidity('Invalid number'); input.reportValidity(); return;
     }
@@ -363,26 +371,37 @@ function renderBlockInspector(root, block) {
     edit('updated', () => { block.name = value; });
   });
   count.append(nameRow);
-  numberField(count, t('count'), block, 'count');
-  numberField(count, t('length') + ' µm', block, 'length');
-  numberField(count, t('diameter') + ' µm', block, 'diameter');
-  numberField(count, t('seed'), block, 'seed');
-  const position = section(root, `${t('center')} · µm`);
-  ['X', 'Y', 'Z'].forEach((axis, index) => numberField(position, axis, block, 'center', index));
-  const volume = section(root, `${t('size')} · µm`);
-  ['X', 'Y', 'Z'].forEach((axis, index) => numberField(volume, axis, block, 'size', index));
   block.rotation ??= [0, 0, 0];
+  const object = objectForBlock(block, state.objects);
+  for (const property of object?.properties ?? []) {
+    const parent = property.type === 'vector3' ? section(root, t(property.label) + ' · ' + property.unit) : count;
+    if (property.type === 'vector3') ['X','Y','Z'].forEach((axis,index) =>
+      numberField(parent, axis, block, property.path, index, property));
+    else numberField(parent, t(property.label) + (property.unit === '1' ? '' : ' · ' + property.unit), block, property.path, null, property);
+  }
   const rotation = section(root, t('rotation') + ' · °');
-  ['X', 'Y', 'Z'].forEach((axis, index) => numberField(rotation, axis, block, 'rotation', index));
   for (const key of ['hidden', 'locked']) {
     const label = el('label', 'edit-row', t(key)), input = el('input'); input.type = 'checkbox'; input.checked = Boolean(block[key]);
     input.addEventListener('change', () => edit('updated', () => { block[key] = input.checked; })); label.append(input); rotation.append(label);
   }
   const action = el('button', 'inspector-action', t('scatter'));
   action.type = 'button';
-  action.disabled = Boolean(block.locked);
+  action.disabled = Boolean(block.locked) || !object;
   action.addEventListener('click', () => scatter(block.id));
   root.append(action);
+  if (!object) root.append(el('p','pending-note',t('unsupportedObject')));
+  if (block.binding) {
+    const details = el('details','property-section');
+    details.append(el('summary','',t('objectData')));
+    for (const id of block.binding.data_nodes) {
+      const node = findNode(id);
+      const button = el('button','inspector-action',id + (node ? '' : ' · ' + t('removed')));
+      button.disabled = !node;
+      button.addEventListener('click', () => { setView('workflow'); selectGraph({kind:'node',id}); });
+      details.append(button);
+    }
+    root.append(details);
+  }
   for (const [label, handler] of [['duplicate', () => duplicateBlock(block.id)], ['delete', () => removeBlock(block.id)]]) {
     const button = el('button', 'inspector-action', t(label)); button.disabled = Boolean(block.locked);
     button.addEventListener('click', handler); root.append(button);
@@ -468,6 +487,7 @@ function duplicateBlock(id) {
   edit('updated', () => {
     const newId = createBlock(state.project, source.center, state.blocks.map(b => b.id)).id;
     const copy = {...structuredClone(source), id:newId, name:source.name + ' copy', dirty:true, hidden:false, locked:false};
+    delete copy.binding;
     state.blocks.push(copy); state.selectedBlock = copy.id;
   });
 }
@@ -483,7 +503,7 @@ function removeBlock(id) {
 function renderDiagnostics() {
   const root = $('checks-list'); root.replaceChildren();
   for (const issue of state.checks) {
-    const item = el('li', issue.code === 'valid' ? '' : 'error');
+    const item = el('li', issue.code === 'valid' ? '' : issue.severity === 'info' ? 'info' : 'error');
     item.append(el('strong', '', issue.code), el('span', '', `${issue.path ?? ''} ${issue.message}`)); root.append(item);
   }
   if (!state.checks.length) root.append(el('li', '', t('unchecked')));
@@ -634,7 +654,12 @@ function renderGraphSummary(root) {
   kv(part, t('edges'), String(graph.edges.length));
   const missing = missingInputs(graph, state.modules);
   const check = section(root, t('checks'));
-  if (!missing.length) check.append(el('p', 'empty-message', t('graphReady')));
+  const unavailable = unavailableModules(graph, state.modules);
+  if (!missing.length && !unavailable.length) check.append(el('p', 'empty-message', t('graphReady')));
+  for (const node of unavailable) {
+    const button = el('button','event-row warning',node.id + ': ' + t('unknownModule'));
+    button.addEventListener('click', () => selectGraph({kind:'node',id:node.id})); check.append(button);
+  }
   for (const item of missing) {
     const button = el('button', 'event-row warning', t('missingInput', { node: item.node, port: item.port }));
     button.type = 'button';
@@ -652,6 +677,12 @@ function renderManifest(root, manifest, node = null) {
   kv(identity, t('phase'), String(manifest.phase));
   kv(identity, t('maturity'), manifest.maturity ?? '—');
   kv(identity, t('description'), manifest.description ?? '—');
+  renderModuleDocumentation(root, manifest, t);
+  if (manifest.unavailable && node) {
+    root.append(el('p','pending-note',t('unknownModule')));
+    const original = section(root,t('parameters'));
+    for (const [name,value] of Object.entries(node.parameters)) kv(original,name,JSON.stringify(value));
+  }
   if (node) {
     kv(identity, t('owner'), `${node.owner.kind} · ${node.owner.id}`);
     const params = section(root, t('parameters'));
@@ -700,7 +731,7 @@ function renderInspector() {
     const sel = state.graphSelection;
     const node = sel?.kind === 'node' ? findNode(sel.id) : null;
     const edge = sel?.kind === 'edge' ? state.project.graph.edges.find(item => item.id === sel.id) : null;
-    if (node) renderManifest(root, state.modules.get(moduleKey(node)), node);
+    if (node) renderManifest(root, readableManifest(node, state.project.graph, state.modules), node);
     else if (edge) renderEdgeInspector(root, edge);
     else renderGraphSummary(root);
   } else {
@@ -766,6 +797,7 @@ function connectPorts(from, to) {
 }
 
 const graphEditor = new GraphEditor($('workflow-view'), {
+  toggle(id) { edit('updated', () => { state.layout[id].collapsed = !state.layout[id].collapsed; }); },
   hint: () => status('connectHint'),
   select: selectGraph,
   canConnect: (from, to) => Boolean(preferredTiming(state.project.graph, state.modules, from, to)),
@@ -774,7 +806,7 @@ const graphEditor = new GraphEditor($('workflow-view'), {
     // Layout is already updated for a smooth drag; record the pre-drag state for undo.
     const before = snapshot();
     before.layout[id] = origin;
-    state.layout[id] = position;
+    state.layout[id] = {...state.layout[id], ...position};
     pushHistory(before);
     renderAll();
   },
@@ -804,8 +836,10 @@ function showGraphContext(selection, x, y) {
 function updateRunButton() {
   const pending = state.blocks.some(block => block.dirty);
   const missing = state.project ? missingInputs(state.project.graph, state.modules).length : 0;
-  $('run-button').disabled = state.busy || pending || !state.project || missing > 0;
+  const unavailable = state.project ? unavailableModules(state.project.graph, state.modules).length : 0;
+  $('run-button').disabled = state.busy || pending || !state.project || missing > 0 || unavailable > 0;
   $('run-button').title = state.busy ? t('running') : pending ? t('pending') : missing ? t('missingConnections') : '';
+  if (unavailable) $('run-button').title = t('unknownModule');
   $('check-button').disabled = state.busy || !state.project;
 }
 
@@ -827,7 +861,7 @@ function renderAll() {
   $('result-banner').hidden = state.view !== 'results' || !state.activeRun;
   $('result-banner').textContent = state.activeRun ? `${state.activeRun.id} · ${t(state.activeRun.revision === state.revision ? 'completed' : 'earlierRevision')}` : '';
   $('export-button').disabled = !state.replay;
-  $('population-tool').disabled = state.view !== 'space';
+  $('population-tool').disabled = state.view !== 'space' || !state.activeObject;
   renderScene();
   renderTimeline();
   renderLeft();
@@ -892,7 +926,7 @@ async function executeProject(candidate) {
 function scatter(id) {
   const block = state.blocks.find(item => item.id === id);
   if (!block || block.locked) return;
-  edit('scattered', () => scatterBlock(state.project, block, state.modules.get('population.static@1.0.0')), {count:block.count, id});
+  edit('scattered', () => initializeObject(state.project, block, objectForBlock(block, state.objects), state.modules), {count:block.count, id});
 }
 
 function showContext(id, x, y) {
@@ -932,8 +966,7 @@ function download(name, content, type = 'application/json') {
 }
 
 async function loadProject(document) {
-  const loaded = readWorkspace(document);
-  resolveGraph(loaded.project.graph, state.modules);
+  const {state:loaded,report} = adaptWorkspace(document, state.modules);
   if (state.busy) throw new Error(t('running'));
   Object.assign(state, loaded);
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);
@@ -950,15 +983,18 @@ async function loadProject(document) {
     $('welcome-dialog').close();
     setView('space');
     status('opened');
+    state.checks = [...report.issues, ...report.changes.map(change => ({...change,severity:'info'}))];
+    if (state.checks.length) { showBottom('checks'); renderDiagnostics(); }
 }
 
 try {
   viewport = new SpatialViewport($('spatial-canvas'), $('scene-annotations'), {
     selectCell, selectBlock,
     placePopulation(point) {
-      if (!state.project) return;
+      if (!state.project || !state.activeObject) return;
       edit('blockPlaced', () => {
         const block = createBlock(state.project, point, state.blocks.map(item => item.id));
+        block.object_type = state.activeObject;
         state.blocks.push(block); state.selectedBlock = block.id;
       });
       useTool('select');
@@ -1095,6 +1131,11 @@ $('welcome-open').addEventListener('click', () => $('project-file').click());
 const replaceAllowed = () => !state.project || fingerprint() === state.saved || confirm(t('replaceDraft'));
 $('welcome-new').addEventListener('click', () => { if (replaceAllowed()) loadProject(blankProject(state.template)); });
 $('welcome-demo').addEventListener('click', () => { if (replaceAllowed()) loadProject(state.template); });
+$('welcome-registry').addEventListener('click', async () => {
+  if (!replaceAllowed()) return;
+  try { await loadProject(await kernel.request('/api/examples/registry-readout')); }
+  catch (error) { status('loadFailed', {message:error.message}, true); }
+});
 $('welcome-recover').addEventListener('click', async () => {
   try { if (replaceAllowed()) await loadProject(JSON.parse(localStorage.getItem(RECOVERY_KEY))); }
   catch (error) { status('loadFailed', {message:error.message}, true); }
@@ -1102,7 +1143,7 @@ $('welcome-recover').addEventListener('click', async () => {
 $('data-close').addEventListener('click', () => $('data-dialog').close());
 $('data-apply').addEventListener('click', () => {
   try {
-    const loaded = readWorkspace(JSON.parse($('data-editor').value)); resolveGraph(loaded.project.graph, state.modules);
+    const {state:loaded} = adaptWorkspace(JSON.parse($('data-editor').value), state.modules);
     if (edit('updated', () => { state.project = loaded.project; state.blocks = loaded.blocks; state.selectedBlock = null; })) $('data-dialog').close();
   } catch (error) { $('data-error').textContent = error.message; }
 });
@@ -1116,9 +1157,11 @@ for (const [id, glyph] of Object.entries({'select-tool':'select','population-too
 for (const dialog of document.querySelectorAll('dialog')) dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
 
 try {
-  const [catalogResponse, projectResponse, capabilities] = await Promise.all([fetch('/api/modules'), fetch('/api/example-project'), kernel.capabilities()]);
+  const [catalogResponse, projectResponse, capabilities] = await Promise.all([fetch('/api/catalog'), fetch('/api/example-project'), kernel.capabilities()]);
   if (!catalogResponse.ok || !projectResponse.ok) throw new Error('Local kernel unavailable');
-  state.modules = registerModules(await catalogResponse.json());
+  const registry = registerCatalog(await catalogResponse.json());
+  state.modules = registry.modules; state.objects = registry.objects;
+  state.activeObject = availablePlaceables(state.modules, capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
   state.capabilities = capabilities;
   state.template = await projectResponse.json();
   try { $('welcome-recover').disabled = !localStorage.getItem(RECOVERY_KEY); } catch { $('welcome-recover').disabled = true; }

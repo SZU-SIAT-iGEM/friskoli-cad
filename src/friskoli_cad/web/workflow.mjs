@@ -18,15 +18,16 @@ const svgPath = (d, className) => {
   return path;
 };
 
-export function nodeHeight(manifest) {
-  return HEAD + Math.max(1, Object.keys(manifest.inputs).length, Object.keys(manifest.outputs).length) * ROW + 10;
+export function nodeHeight(manifest, collapsed = false) {
+  return HEAD + Math.max(1, collapsed ? 1 : Object.keys(manifest.inputs).length,
+    collapsed ? 1 : Object.keys(manifest.outputs).length) * ROW + 10;
 }
 
 // Keeps saved positions and places new nodes in their phase column below existing cards.
 export function autoLayout(graph, modules, layout = {}) {
   const next = {};
   const phases = [...new Set(graph.nodes.map(node => modules.get(key(node))?.phase ?? 0))].sort((a, b) => a - b);
-  for (const node of graph.nodes) if (layout[node.id]) next[node.id] = { x: layout[node.id].x, y: layout[node.id].y };
+  for (const node of graph.nodes) if (layout[node.id]) next[node.id] = { ...layout[node.id] };
   for (const node of graph.nodes) {
     if (next[node.id]) continue;
     const manifest = modules.get(key(node));
@@ -39,7 +40,7 @@ export function autoLayout(graph, modules, layout = {}) {
       return Math.abs(p.x - x) < NODE_WIDTH + 20 && y < p.y + h + 24 && p.y < y + height + 24;
     });
     while (clash()) y += GRID * 2;
-    next[node.id] = { x, y };
+    next[node.id] = { x, y, ...(manifest?.declaration?.category === 'data' ? {collapsed:true} : {}) };
   }
   return next;
 }
@@ -92,7 +93,7 @@ export class GraphEditor {
     const node = this.resolved.nodes.find(item => item.id === nodeId);
     const position = this.layout[nodeId];
     if (!node || !position) return null;
-    const index = Object.keys(node.manifest[side]).indexOf(name);
+    const index = this.layout[nodeId]?.collapsed ? 0 : Object.keys(node.manifest[side]).indexOf(name);
     if (index < 0) return null;
     return [position.x + (side === 'outputs' ? NODE_WIDTH : 0), position.y + HEAD + index * ROW + ROW / 2];
   }
@@ -104,7 +105,7 @@ export class GraphEditor {
 
   render(graph, modules, layout, selection = null, missing = []) {
     this.graph = graph;
-    this.resolved = resolveGraph(graph, modules);
+    this.resolved = resolveGraph(graph, modules, {allowUnknown:true});
     this.layout = layout;
     this.selection = selection;
     this.missing = new Set(missing.map(item => `${item.node}\u0000${item.port}`));
@@ -115,7 +116,7 @@ export class GraphEditor {
     for (const node of this.resolved.nodes) {
       const { x, y } = layout[node.id];
       width = Math.max(width, x + NODE_WIDTH + 160);
-      height = Math.max(height, y + nodeHeight(node.manifest) + 160);
+      height = Math.max(height, y + nodeHeight(node.manifest, layout[node.id]?.collapsed) + 160);
     }
     board.style.width = `${width}px`;
     board.style.height = `${height}px`;
@@ -164,6 +165,7 @@ export class GraphEditor {
     row.style.top = `${HEAD + index * ROW}px`;
     const dot = el('button', 'port-dot');
     dot.type = 'button';
+    dot.disabled = Boolean(node.manifest.unavailable);
     dot.dataset.node = node.id;
     dot.dataset.port = name;
     dot.dataset.side = side;
@@ -192,13 +194,23 @@ export class GraphEditor {
     card.setAttribute('role', 'button');
     card.setAttribute('aria-label', `${node.id} · ${node.module_id}`);
     card.dataset.node = node.id;
+    card.classList.toggle('unavailable-module', Boolean(node.manifest.unavailable));
     card.style.left = `${x}px`;
     card.style.top = `${y}px`;
-    card.style.height = `${nodeHeight(node.manifest)}px`;
+    card.style.height = `${nodeHeight(node.manifest, this.layout[node.id]?.collapsed)}px`;
     card.append(el('span', 'graph-scope', `${node.manifest.scope} · ${node.owner.id} · P${node.manifest.phase}`),
       el('strong', '', node.id), el('span', 'graph-module-name', `${node.module_id}@${node.module_version}`));
-    Object.entries(node.manifest.inputs).forEach(([name, def], i) => card.append(this.port(node, 'inputs', name, def, i)));
-    Object.entries(node.manifest.outputs).forEach(([name, def], i) => card.append(this.port(node, 'outputs', name, def, i)));
+    if (node.manifest.declaration?.category === 'data') {
+      const toggle = el('button', 'data-node-toggle', this.layout[node.id]?.collapsed ? '+' : '−');
+      toggle.type = 'button'; toggle.setAttribute('aria-label', 'Expand or collapse data node ' + node.id);
+      toggle.addEventListener('pointerdown', event => event.stopPropagation());
+      toggle.addEventListener('click', event => { event.stopPropagation(); this.callbacks.toggle?.(node.id); });
+      card.append(toggle);
+    }
+    if (!this.layout[node.id]?.collapsed) {
+      Object.entries(node.manifest.inputs).forEach(([name, def], i) => card.append(this.port(node, 'inputs', name, def, i)));
+      Object.entries(node.manifest.outputs).forEach(([name, def], i) => card.append(this.port(node, 'outputs', name, def, i)));
+    } else card.append(el('span','data-node-summary',Object.keys(node.manifest.outputs).join(' · ') || 'Object initialization'));
     card.addEventListener('pointerdown', event => {
       if (event.button !== 0 || event.target.closest('.port-dot')) return;
       event.stopPropagation();
@@ -224,7 +236,7 @@ export class GraphEditor {
       if (!moved && Math.hypot(dx, dy) < 4) return;
       moved = true;
       card.classList.add('dragging');
-      this.layout[id] = { x: snap(origin.x + dx), y: snap(origin.y + dy) };
+      this.layout[id] = { ...origin, x: snap(origin.x + dx), y: snap(origin.y + dy) };
       card.style.left = `${this.layout[id].x}px`;
       card.style.top = `${this.layout[id].y}px`;
       this.drawEdges();

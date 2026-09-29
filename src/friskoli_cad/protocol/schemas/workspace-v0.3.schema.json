@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:friskoli:workspace:0.3.0",
+  "title": "Friskoli editable workspace 0.3.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "workspace_format_version",
+    "project",
+    "population_blocks",
+    "graph_layout",
+    "run_settings"
+  ],
+  "properties": {
+    "workspace_format_version": {
+      "const": "0.3.0"
+    },
+    "project": {
+      "oneOf": [
+        {
+          "$ref": "urn:friskoli:project:0.1.0"
+        },
+        {
+          "$ref": "urn:friskoli:project:0.2.0"
+        }
+      ]
+    },
+    "population_blocks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "name",
+          "center",
+          "size",
+          "count",
+          "length",
+          "diameter",
+          "seed",
+          "dirty"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "center": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "size": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "rotation": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            },
+            "minItems": 3,
+            "maxItems": 3
+          },
+          "count": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2000
+          },
+          "length": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "diameter": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "seed": {
+            "type": "integer"
+          },
+          "dirty": {
+            "type": "boolean"
+          },
+          "hidden": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "object_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "binding": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "data_nodes"
+            ],
+            "properties": {
+              "data_nodes": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "run_settings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dt_s",
+        "steps"
+      ],
+      "properties": {
+        "dt_s": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "steps": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        }
+      }
+    },
+    "graph_layout": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "x",
+          "y"
+        ],
+        "properties": {
+          "x": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "y": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "collapsed": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  }
+}

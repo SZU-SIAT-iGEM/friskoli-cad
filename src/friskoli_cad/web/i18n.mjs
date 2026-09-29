@@ -1,5 +1,11 @@
 const messages = {
   en: {
+    registryDemoTitle:'Geometry & sampling',registryDemoHint:'Registry example · constructed validation values',
+    mathematics:'Mathematics & algorithm',mathPending:'Mathematical documentation has not yet been registered.',
+    symbolsAndSource:'Symbols and LaTeX source',implementationEvidence:'Implementation and evidence',
+    registeredTests:'Referenced implementation tests. These are not evidence of biological calibration.',mathUnreviewed:'Not reviewed.',
+    objectData:'Linked data nodes',removed:'removed',unknownModule:'An exact module version is unavailable. The project remains readable; running is disabled.',
+    unsupportedObject:'This object type cannot be initialized by the installed editor.',unsupported:'Editor adapter unavailable',
     data:'Data',cellCountHistory:'Recorded cell count',maturity:'Maturity',evidence:'Evidence',evidenceHint:'Module provenance and scope',selectModuleEvidence:'Select a module or node to inspect its evidence.',evidenceRule:'Registry metadata is descriptive. It does not replace literature, measurement or calibration.',scientificRole:'Scientific role',
     connectHint:'Select an input port to connect. Esc cancels.',
     new:'New',newProject:'New project',newHint:'An empty 3D domain',openHint:'Project or workspace JSON',
@@ -68,6 +74,12 @@ const messages = {
     selectBlockFirst:'Select a population volume first.',
   },
   'zh-CN': {
+    registryDemoTitle:'几何与浓度采样',registryDemoHint:'注册贯通样例 · 构造验证值，非科学标定',
+    mathematics:'数学表达与算法',mathPending:'该模块尚未登记数学说明。',
+    symbolsAndSource:'符号与 LaTeX 源码',implementationEvidence:'实现与验证依据',
+    registeredTests:'列出实现测试的引用；不代表生物学标定或等价性证明。',mathUnreviewed:'尚未审查。',
+    objectData:'关联数据节点',removed:'已移除',unknownModule:'缺少指定版本的模块。项目仍可阅读和保存，运行已禁用。',
+    unsupportedObject:'当前编辑器不能初始化此对象类型。',unsupported:'编辑器暂不支持此对象',
     data:'数据',cellCountHistory:'菌体数量记录',maturity:'成熟度',evidence:'来源',evidenceHint:'模块来源与适用范围',selectModuleEvidence:'选择模块或节点查看来源信息。',evidenceRule:'登记信息用于描述模块，不替代文献、测量或标定。',scientificRole:'科学角色',
     connectHint:'选择输入端口完成连接。Esc 取消。',
     new:'新建',newProject:'新建项目',newHint:'空白三维场地',openHint:'项目或工作区 JSON',

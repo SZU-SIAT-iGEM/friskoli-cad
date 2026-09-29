@@ -7,6 +7,8 @@
   <title>Friskoli-CAD</title>
   <link rel="icon" href="/assets/cad.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/vendor/katex/katex.min.css">
+  <link rel="stylesheet" href="/registry.css">
   <script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js"}}</script>
 </head>
 <body>
@@ -100,6 +102,7 @@
     <h1 data-i18n="welcomeTitle">Build a living system.</h1><p data-i18n="welcomeHint">Scene, behavior, simulation. One reproducible project.</p>
     <div class="welcome-actions"><button id="welcome-new"><span data-i18n="newProject">New project</span><small data-i18n="newHint">An empty 3D domain</small></button><button id="welcome-open"><span data-i18n="open">Open</span><small data-i18n="openHint">Project or workspace JSON</small></button></div>
     <button class="preset-card" id="welcome-demo"><span class="preset-art" aria-hidden="true">◒<i>◒</i>◒</span><span><strong data-i18n="demoTitle">Growth & division</strong><small data-i18n="demoHint">3D · illustrative length-adder model</small></span><span>↗</span></button>
+    <button class="preset-card" id="welcome-registry"><span class="preset-art" aria-hidden="true">∑</span><span><strong data-i18n="registryDemoTitle">Geometry & sampling</strong><small data-i18n="registryDemoHint">Registry example · constructed validation values</small></span><span>↗</span></button>
     <button id="welcome-recover" class="menu-button" data-i18n="recover">Recover local draft</button>
   </dialog>
   <dialog id="data-dialog" class="data-dialog"><div class="dialog-head"><h2 data-i18n="projectData">Project data</h2><button id="data-close" aria-label="Close project data">×</button></div><p data-i18n="dataHint">Species, schedules and result channels use the backend project schema. Drafts may contain incomplete connections.</p><textarea id="data-editor" aria-label="Project JSON" spellcheck="false"></textarea><p id="data-error" role="alert"></p><button id="data-apply" class="run-button" data-i18n="apply">Apply</button></dialog>

@@ -144,7 +144,7 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
 
 def simulation_from_project(document: Mapping[str, object], registry=None):
     """Build a simulation from a complete snapshot; old graph-only callers remain valid."""
-    from friskoli_cad.engine import CapsuleGeometry, CellGroup, GridDomain, Simulation, World, default_registry
+    from friskoli_cad.engine import CapsuleGeometry, CellGroup, GridDomain, Simulation, SimulationError, World, default_registry
 
     registry = default_registry() if registry is None else registry
     validate_project(document, registry.manifests)
@@ -152,14 +152,25 @@ def simulation_from_project(document: Mapping[str, object], registry=None):
     nx, ny, nz = domain["counts_xyz"]
     dx, dy, dz = domain["spacing_um_xyz"]
     grid = GridDomain(domain["geometry"], nx, ny, nz, dx, dy, dz)
+    def capsule(group_id, group, index, entry):
+        if entry is None:
+            return None
+        try:
+            return CapsuleGeometry(entry["length_um"], entry["diameter_um"])
+        except SimulationError as error:
+            pointer = group_id.replace("~", "~0").replace("/", "~1")
+            cell_id = group['ids'][index] if index < len(group['ids']) else f"unmatched geometry entry {index}"
+            raise SimulationError(error.code, f"group {group_id}, cell {cell_id}: {error}",
+                                  f"/groups/{pointer}/initial_geometry/{index}") from error
+
     groups = {
         group_id: CellGroup(
             group_id, tuple(group["ids"]),
             np.array(group["positions_um"], dtype=np.float64).reshape((-1, 3)),
             np.array(group["orientation_xyzw"], dtype=np.float64).reshape((-1, 4)),
             tuple(
-                None if entry is None else CapsuleGeometry(entry["length_um"], entry["diameter_um"])
-                for entry in group["initial_geometry"]
+                capsule(group_id, group, index, entry)
+                for index, entry in enumerate(group["initial_geometry"])
             ) if "initial_geometry" in group else None,
         )
         for group_id, group in document["groups"].items()

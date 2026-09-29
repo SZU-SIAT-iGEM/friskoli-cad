@@ -1,0 +1,19 @@
+{
+  "label": "菌群初始化 / Static population",
+  "category": "data",
+  "mathematics": {
+    "kind": "algorithm",
+    "equations": [],
+    "algorithm": "Read the explicitly initialized population. This module does not move, grow or divide cells; other modules may do so.",
+    "implementation": "friskoli_cad.engine.modules.StaticPopulation",
+    "verification": {
+      "status": "tested",
+      "tests": [
+        "tests/test_replay_service.py::ReplayServiceTests.test_new_population_can_run_with_registered_static_module"
+      ]
+    },
+    "assumptions": [
+      "Initial seeded scatter is editor input generation; it does not perform collision-free packing."
+    ]
+  }
+}

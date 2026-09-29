@@ -1,0 +1,31 @@
+{
+  "label": "位置浓度采样 / Position-based concentration",
+  "category": "numerical",
+  "mathematics": {
+    "kind": "equations",
+    "equations": [
+      {
+        "latex": "c_i=\\sum_j w_{ij}C_j,\\qquad w_{ij}=\\frac{|B_i\\cap V_j|}{\\sum_k |B_i\\cap V_k|}",
+        "symbols": {
+          "c_i": "outputs.local_concentration [uM]",
+          "C_j": "inputs.concentration [uM]",
+          "B_i": "box centered on inputs.position with support_x/y/z_um",
+          "V_j": "world.grid voxel",
+          "w_ij": "normalized overlap weight [1]"
+        }
+      }
+    ],
+    "algorithm": "Sample the declared concentration field at declared positions using box-overlap weights.",
+    "implementation": "friskoli_cad.engine.modules.SampleBoxSupportAtPosition",
+    "verification": {
+      "status": "tested",
+      "tests": [
+        "tests/test_box_support.py"
+      ]
+    },
+    "assumptions": [
+      "Support is axis-aligned and clipped to the domain, then normalized.",
+      "This is spatial sampling, not uptake, gradient sensing or chemotaxis."
+    ]
+  }
+}

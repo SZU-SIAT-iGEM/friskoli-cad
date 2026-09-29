@@ -1,0 +1,279 @@
+{
+  "project_version": "0.2.0",
+  "id": "illustrative-registry-readout",
+  "domain": {
+    "geometry": "thin_layer",
+    "counts_xyz": [
+      2,
+      1,
+      1
+    ],
+    "spacing_um_xyz": [
+      5,
+      5,
+      1
+    ]
+  },
+  "groups": {
+    "group_1": {
+      "ids": [
+        "cell_0"
+      ],
+      "positions_um": [
+        [
+          5,
+          2.5,
+          0.5
+        ]
+      ],
+      "orientation_xyzw": [
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "initial_geometry": [
+        {
+          "shape": "capsule",
+          "length_um": 2.0,
+          "diameter_um": 0.8,
+          "provenance": {
+            "kind": "example",
+            "reference": "Constructed verification fixture: length 2 um, diameter 0.8 um; not measured or calibrated. Grid 2x1x1 with 5x5x1 um spacing; one cell at [5,2.5,0.5] um with identity XYZW orientation. Placement straddles a voxel boundary for overlap sampling."
+          }
+        }
+      ]
+    }
+  },
+  "species": {
+    "substrate": {
+      "concentration_unit": "uM",
+      "initial_concentration": {
+        "value": 5,
+        "unit": "uM",
+        "provenance": {
+          "kind": "example",
+          "reference": "Constructed uniform 5 uM concentration for exact sampling verification; not a measured environment."
+        }
+      }
+    }
+  },
+  "controls": {
+    "zero_source": {
+      "species": "substrate",
+      "scope": "whole_domain",
+      "rate_unit": "uM/s",
+      "changes": [
+        {
+          "time_s": 0,
+          "rate_uM_s": 0,
+          "provenance": {
+            "kind": "example",
+            "reference": "Explicit zero external input from t=0; fixture has no uptake or transport."
+          }
+        }
+      ]
+    }
+  },
+  "graph": {
+    "protocol_version": "0.1.0",
+    "id": "illustrative-registry-readout-graph",
+    "nodes": [
+      {
+        "id": "population",
+        "module_id": "population.static",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "group_1"
+        },
+        "parameters": {}
+      },
+      {
+        "id": "geometry",
+        "module_id": "geometry.capsule_readout",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "group_1"
+        },
+        "parameters": {}
+      },
+      {
+        "id": "source",
+        "module_id": "source.scheduled_uniform_rate",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "source",
+          "id": "zero_source"
+        },
+        "parameters": {
+          "species": {
+            "value": "substrate",
+            "provenance": {
+              "kind": "example",
+              "reference": "Arbitrary species identifier for numerical verification; no biological identity or calibration."
+            }
+          },
+          "schedule_id": {
+            "value": "zero_source",
+            "provenance": {
+              "kind": "example",
+              "reference": "Reference to the explicit zero-input control in this fixture."
+            }
+          }
+        }
+      },
+      {
+        "id": "field",
+        "module_id": "field.local_inventory",
+        "module_version": "3.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "domain"
+        },
+        "parameters": {
+          "species": {
+            "value": "substrate",
+            "provenance": {
+              "kind": "example",
+              "reference": "Arbitrary species identifier for numerical verification; no biological identity or calibration."
+            }
+          }
+        }
+      },
+      {
+        "id": "sampler",
+        "module_id": "field.sample_box_support",
+        "module_version": "2.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "group_1"
+        },
+        "parameters": {
+          "species": {
+            "value": "substrate",
+            "provenance": {
+              "kind": "example",
+              "reference": "Arbitrary species identifier for numerical verification; no biological identity or calibration."
+            }
+          },
+          "support_x_um": {
+            "value": 2,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed axis-aligned sampling support for overlap verification, not cell size or calibrated interaction distance."
+            }
+          },
+          "support_y_um": {
+            "value": 2,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed axis-aligned sampling support for overlap verification, not cell size or calibrated interaction distance."
+            }
+          },
+          "support_z_um": {
+            "value": 0.8,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed axis-aligned sampling support for overlap verification, not cell size or calibrated interaction distance."
+            }
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "source_to_field",
+        "from": {
+          "node": "source",
+          "port": "external_rate"
+        },
+        "to": {
+          "node": "field",
+          "port": "external_rate"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "field_to_sampler",
+        "from": {
+          "node": "field",
+          "port": "concentration"
+        },
+        "to": {
+          "node": "sampler",
+          "port": "concentration"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "geometry_to_sampler",
+        "from": {
+          "node": "geometry",
+          "port": "position"
+        },
+        "to": {
+          "node": "sampler",
+          "port": "position"
+        },
+        "timing": "same_step"
+      }
+    ]
+  },
+  "run": {
+    "protocol_version": "0.1.0",
+    "run_id": "illustrative-registry-readout-run",
+    "graph_id": "illustrative-registry-readout-graph",
+    "groups": [
+      "group_1"
+    ],
+    "channels": {
+      "geometry.length": {
+        "node": "geometry",
+        "port": "length",
+        "group_id": "group_1",
+        "shape": "cell.scalar",
+        "quantity": "capsule_length",
+        "unit": "um"
+      },
+      "geometry.diameter": {
+        "node": "geometry",
+        "port": "diameter",
+        "group_id": "group_1",
+        "shape": "cell.scalar",
+        "quantity": "capsule_diameter",
+        "unit": "um"
+      },
+      "geometry.surface_area": {
+        "node": "geometry",
+        "port": "surface_area",
+        "group_id": "group_1",
+        "shape": "cell.scalar",
+        "quantity": "area",
+        "unit": "um^2"
+      },
+      "geometry.volume": {
+        "node": "geometry",
+        "port": "volume",
+        "group_id": "group_1",
+        "shape": "cell.scalar",
+        "quantity": "volume",
+        "unit": "um^3"
+      },
+      "sampler.local_concentration": {
+        "node": "sampler",
+        "port": "local_concentration",
+        "group_id": "group_1",
+        "shape": "cell.scalar",
+        "quantity": "concentration",
+        "unit": "uM"
+      }
+    }
+  }
+}

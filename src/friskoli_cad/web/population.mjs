@@ -72,7 +72,8 @@ export function createBlock(project, center, existingIds = []) {
     Math.min(size[axis] - dimensions[axis] / 2, value)));
   if (project.domain.geometry === 'thin_layer') clamped[2] = size[2] / 2;
   return { id, name: id, center: clamped.map(number), size: dimensions.map(number),
-    count: 32, length: number(length), diameter: number(diameter), seed: hash(id), rotation: [0, 0, 0], dirty: true };
+    count: 32, length: number(length), diameter: number(diameter), seed: hash(id), rotation: [0, 0, 0], dirty: true,
+    hidden: false, locked: false };
 }
 
 export function scatterBlock(project, block, staticModule = null) {
@@ -93,7 +94,7 @@ export function scatterBlock(project, block, staticModule = null) {
   const draw = random(block.seed);
   const previous = project.groups[block.id];
   const needsNode = !project.graph.nodes.some(node => node.owner.kind === 'population' && node.owner.id === block.id);
-  if (needsNode && (staticModule?.id !== 'population.static' || staticModule.scope !== 'population')) {
+  if (needsNode && (!staticModule?.id || staticModule.scope !== 'population')) {
     throw new Error('Backend static population module is unavailable');
   }
   const otherCells = Object.entries(project.groups).reduce((total, [id, group]) =>
@@ -126,7 +127,9 @@ export function scatterBlock(project, block, staticModule = null) {
       diameter_um: block.diameter, provenance: { kind: 'estimated', reference: 'user-defined population volume scatter' } })) };
   project.project_version = '0.2.0';
   if (needsNode) {
-    project.graph.nodes.push({ id: `${block.id}_static`, module_id: staticModule.id,
+    let nodeId = `${block.id}_static`;
+    while (project.graph.nodes.some(node => node.id === nodeId)) nodeId += '_1';
+    project.graph.nodes.push({ id: nodeId, module_id: staticModule.id,
       module_version: staticModule.version, owner: { kind: 'population', id: block.id }, parameters: {} });
   }
   if (!project.run.groups.includes(block.id)) project.run.groups.push(block.id);

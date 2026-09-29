@@ -15,6 +15,7 @@ from typing import Iterable, Literal, Mapping, Protocol
 import numpy as np
 
 from friskoli_cad.protocol import FrameSequenceValidator, validate_manifest, validate_run_metadata
+from friskoli_cad.registry import build_catalog
 
 from .compiler import CompiledNode, compile_graph
 from .motion import heading_from_orientation, orientation_after_heading
@@ -24,8 +25,9 @@ MOLECULES_PER_UM3_PER_UM = 6.02214076e23 * 1e-21
 
 
 class SimulationError(ValueError):
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, path: str = "/"):
         self.code = code
+        self.path = path
         super().__init__(f"{code}: {message}")
 
 
@@ -165,8 +167,16 @@ class World:
             if seen.intersection(group.ids):
                 raise SimulationError("cell.identity", "cell IDs must be unique across groups")
             seen.update(group.ids)
-            self.grid.flat_indices(group.positions_um)
+            try:
+                self.grid.flat_indices(group.positions_um)
+            except SimulationError as error:
+                outside = np.any((group.positions_um < 0) | (group.positions_um >= self.grid.extent_um), axis=1)
+                index = int(np.flatnonzero(outside)[0])
+                pointer = group_id.replace("~", "~0").replace("/", "~1")
+                raise SimulationError(error.code, f"group {group_id}, cell {group.ids[index]} lies outside the grid",
+                                      f"/groups/{pointer}/positions_um/{index}") from error
             if self.grid.geometry == "thin_layer" and group.has_known_geometry:
+                pointer = group_id.replace("~", "~0").replace("/", "~1")
                 axial_z = heading_from_orientation(group.orientation_xyzw)[:, 2]
                 for index, capsule in enumerate(group.geometry):
                     if capsule is None:
@@ -178,7 +188,8 @@ class World:
                     center_z = group.positions_um[index, 2]
                     if center_z - half_height <= 0 or center_z + half_height >= self.grid.dz_um:
                         raise SimulationError(
-                            "cell.geometry", f"capsule {group.ids[index]} does not fit inside the thin layer"
+                            "cell.geometry", f"group {group_id}, capsule {group.ids[index]} does not fit inside the thin layer",
+                            f"/groups/{pointer}/initial_geometry/{index}"
                         )
         species = dict(self.species_initial_uM)
         if any(
@@ -231,6 +242,11 @@ class ModuleRegistry:
                 raise SimulationError("module.duplicate", f"module {key} is registered twice")
             by_key[key] = module
         self._modules = MappingProxyType(by_key)
+        self._catalog = build_catalog(by_key.values())
+
+    @property
+    def catalog(self) -> dict:
+        return deepcopy(self._catalog)
 
     @property
     def manifests(self) -> tuple[Mapping[str, object], ...]:
@@ -278,6 +294,10 @@ class Simulation:
         geometry_groups = set()
         division_groups = set()
         for node in self.plan.nodes:
+            # Explicit readers may expose position/geometry without becoming state writers.
+            # Legacy modules retain their original inferred writer semantics.
+            if getattr(registry.get(node.module_id, node.module_version), "world_access", "legacy_inferred") == "read_only":
+                continue
             outputs = registry.get(node.module_id, node.module_version).manifest["outputs"]
             pose = {name: outputs.get(name) for name in ("position", "heading")}
             if pose["position"] is not None:

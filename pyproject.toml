@@ -14,5 +14,5 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "friskoli_cad.protocol" = ["schemas/*.json"]
-"friskoli_cad.engine" = ["manifests/*.json"]
-"friskoli_cad" = ["examples/*.json", "web/*.html", "web/*.css", "web/*.mjs", "web/assets/*.svg", "web/vendor/three/build/*.js", "web/vendor/three/examples/jsm/controls/*.js", "web/vendor/three/LICENSE"]
+"friskoli_cad.engine" = ["manifests/*.json", "declarations/*.json"]
+"friskoli_cad" = ["examples/*.json", "web/*.html", "web/*.css", "web/*.mjs", "web/assets/*.svg", "web/vendor/three/build/*.js", "web/vendor/three/examples/jsm/controls/*.js", "web/vendor/three/LICENSE", "web/vendor/katex/*.mjs", "web/vendor/katex/*.css", "web/vendor/katex/LICENSE", "web/vendor/katex/README.md", "web/vendor/katex/fonts/*.woff2", "web/vendor/katex/fonts/*.woff", "web/vendor/katex/fonts/*.ttf"]

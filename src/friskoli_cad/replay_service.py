@@ -24,6 +24,11 @@ MAX_REPLAY_VALUES = 1_000_000
 MAX_VIEW_TILES = 4_096
 MAX_VIEW_CELLS = 2_000
 STATIC_FILES = {
+    "/registry.css": ("registry.css", "text/css; charset=utf-8"),
+    "/migration.mjs": ("migration.mjs", "text/javascript; charset=utf-8"),
+    "/math-inspector.mjs": ("math-inspector.mjs", "text/javascript; charset=utf-8"),
+    "/vendor/katex/katex.mjs": ("vendor/katex/katex.mjs", "text/javascript; charset=utf-8"),
+    "/vendor/katex/katex.min.css": ("vendor/katex/katex.min.css", "text/css; charset=utf-8"),
     "/panels.mjs": ("panels.mjs", "text/javascript; charset=utf-8"),
     "/results.mjs": ("results.mjs", "text/javascript; charset=utf-8"),
     "/workspace.mjs": ("workspace.mjs", "text/javascript; charset=utf-8"),
@@ -47,6 +52,13 @@ STATIC_FILES = {
     "/assets/friskoli.svg": ("assets/friskoli.svg", "image/svg+xml"),
     "/assets/cad.svg": ("assets/cad.svg", "image/svg+xml"),
 }
+
+
+for _font in files("friskoli_cad").joinpath("web", "vendor", "katex", "fonts").iterdir():
+    _extension = _font.name.rsplit(".", 1)[-1]
+    if _font.is_file() and _extension in ("woff2", "woff", "ttf"):
+        STATIC_FILES[f"/vendor/katex/fonts/{_font.name}"] = (
+            f"vendor/katex/fonts/{_font.name}", f"font/{_extension}")
 
 
 class ReplayRequestError(ValueError):
@@ -127,16 +139,23 @@ class ReplayHandler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/api/example-project":
             self._send(200, EXAMPLE_PROJECT.read_bytes(), "application/json; charset=utf-8")
+        elif path == "/api/examples/registry-readout":
+            self._send(200, files("friskoli_cad").joinpath("examples", "registry_readout.project.json").read_bytes(),
+                       "application/json; charset=utf-8")
         elif path == "/api/modules":
             self._json(200, {"protocol_version": "0.1.0", "modules": default_registry().manifests})
+        elif path == "/api/catalog":
+            self._json(200, default_registry().catalog)
         elif path == "/api/capabilities":
             self._json(200, {
-                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0"],
+                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0"],
+                "catalog_versions": ["0.1.0"], "execution_semantics": "legacy-explicit-v1",
                 "project_versions": ["0.1.0", "0.2.0"], "replay_versions": ["0.1.0"],
                 "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
                 "limits": {"request_bytes": MAX_REQUEST_BYTES, "cells": MAX_VIEW_CELLS,
                            "xy_tiles": MAX_VIEW_TILES, "replay_values": MAX_REPLAY_VALUES, "steps": 100},
-                "placeables": [{"kind": "population", "module": "population.static@1.0.0"}],
+                "placeables": [{"kind": item["kind"], "module": item["initializer"]["module"]}
+                               for item in default_registry().catalog["objects"]],
             })
         elif path in STATIC_FILES:
             filename, content_type = STATIC_FILES[path]

@@ -107,6 +107,16 @@ class ReplayServiceTests(unittest.TestCase):
             with urlopen(root + "/api/capabilities") as response:
                 capabilities = json.load(response)
             self.assertEqual(capabilities["api_version"], "0.2.0")
+            self.assertIn("0.3.0", capabilities["workspace_versions"])
+            self.assertEqual(capabilities["catalog_versions"], ["0.1.0"])
+            with urlopen(root + "/api/catalog") as response:
+                registry = json.load(response)
+            self.assertEqual(registry["modules"], catalog["modules"])
+            self.assertEqual(registry["objects"][0]["id"], "core.population")
+            with urlopen(root + "/api/examples/registry-readout") as response:
+                example = json.load(response)
+            replay_example = build_replay(example, dt_s=.1, steps=2)
+            self.assertEqual(len(replay_example["snapshots"]), 3)
             self.assertFalse(capabilities["execution"]["pause"])
             for path in STATIC_FILES:
                 with urlopen(root + path) as response:

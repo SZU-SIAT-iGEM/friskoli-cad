@@ -1,14 +1,14 @@
 // Editable documents and solved runs have separate lifetimes. No solver logic belongs here.
 import { blocksFromProject } from './population.mjs';
 
-export const WORKSPACE_VERSION = '0.2.0';
+export const WORKSPACE_VERSION = '0.3.0';
 export const RECOVERY_KEY = 'friskoli.workspace.v2';
 const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
   v.every(n => Number.isFinite(n) && (!positive || n > 0));
 
 export function readWorkspace(document) {
   const version = document?.workspace_format_version;
-  if (version && !['0.1.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
+  if (version && !['0.1.0', '0.2.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
   const project = structuredClone(version ? document.project : document);
   if (!project || !['0.1.0', '0.2.0'].includes(project.project_version) || typeof project.id !== 'string' ||
       !vector(project.domain?.counts_xyz, true) || !project.domain.counts_xyz.every(Number.isInteger) ||
@@ -55,9 +55,12 @@ export function readWorkspace(document) {
         !Number.isFinite(b.length) || !Number.isFinite(b.diameter) || b.length < b.diameter || b.diameter <= 0 ||
         (b.rotation && !vector(b.rotation))) throw new Error('Invalid population block');
     b.rotation ??= [0, 0, 0]; b.hidden = Boolean(b.hidden); b.locked = Boolean(b.locked);
+    if (b.object_type !== undefined && (typeof b.object_type !== 'string' || !b.object_type)) throw new Error('Invalid object type');
+    if (b.binding && (!Array.isArray(b.binding.data_nodes) || b.binding.data_nodes.some(id => typeof id !== 'string'))) throw new Error('Invalid object binding');
   }
   const layout = structuredClone(document.graph_layout ?? {});
-  for (const point of Object.values(layout)) if (![point.x, point.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100000)) throw new Error('Invalid graph layout');
+  for (const point of Object.values(layout)) if (![point.x, point.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100000) ||
+      (point.collapsed !== undefined && typeof point.collapsed !== 'boolean')) throw new Error('Invalid graph layout');
   const settings = structuredClone(document.run_settings ?? { dt_s: .5, steps: 8 });
   if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isInteger(settings.steps) || settings.steps < 1 || settings.steps > 100) throw new Error('Invalid run settings');
   return { project, blocks, layout, settings };
