@@ -38,12 +38,12 @@
 .dock-scroll{overscroll-behavior:contain}.edit-row input:disabled{opacity:.5}.edit-row input[type=checkbox]{width:18px;accent-color:var(--mint)}.edit-row select{max-width:150px;min-height:32px}.domain-form h3{margin:15px 0 5px}.domain-form .inspector-action{margin:12px 0 0;width:100%}.edit-row>span{min-width:0;overflow-wrap:anywhere}.property-key{flex-shrink:1;overflow-wrap:anywhere}
 .diagnostics{height:clamp(100px,25vh,210px);min-height:0;flex:none;display:flex;flex-direction:column;border-top:1px solid var(--line);background:var(--panel-deep)}.diagnostics .dock-tabs{height:35px}.diagnostics .dock-tabs button:last-child{margin-left:auto}.diagnostic-scroll{min-height:0;overflow:auto;overscroll-behavior:contain}.diagnostics ol{list-style:none;margin:0;padding:8px 12px;font:12px/1.7 Consolas,monospace}.diagnostics li{overflow-wrap:anywhere}.diagnostics li strong{color:var(--mint);margin-right:10px}.diagnostics .error,.diagnostics .error strong{color:var(--red)}
 .result-banner{position:absolute;left:12px;top:12px;max-width:45%;font:11px/1.6 Consolas,monospace;color:var(--amber);pointer-events:none}.empty-results{position:absolute;inset:0;display:grid;place-items:center;text-align:center;padding:45px;color:var(--muted);font-size:15px;pointer-events:none}.measure-readout{max-width:65%;overflow-wrap:anywhere}
-.dialog-head button{flex:none}.dialog-head{gap:15px}dialog{color:#e4efed;background:#192b35;border:1px solid #4b646b;border-radius:8px;box-shadow:0 24px 90px #0009;width:min(520px,calc(100vw - 32px));padding:26px;max-height:calc(100dvh - 32px);overflow:auto}dialog::backdrop{background:#0611199c;backdrop-filter:blur(7px)}dialog p{font-size:13px;line-height:1.6;color:var(--muted)}dialog h2{font-size:18px}.eyebrow{font:11px Consolas,monospace;letter-spacing:3px;color:var(--mint)}.welcome-dialog h1{font-size:32px;line-height:1.15;letter-spacing:-1px;font-weight:600;margin:24px 0 12px}.welcome-dialog p{margin:0 0 28px}.welcome-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}.welcome-actions button{border:1px solid #46636c;border-radius:5px;background:#233b44;padding:16px;text-align:left}.welcome-actions button:hover,.preset-card:hover{background:#2d4b50;border-color:var(--mint)}.welcome-actions span{display:block;font-size:15px;font-weight:600}dialog small{display:block;font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5}.preset-card{width:100%;display:flex;gap:18px;align-items:center;text-align:left;border:1px solid #3c595e;background:#1c343c;border-radius:5px;padding:18px;margin:14px 0 16px}.preset-card>span:last-child{margin-left:auto;color:var(--mint)}.preset-art{display:flex;align-items:center;gap:2px;transform:rotate(-25deg);font-size:29px;color:var(--mint)}.preset-art i{font-size:19px;font-style:normal;margin-top:26px}.preset-card strong{font-size:14px}.data-dialog{width:min(780px,calc(100vw - 32px))}.data-dialog textarea{display:block;width:100%;height:45vh;resize:vertical;border:1px solid var(--line);color:#d9ece7;background:#101e26;padding:12px;font:12px/1.6 Consolas,monospace;tab-size:2}.data-dialog #data-error{color:var(--red)}
+.dialog-head button{flex:none}.dialog-head{gap:15px}dialog{color:#e4efed;background:#192b35;border:1px solid #4b646b;border-radius:8px;box-shadow:0 24px 90px #0009;width:min(520px,calc(100vw - 32px));padding:26px;max-height:calc(100dvh - 32px);overflow:auto}dialog::backdrop{background:#0611199c;backdrop-filter:blur(7px)}dialog p{font-size:13px;line-height:1.6;color:var(--muted)}dialog h2{font-size:18px}dialog small{display:block;font-size:12px;color:var(--muted);margin-top:7px;line-height:1.5}.data-dialog{width:min(780px,calc(100vw - 32px))}.data-dialog textarea{display:block;width:100%;height:45vh;resize:vertical;border:1px solid var(--line);color:#d9ece7;background:#101e26;padding:12px;font:12px/1.6 Consolas,monospace;tab-size:2}.data-dialog #data-error{color:var(--red)}
 .settings-dialog{max-height:calc(100dvh - 32px);overflow:auto}.menubar{gap:7px}.toolrail .icon{width:19px;height:19px}.graph-node{box-shadow:0 5px 14px #0002}.graph-node:hover{background:#243f47}.port-dot:focus-visible{outline:3px solid var(--amber)}
-@media(max-width:620px){.brand{width:80px}.brand img:first-child{width:77px}.brand .cad-mark,.brand-rule{display:none}.menubar{gap:0}.menubar .menu-button{padding:7px 5px}.workspacebar{height:82px;flex-wrap:wrap;align-content:stretch;gap:0}.workspace-tabs{height:37px;width:100%}.workspace-tabs button{flex:1}.run-tools{height:42px;width:100%;justify-content:flex-end}.run-tools .menu-button{font-size:11px;margin-right:auto}.run-tools label{display:flex}.run-tools label>span:first-child{display:inline;font-size:10px}.result-banner{top:50px;max-width:85%}.documentbar #document-meta{max-width:65%;overflow:hidden;white-space:nowrap}.welcome-dialog h1{font-size:27px}.preset-card{gap:12px;padding:12px}.viewport-bottom{flex-wrap:wrap}.measure-readout{order:3;max-width:100%;width:100%}.statusbar #status-message{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.statusbar #status-version{display:none}.diagnostics{height:150px}}
+@media(max-width:620px){.brand{width:80px}.brand img:first-child{width:77px}.brand .cad-mark,.brand-rule{display:none}.menubar{gap:0}.menubar .menu-button{padding:7px 5px}.workspacebar{height:82px;flex-wrap:wrap;align-content:stretch;gap:0}.workspace-tabs{height:37px;width:100%}.workspace-tabs button{flex:1}.run-tools{height:42px;width:100%;justify-content:flex-end}.run-tools .menu-button{font-size:11px;margin-right:auto}.run-tools label{display:flex}.run-tools label>span:first-child{display:inline;font-size:10px}.result-banner{top:50px;max-width:85%}.documentbar #document-meta{max-width:65%;overflow:hidden;white-space:nowrap}.viewport-bottom{flex-wrap:wrap}.measure-readout{order:3;max-width:100%;width:100%}.statusbar #status-message{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}.statusbar #status-version{display:none}.diagnostics{height:150px}}
 @media(pointer:coarse){.toolrail button{width:40px;height:44px}.studio{grid-template-columns:44px minmax(0,1fr)}.left-dock{left:44px}.toolrail{padding:4px 1px;gap:0}.tree-row,.dock-tabs button,.context-menu button{min-height:44px}.edit-row{min-height:46px}.edit-row input,.edit-row select{min-height:40px}.port-dot{width:20px;height:20px}.graph-port{height:22px}.run-button,.menu-button{min-height:36px}.zoom-controls button{min-height:40px;min-width:40px}.view-controls select{min-height:38px}}
 @media(min-width:961px) and (pointer:coarse){.studio{grid-template-columns:44px 210px minmax(0,1fr) 260px}}
-@media(max-height:500px){dialog{padding:18px}.welcome-dialog h1{margin-top:5px;font-size:24px}.welcome-dialog p{margin-bottom:12px}.welcome-dialog .dialog-head{margin-bottom:8px}.welcome-actions button{padding:10px}.preset-card{padding:10px;margin:10px 0}.diagnostics{height:100px}.toolrail{overflow-y:auto}.toolrail .rail-spacer{min-height:8px}.welcome-dialog{width:min(620px,calc(100vw - 32px))}}
+@media(max-height:500px){dialog{padding:18px}.diagnostics{height:100px}.toolrail{overflow-y:auto}.toolrail .rail-spacer{min-height:8px}}
 .property-description{display:block}.property-description .property-value{display:block;text-align:left;line-height:1.65;margin-top:7px;color:var(--muted)}.library-hint{display:none}.library-row{min-height:40px}.tree-row.unavailable{opacity:.72}.property-row:not(.property-description) .property-key{min-width:45px}.graph-port{pointer-events:none}.graph-port .port-dot{pointer-events:auto}
 .mobile-dock-button{display:none;background:none;border:1px solid var(--line);color:var(--muted);border-radius:3px;font-size:11px}.menu-button.modified:after{content:' •';color:var(--amber)}
 @media(max-width:960px){.mobile-dock-button{display:block;min-height:30px;padding:0 7px}.statusbar #status-count,.statusbar #status-version{display:none}.statusbar{min-height:36px;height:36px}.statusbar #status-message{max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
@@ -54,3 +54,84 @@
 .resize-handle{position:absolute;z-index:6;background:transparent;touch-action:none}.resize-handle:focus-visible,.resize-handle:hover{background:#67d4b466}.resize-left,.resize-right{top:0;bottom:0;width:5px;cursor:col-resize}.resize-left{left:calc(42px + var(--left-width) - 2px)}.resize-right{right:calc(var(--right-width) - 2px)}.resize-bottom{left:42px;right:var(--right-width);bottom:0;height:5px;cursor:row-resize}
 @media(max-width:960px){.resize-left,.resize-right{display:none}.resize-bottom{left:42px;right:0}}
 @media(max-width:620px){.resize-bottom{left:38px}}
+
+/* Professional workspace controls and the project startup window. */
+:root { color: #e1e8ec; background: #151c22; --bg: #151c22; --panel: #202a31; --panel-deep: #1b242b; --input: #172027; --line: #3b4850; --muted: #aab8c1; --blue: #79b9dc; }
+.menubar, .toolrail, .documentbar, .bottom-dock, .statusbar { background: var(--panel-deep); }
+.workspacebar, .viewport { background: var(--bg); }
+.menubar { overflow-x: auto; scrollbar-width: thin; }
+.menubar > .menu-button { flex-shrink: 0; }
+input, select, .data-dialog textarea { background: var(--input); border-color: var(--line); color: #e1e8ec; font-variant-numeric: tabular-nums; }
+.edit-row input, .run-tools input { font-family: inherit; font-variant-numeric: tabular-nums; }
+.tree-row { min-height: 30px; font-size: 13px; }
+.tree-row:hover { background: #2b3841; }
+.tree-row.active { background: #2b403e; }
+.tree-meta { font-size: 12px; }
+.library-row { min-height: 36px; }
+.search-wrap { padding: 8px 12px; }
+.inspector-title { padding: 14px 14px 4px; font-size: 14px; }
+.inspector-subtitle { padding: 0 14px 12px; line-height: 1.5; }
+.property-section { padding: 12px 14px; }
+.property-section h3 { margin-bottom: 8px; font-size: 13px; }
+.edit-row { min-height: 34px; font-size: 13px; }
+.edit-row input:not([type=checkbox]) { height: 30px; }
+.inspector-action { width: calc(100% - 28px); min-height: 32px; margin: 8px 14px; background: var(--panel-deep); border-color: var(--line); font-size: 13px; font-weight: 400; }
+.inspector-action:hover { background: #2b403e; border-color: var(--mint); }
+.dialog-head { margin-bottom: 16px; }
+.dialog-head h2, dialog h2 { font-size: 14px; }
+.dialog-head button { border-color: transparent; }
+.dialog-head button:hover { background: #ffffff0d; border-color: var(--line); }
+dialog, .settings-dialog { background: var(--panel); border-color: var(--line); border-radius: 4px; padding: 16px; }
+dialog::backdrop { background: #080e14a6; backdrop-filter: blur(3px); }
+.welcome-dialog { width: min(600px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scroll-padding-top: 48px; }
+.welcome-head { position: sticky; top: 0; z-index: 1; margin: 0; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+.welcome-brand { display: flex; align-items: center; gap: 10px; }
+.welcome-brand img { display: block; width: 90px; height: 23px; object-fit: contain; }
+.welcome-brand span { padding-left: 10px; border-left: 1px solid var(--line); color: #dce6e9; font-size: 14px; font-weight: 600; }
+.welcome-intro { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 16px 16px 12px; }
+.welcome-dialog h1 { margin: 0; font-size: 14px; line-height: 1.5; font-weight: 600; letter-spacing: normal; }
+.welcome-mode { color: var(--muted); font-size: 12px; text-align: right; }
+.welcome-columns { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); margin: 0 16px 16px; }
+.welcome-group { min-width: 0; padding-right: 12px; }
+.welcome-group h2 { margin: 0 0 6px; color: var(--muted); font-size: 12px; line-height: 1.5; font-weight: 600; }
+.welcome-examples { padding: 0 0 0 12px; border-left: 1px solid var(--line); }
+.start-command { display: flex; align-items: flex-start; gap: 9px; width: 100%; min-height: 56px; padding: 9px 7px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: #e1e8ec; text-align: left; }
+.start-command > span:last-child { min-width: 0; }
+.start-command [data-start-icon] { flex: none; width: 18px; margin-top: 2px; color: var(--mint); }
+.start-command .icon { width: 16px; height: 16px; }
+.start-command strong { display: block; font-size: 13px; line-height: 1.45; font-weight: 600; overflow-wrap: anywhere; }
+.start-command small { display: block; margin: 3px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+.start-command:hover:not(:disabled) { background: #ffffff07; border-color: var(--line); }
+.start-command:active:not(:disabled) { background: #2b403e; border-color: var(--mint); }
+.start-command:disabled { opacity: 1; color: var(--muted); }
+.start-command:disabled [data-start-icon] { color: var(--muted); }
+.welcome-footer { border-top: 1px solid var(--line); padding: 12px 16px; background: var(--panel-deep); }
+.welcome-footer p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.welcome-error { margin: 0 16px 12px; color: var(--red); font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+@media (min-width: 621px) and (pointer: fine) {
+  .menubar { height: 38px; }
+  .workspacebar { height: 40px; }
+  .dock-tabs { height: 34px; }
+}
+@media (max-width: 620px) {
+  .welcome-columns { grid-template-columns: minmax(0, 1fr); }
+  .welcome-group { padding: 0; }
+  .welcome-examples { padding-top: 12px; margin-top: 12px; border-left: 0; border-top: 1px solid var(--line); }
+  .welcome-intro { flex-wrap: wrap; gap: 4px 12px; }
+}
+@media (pointer: coarse) {
+  .menubar, .workspacebar { min-height: 44px; }
+  .workspace-tabs, .run-tools { min-height: 44px; }
+  .tree-row, .library-row, .dock-tabs button, .menu-button, .inspector-action, .dialog-head button, .run-button { min-height: 44px; }
+  .dialog-head button { min-width: 44px; }
+  .dock-tabs { height: 44px; }
+  .edit-row { min-height: 46px; font-size: 14px; }
+  .edit-row input:not([type=checkbox]) { min-height: 44px; }
+  .start-command { min-height: 60px; }
+  .start-command strong { font-size: 14px; }
+  .start-command small { font-size: 13px; }
+  .welcome-dialog { scroll-padding-top: 62px; }
+}
+@media (pointer: coarse) and (max-width: 620px) {
+  .workspacebar { height: 92px; min-height: 92px; }
+}

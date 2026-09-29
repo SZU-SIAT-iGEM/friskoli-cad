@@ -1020,17 +1020,35 @@ for (const button of document.querySelectorAll('[data-left]')) button.addEventLi
   renderLeft(); renderInspector();
 });
 $('left-search').addEventListener('input', renderLeft);
-$('open-button').addEventListener('click', () => { if (replaceAllowed()) $('project-file').click(); });
+$('open-button').addEventListener('click', () => chooseProjectFile());
 $('save-button').addEventListener('click', saveWorkspace);
 $('undo-button').addEventListener('click', undo);
 $('redo-button').addEventListener('click', redo);
 $('project-file').addEventListener('change', async event => {
   const file = event.target.files?.[0];
   if (!file) return;
-  try { if (file.size > 2_000_000) throw new Error('Workspace file exceeds 2 MB'); await loadProject(JSON.parse(await file.text())); }
-  catch (error) { status('loadFailed', { message: error.message }, true); }
+  const origin = fileWelcomeEpoch;
+  fileWelcomeEpoch = null;
+  const generation = ++fileReadGeneration;
+  const revision = state.revision;
+  const startupEpoch = welcomeEpoch;
   event.target.value = '';
+  const read = async () => {
+    if (file.size > 2_000_000) throw new Error(t('workspaceTooLarge'));
+    return JSON.parse(await file.text());
+  };
+  if (origin !== null) {
+    if (origin === welcomeEpoch && $('welcome-dialog').open) await loadWelcome(read, true);
+    return;
+  }
+  const current = () => generation === fileReadGeneration && revision === state.revision && startupEpoch === welcomeEpoch;
+  try {
+    const document = await read();
+    if (!current()) { if (generation === fileReadGeneration) status('importStale'); return; }
+    await loadProject(document);
+  } catch (error) { if (current()) status('loadFailed', { message: error.message }, true); }
 });
+$('project-file').addEventListener('cancel', () => { fileWelcomeEpoch = null; });
 $('run-button').addEventListener('click', () => {
   if (state.blocks.some(block => block.dirty)) { status('pending', {}, true); return; }
   executeProject(state.project);
@@ -1092,8 +1110,12 @@ $('close-right').addEventListener('click', closeDocks);
 $('dock-backdrop').addEventListener('click', closeDocks);
 document.addEventListener('click', event => { if (!event.target.closest('#context-menu')) $('context-menu').hidden = true; });
 document.addEventListener('keydown', event => {
-  if (event.key === 'Escape') { $('context-menu').hidden = true; $('settings-overlay').hidden = true; graphEditor.armed = null; closeDocks(); useTool('select'); }
-  if (document.querySelector('dialog[open]') || !$('settings-overlay').hidden) return;
+  if (document.querySelector('dialog[open]')) return;
+  if (!$('settings-overlay').hidden) {
+    if (event.key === 'Escape') { event.preventDefault(); $('settings-close').click(); }
+    return;
+  }
+  if (event.key === 'Escape') { $('context-menu').hidden = true; graphEditor.armed = null; closeDocks(); useTool('select'); }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); saveWorkspace(); return; }
   if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
   const mod = event.ctrlKey || event.metaKey;
@@ -1125,21 +1147,72 @@ $('check-button').addEventListener('click', checkProject);
 $('log-button').addEventListener('click', () => showBottom('console'));
 $('diagnostics-close').addEventListener('click', () => { $('diagnostics').hidden = true; });
 for (const button of document.querySelectorAll('[data-bottom]')) button.addEventListener('click', () => showBottom(button.dataset.bottom));
-$('new-button').addEventListener('click', () => $('welcome-dialog').showModal());
-$('welcome-close').addEventListener('click', () => $('welcome-dialog').close());
-$('welcome-open').addEventListener('click', () => $('project-file').click());
+let welcomeEpoch = 0;
+let welcomePending = false;
+let fileWelcomeEpoch = null;
+let fileReadGeneration = 0;
 const replaceAllowed = () => !state.project || fingerprint() === state.saved || confirm(t('replaceDraft'));
-$('welcome-new').addEventListener('click', () => { if (replaceAllowed()) loadProject(blankProject(state.template)); });
-$('welcome-demo').addEventListener('click', () => { if (replaceAllowed()) loadProject(state.template); });
-$('welcome-registry').addEventListener('click', async () => {
+function refreshWelcome() {
+  let recovery = false;
+  try { recovery = Boolean(localStorage.getItem(RECOVERY_KEY)); } catch { /* storage unavailable */ }
+  for (const button of $('welcome-dialog').querySelectorAll('.start-command')) button.disabled = welcomePending;
+  $('welcome-recover').disabled = welcomePending || !recovery;
+  $('welcome-recovery-hint').dataset.i18n = recovery ? 'recoveryPresent' : 'recoveryAbsent';
+  $('welcome-recovery-hint').textContent = t($('welcome-recovery-hint').dataset.i18n);
+  $('welcome-dialog').setAttribute('aria-busy', String(welcomePending));
+}
+function showWelcome() {
+  welcomeEpoch++;
+  welcomePending = false;
+  $('welcome-error').hidden = true;
+  refreshWelcome();
+  $('welcome-dialog').showModal();
+  $('welcome-new').focus({preventScroll:true});
+  $('welcome-dialog').scrollTop = 0;
+}
+function chooseProjectFile(fromWelcome = false) {
   if (!replaceAllowed()) return;
-  try { await loadProject(await kernel.request('/api/examples/registry-readout')); }
-  catch (error) { status('loadFailed', {message:error.message}, true); }
+  fileReadGeneration++;
+  fileWelcomeEpoch = fromWelcome ? welcomeEpoch : null;
+  $('project-file').click();
+}
+async function loadWelcome(read, alreadyConfirmed = false) {
+  if (welcomePending || (!alreadyConfirmed && !replaceAllowed())) return;
+  const epoch = ++welcomeEpoch;
+  welcomePending = true;
+  $('welcome-error').hidden = true;
+  refreshWelcome();
+  try {
+    const document = await read();
+    if (epoch !== welcomeEpoch || !$('welcome-dialog').open) return;
+    await loadProject(document);
+  } catch (error) {
+    if (epoch !== welcomeEpoch || !$('welcome-dialog').open) return;
+    $('welcome-error').textContent = t('loadFailed', {message:error.message});
+    $('welcome-error').hidden = false;
+    $('welcome-error').scrollIntoView({block:'nearest'});
+    status('loadFailed', {message:error.message}, true);
+  } finally {
+    if (epoch === welcomeEpoch) { welcomePending = false; refreshWelcome(); }
+  }
+}
+$('new-button').addEventListener('click', showWelcome);
+$('welcome-close').addEventListener('click', () => $('welcome-dialog').close());
+$('welcome-dialog').addEventListener('close', () => {
+  welcomeEpoch++;
+  welcomePending = false;
+  refreshWelcome();
+  $('new-button').focus({preventScroll:true});
 });
-$('welcome-recover').addEventListener('click', async () => {
-  try { if (replaceAllowed()) await loadProject(JSON.parse(localStorage.getItem(RECOVERY_KEY))); }
-  catch (error) { status('loadFailed', {message:error.message}, true); }
-});
+$('welcome-open').addEventListener('click', () => chooseProjectFile(true));
+$('welcome-new').addEventListener('click', () => loadWelcome(() => blankProject(state.template)));
+$('welcome-demo').addEventListener('click', () => loadWelcome(() => state.template));
+$('welcome-registry').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/registry-readout')));
+$('welcome-recover').addEventListener('click', () => loadWelcome(() => {
+  const recovery = localStorage.getItem(RECOVERY_KEY);
+  if (!recovery) throw new Error(t('recoveryAbsent'));
+  return JSON.parse(recovery);
+}));
 $('data-close').addEventListener('click', () => $('data-dialog').close());
 $('data-apply').addEventListener('click', () => {
   try {
@@ -1154,7 +1227,24 @@ $('export-csv').addEventListener('click', () => { if (state.replay) download(`${
 window.addEventListener('beforeunload', event => { if (state.project && fingerprint() !== state.saved) { event.preventDefault(); event.returnValue = ''; } });
 for (const [id, glyph] of Object.entries({'select-tool':'select','population-tool':'cell','move-tool':'move','rotate-tool':'reset','scale-tool':'scale',
   'snap-tool':'grid','measure-tool':'measure','fit-tool':'fit','objects-tool':'layers','properties-tool':'settings','hand-tool':'hand','orbit-tool':'reset'})) $(id).innerHTML = icon(glyph);
-for (const dialog of document.querySelectorAll('dialog')) dialog.addEventListener('click', event => { if (event.target === dialog) dialog.close(); });
+for (const element of document.querySelectorAll('[data-start-icon]')) element.innerHTML = icon(element.dataset.startIcon);
+for (const dialog of document.querySelectorAll('dialog')) {
+  let outsidePointer = null;
+  const isOutside = event => {
+    const rect = dialog.getBoundingClientRect();
+    return event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+  };
+  dialog.addEventListener('pointerdown', event => {
+    outsidePointer = event.button === 0 && event.target === dialog && isOutside(event) ? event.pointerId : null;
+  });
+  dialog.addEventListener('pointercancel', () => { outsidePointer = null; });
+  dialog.addEventListener('close', () => { outsidePointer = null; });
+  dialog.addEventListener('click', event => {
+    const close = outsidePointer !== null && event.detail > 0 && event.target === dialog && isOutside(event);
+    outsidePointer = null;
+    if (close) dialog.close();
+  });
+}
 
 try {
   const [catalogResponse, projectResponse, capabilities] = await Promise.all([fetch('/api/catalog'), fetch('/api/example-project'), kernel.capabilities()]);
@@ -1164,7 +1254,6 @@ try {
   state.activeObject = availablePlaceables(state.modules, capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
   state.capabilities = capabilities;
   state.template = await projectResponse.json();
-  try { $('welcome-recover').disabled = !localStorage.getItem(RECOVERY_KEY); } catch { $('welcome-recover').disabled = true; }
-  $('welcome-dialog').showModal();
+  showWelcome();
   updateRunButton(); status('ready');
 } catch (error) { status('loadFailed', { message: error.message }, true); }

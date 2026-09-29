@@ -9,7 +9,11 @@ const messages = {
     data:'Data',cellCountHistory:'Recorded cell count',maturity:'Maturity',evidence:'Evidence',evidenceHint:'Module provenance and scope',selectModuleEvidence:'Select a module or node to inspect its evidence.',evidenceRule:'Registry metadata is descriptive. It does not replace literature, measurement or calibration.',scientificRole:'Scientific role',
     connectHint:'Select an input port to connect. Esc cancels.',
     new:'New',newProject:'New project',newHint:'An empty 3D domain',openHint:'Project or workspace JSON',
-    welcomeTitle:'Build a living system.',welcomeHint:'Scene, behavior, simulation. One reproducible project.',
+    welcomeTitle:'Start a project',welcomeProjects:'Project',welcomeExamples:'Examples',localWorkspace:'Local workspace',
+    closeWelcome:'Close start window',recoveryPresent:'Continue the draft saved in this browser',recoveryAbsent:'No draft saved in this browser',
+    welcomeScope:'These examples demonstrate the workspace. A validated chemotaxis model is not included yet.',
+    workspaceTooLarge:'Workspace file exceeds 2 MB',
+    importStale:'Import cancelled because the workspace changed while reading. Open the file again to import it.',
     demoTitle:'Growth & division',demoHint:'3D · illustrative length-adder model',recover:'Recover local draft',
     export:'Export',exportJSON:'Complete result · JSON',exportCSV:'Frame statistics · CSV',
     exportHint:'Includes the submitted project, solver settings, run identity and all frames. Native Friskoli format.',
@@ -83,7 +87,11 @@ const messages = {
     data:'数据',cellCountHistory:'菌体数量记录',maturity:'成熟度',evidence:'来源',evidenceHint:'模块来源与适用范围',selectModuleEvidence:'选择模块或节点查看来源信息。',evidenceRule:'登记信息用于描述模块，不替代文献、测量或标定。',scientificRole:'科学角色',
     connectHint:'选择输入端口完成连接。Esc 取消。',
     new:'新建',newProject:'新建项目',newHint:'空白三维场地',openHint:'项目或工作区 JSON',
-    welcomeTitle:'构建一个生命系统。',welcomeHint:'空间、行为、仿真，保存在同一份可复现项目中。',
+    welcomeTitle:'开始项目',welcomeProjects:'项目',welcomeExamples:'示例',localWorkspace:'本地工作区',
+    closeWelcome:'关闭启动窗口',recoveryPresent:'继续此浏览器保存的草稿',recoveryAbsent:'此浏览器尚无已保存的草稿',
+    welcomeScope:'这些示例用于演示工作区功能，尚未包含经验证的趋化模型。',
+    workspaceTooLarge:'工作区文件超过 2 MB',
+    importStale:'读取文件时工作区已改变，本次导入已取消。请重新打开文件以导入。',
     demoTitle:'生长与分裂',demoHint:'3D · 长度 adder 演示模型',recover:'恢复本地草稿',
     export:'导出',exportJSON:'完整结果 · JSON',exportCSV:'逐帧统计 · CSV',
     exportHint:'包含提交的项目、求解设置、运行标识与全部帧。使用 Friskoli 原生格式。',
@@ -161,6 +169,7 @@ export function applyLanguage() {
   document.documentElement.lang = language;
   document.title = `Friskoli-CAD · ${t('simulation')}`;
   for (const element of document.querySelectorAll('[data-i18n]')) element.textContent = t(element.dataset.i18n);
+  for (const element of document.querySelectorAll('[data-i18n-aria]')) element.setAttribute('aria-label', t(element.dataset.i18nAria));
 }
 export function setLanguage(next) {
   if (!Object.hasOwn(messages, next)) throw new Error('Unsupported language');
