@@ -1,5 +1,7 @@
 # Friskoli-CAD Product & Interaction Specification · 1.0
 
+本页描述 4b 已交付界面。2026-09-29 的新启动模式、设计/候选流程、注册驱动交互和 Wiki 只读规则见[产品与交互设计](design/product-and-interaction.md)，后者为待实施目标，不能用来声明当前能力。
+
 2026-09-29。产品定位：构建、执行与分析单菌体生物仿真的可视化工作区。本规范采纳所附用户历程中的对象操作、可撤销编辑、明确反馈与输入/结果分离原则；附件中的建议不视为已经实现的功能或发布承诺。数据约束以 [Workspace/API 0.2](workspace-protocol-0.2.md) 为准。
 
 ## 工作区与常规操作
