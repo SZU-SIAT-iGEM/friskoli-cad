@@ -7,8 +7,9 @@ from copy import deepcopy
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
-from friskoli_cad.replay_service import EXAMPLE_PROJECT, ReplayHandler, ReplayRequestError, build_replay
+from friskoli_cad.replay_service import EXAMPLE_PROJECT, ReplayHandler, ReplayRequestError, build_replay, prepare_project, STATIC_FILES
 
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples" / "runtime"
@@ -19,6 +20,18 @@ def load(name: str) -> dict:
 
 
 class ReplayServiceTests(unittest.TestCase):
+    def test_validation_does_not_advance_or_change_the_submitted_project(self):
+        project = load("adder_division.project.json")
+        before = deepcopy(project)
+        simulation = prepare_project(project, dt_s=.5, steps=8)
+        self.assertEqual(simulation.current.cell_frame["time_s"], 0)
+        self.assertEqual(project, before)
+
+    def test_limits_reject_huge_grid_before_world_allocation(self):
+        project = load("adder_division.project.json")
+        project["domain"]["counts_xyz"] = [100000000, 100000000, 1]
+        with self.assertRaises(ReplayRequestError):
+            prepare_project(project, dt_s=.5, steps=8)
     def test_real_adder_frames_keep_protocol_and_division_ids(self):
         project = load("adder_division.project.json")
         replay = build_replay(project, dt_s=0.5, steps=8)
@@ -91,14 +104,34 @@ class ReplayServiceTests(unittest.TestCase):
             self.assertEqual(project["domain"]["geometry"], "volume")
             with urlopen(root + "/api/modules") as response:
                 catalog = json.load(response)
+            with urlopen(root + "/api/capabilities") as response:
+                capabilities = json.load(response)
+            self.assertEqual(capabilities["api_version"], "0.2.0")
+            self.assertFalse(capabilities["execution"]["pause"])
+            for path in STATIC_FILES:
+                with urlopen(root + path) as response:
+                    self.assertTrue(response.read(), path)
+            validation = Request(root + "/api/validate", method="POST",
+                                 data=json.dumps({"project": project, "dt_s": .5, "steps": 4}).encode())
+            with urlopen(validation) as response:
+                self.assertTrue(json.load(response)["valid"])
+            invalid = deepcopy(project)
+            invalid["graph"]["edges"] = []
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(Request(root + "/api/validate", method="POST", data=json.dumps({"project": invalid, "dt_s": .5, "steps": 4}).encode()))
+            error = json.load(rejected.exception)["error"]
+            self.assertIn("path", error)
+            self.assertEqual(rejected.exception.code, 422)
             self.assertTrue(any(item["id"] == "growth.linear_elongation" for item in catalog["modules"]))
             self.assertTrue(any(item["id"] == "population.static" for item in catalog["modules"]))
             request = Request(root + "/api/replay", method="POST",
-                              data=json.dumps({"project": project, "dt_s": 0.5, "steps": 4}).encode(),
+                              data=json.dumps({"project": project, "dt_s": 0.5, "steps": 4, "request_id": "test-run"}).encode(),
                               headers={"Content-Type": "application/json"})
             with urlopen(request) as response:
                 replay = json.load(response)
             self.assertEqual(replay["snapshots"][4]["frame"]["events"][0]["type"], "division")
+            self.assertEqual(replay["execution"]["request_id"], "test-run")
+            self.assertEqual(len(replay["execution"]["project_sha256"]), 64)
         finally:
             server.shutdown()
             worker.join(timeout=3)

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
+import { TransformControls } from './vendor/three/examples/jsm/controls/TransformControls.js';
 import { nextHit } from './catalog.mjs';
 
 const fmt = value => Number(value.toFixed(2)).toString();
@@ -36,10 +37,20 @@ export class SpatialViewport {
     this.cells = new THREE.Group();
     this.field = new THREE.Group();
     this.blocks = new THREE.Group();
-    this.world.add(this.environment, this.field, this.cells, this.blocks);
+    this.measureGroup = new THREE.Group();
+    this.measurePoints = [];
+    this.world.add(this.environment, this.field, this.cells, this.blocks, this.measureGroup);
+    // Gizmo edits a block mesh live; the block itself is only updated once the drag ends.
+    this.transform = new TransformControls(this.camera, canvas);
+    this.transform.addEventListener('change', () => this.request());
+    this.transform.addEventListener('dragging-changed', event => {
+      this.orbit.enabled = !event.value;
+      if (!event.value) { this.justTransformed = true; this.commitTransform(); }
+    });
+    this.world.add(this.transform.getHelper());
     this.geometryCache = new Map();
     this.material = new THREE.MeshStandardMaterial({ color: 0x63d8bc, roughness: .38, metalness: .08,
-      transparent: true, opacity: .76, depthWrite: false });
+      transparent: false, opacity: 1, depthWrite: true });
     this.selectedMaterial = new THREE.MeshStandardMaterial({ color: 0xffc481, emissive: 0x7a4d20,
       emissiveIntensity: .25, roughness: .3, transparent: true, opacity: .94, depthWrite: false });
     this.unknownMaterial = new THREE.MeshBasicMaterial({ color: 0xb3cbd0, wireframe: true });
@@ -50,11 +61,28 @@ export class SpatialViewport {
     this.mode = 'space';
     this.tool = 'select';
     this.pending = false;
-    canvas.addEventListener('pointerdown', event => { this.pointerStart = { x: event.clientX, y: event.clientY }; });
+    this.pointers = new Set();
+    canvas.addEventListener('pointerdown', event => {
+      this.pointers.add(event.pointerId);
+      if (this.pointers.size === 1) { this.multiGesture = false; this.pointerStart = { x: event.clientX, y: event.clientY }; }
+      else this.multiGesture = true;
+    });
+    canvas.addEventListener('pointercancel', event => { this.pointers.delete(event.pointerId); this.pointerStart = null; });
     canvas.addEventListener('pointerup', event => {
-      if (event.button !== 0 || !this.pointerStart || Math.hypot(event.clientX - this.pointerStart.x,
+      this.pointers.delete(event.pointerId);
+      const transformed = this.justTransformed || this.transform.dragging || this.transform.axis;
+      this.justTransformed = false;
+      if (transformed || this.multiGesture || event.button !== 0 || !this.pointerStart || Math.hypot(event.clientX - this.pointerStart.x,
         event.clientY - this.pointerStart.y) > 5) return;
       this.pick(event);
+    });
+    canvas.addEventListener('dragover', event => { if (this.mode === 'space') event.preventDefault(); });
+    canvas.addEventListener('drop', event => {
+      event.preventDefault();
+      if (this.mode !== 'space' || event.dataTransfer.getData('application/friskoli-object') !== 'population' || !this.size) return;
+      this.pointFromEvent(event);
+      const point = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1), -this.size[2]/2), new THREE.Vector3());
+      if (point) this.callbacks.placePopulation(point.toArray());
     });
     canvas.addEventListener('contextmenu', event => {
       event.preventDefault();
@@ -105,6 +133,7 @@ export class SpatialViewport {
     grid.material.transparent = true;
     grid.material.opacity = .48;
     this.environment.add(grid);
+    this.grid = grid;
     const axes = new THREE.AxesHelper(Math.max(2, Math.min(...size) * .22));
     axes.position.set(0, 0, .02);
     this.environment.add(axes);
@@ -112,7 +141,11 @@ export class SpatialViewport {
   }
 
   geometryFor(cell) {
-    if (!cell.geometry) return new THREE.SphereGeometry(Math.min(...this.domain.spacing_um_xyz) * .2, 8, 6);
+    if (!cell.geometry) {
+      const radius = Math.min(...this.domain.spacing_um_xyz) * .2, key = `unknown:${radius}`;
+      if (!this.geometryCache.has(key)) this.geometryCache.set(key, new THREE.SphereGeometry(radius, 8, 6));
+      return this.geometryCache.get(key);
+    }
     const { length_um: length, diameter_um: diameter } = cell.geometry;
     const key = `${length}:${diameter}`;
     if (!this.geometryCache.has(key)) {
@@ -129,13 +162,22 @@ export class SpatialViewport {
     this.clear(this.cells);
     this.clear(this.field);
     this.meshes = [];
+    const batches = new Map();
     for (const cell of snapshot.frame.cells) {
-      const mesh = new THREE.Mesh(this.geometryFor(cell), !cell.geometry ? this.unknownMaterial :
-        cell.id === selectedId ? this.selectedMaterial : this.material);
-      mesh.position.fromArray(cell.position_um);
-      mesh.quaternion.fromArray(cell.orientation_xyzw);
-      mesh.userData.cellId = cell.id;
-      mesh.renderOrder = cell.id === selectedId ? 3 : 2;
+      const key = `${cell.geometry?.length_um}:${cell.geometry?.diameter_um}:${cell.id === selectedId}`;
+      if (!batches.has(key)) batches.set(key, []); batches.get(key).push(cell);
+    }
+    const pose = new THREE.Object3D();
+    for (const cells of batches.values()) {
+      const first = cells[0];
+      const mesh = new THREE.InstancedMesh(this.geometryFor(first), !first.geometry ? this.unknownMaterial :
+        first.id === selectedId ? this.selectedMaterial : this.material, cells.length);
+      cells.forEach((cell, index) => {
+        pose.position.fromArray(cell.position_um); pose.quaternion.fromArray(cell.orientation_xyzw); pose.updateMatrix(); mesh.setMatrixAt(index, pose.matrix);
+      });
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.userData.cellIds = cells.map(cell => cell.id);
+      mesh.renderOrder = first.id === selectedId ? 3 : 2;
       this.cells.add(mesh);
       this.meshes.push(mesh);
     }
@@ -174,16 +216,19 @@ export class SpatialViewport {
   }
 
   setBlocks(blocks, selectedBlock) {
+    this.transform.detach();
     this.clear(this.blocks);
     this.blockHits = [];
     this.blockData = blocks;
     this.selectedBlock = selectedBlock;
     for (const block of blocks) {
+      if (block.hidden) continue;
       const geometry = new THREE.BoxGeometry(...block.size);
       const material = new THREE.MeshBasicMaterial({ color: block.id === selectedBlock ? 0xf3ba78 : 0x4dcaaf,
         transparent: true, opacity: .045, depthWrite: false, side: THREE.DoubleSide });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.fromArray(block.center);
+      mesh.rotation.set(...(block.rotation ?? [0,0,0]).map(n => n * Math.PI / 180));
       mesh.userData.blockId = block.id;
       const outline = new THREE.LineSegments(new THREE.EdgesGeometry(geometry),
         new THREE.LineBasicMaterial({ color: block.id === selectedBlock ? 0xf3ba78 : 0x59bda9,
@@ -193,16 +238,89 @@ export class SpatialViewport {
       this.blockHits.push(mesh);
     }
     this.blocks.visible = this.mode === 'space';
+    this.attachGizmo();
     this.request();
+  }
+
+  // Shows the move/scale gizmo on the selected block while a transform tool is active in Space.
+  attachGizmo() {
+    const mesh = this.blockHits?.find(item => item.userData.blockId === this.selectedBlock);
+    const block = this.blockData?.find(item => item.id === this.selectedBlock);
+    if (this.mode === 'space' && mesh && !block?.locked && ['move','rotate','scale'].includes(this.tool)) {
+      this.transform.setMode(this.tool === 'move' ? 'translate' : this.tool);
+      this.transform.showX = this.tool !== 'rotate' || this.domain.geometry !== 'thin_layer';
+      this.transform.showY = this.tool !== 'rotate' || this.domain.geometry !== 'thin_layer';
+      this.transform.showZ = !(this.domain.geometry === 'thin_layer' && this.tool !== 'rotate');
+      this.transform.attach(mesh);
+    } else this.transform.detach();
+  }
+
+  commitTransform() {
+    const mesh = this.transform.object;
+    const block = this.blockData?.find(item => item.id === mesh?.userData.blockId);
+    if (!block) return;
+    const size = block.size.map((value, axis) => value * Math.abs(mesh.scale.getComponent(axis)));
+    this.callbacks.transformBlock(block.id, mesh.position.toArray(), size, [mesh.rotation.x,mesh.rotation.y,mesh.rotation.z].map(v => v * 180 / Math.PI));
+  }
+
+  setSnap(on) {
+    const step = on && this.domain ? Math.min(...this.domain.spacing_um_xyz) : null;
+    this.transform.setTranslationSnap(step);
+    this.transform.setScaleSnap(on ? .1 : null);
+    this.transform.setRotationSnap(on ? Math.PI / 36 : null);
   }
 
   setMode(mode) {
     this.mode = mode;
     this.blocks.visible = mode === 'space';
+    this.attachGizmo();
+    if (mode !== 'space') this.clearMeasure();
     this.request();
   }
 
-  setTool(tool) { this.tool = tool; this.canvas.style.cursor = tool === 'population' ? 'crosshair' : 'default'; }
+  setTool(tool) {
+    this.tool = tool;
+    this.canvas.style.cursor = tool === 'population' || tool === 'measure' ? 'crosshair' : 'default';
+    this.orbit.mouseButtons.LEFT = tool === 'hand' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+    this.orbit.touches.ONE = tool === 'orbit' ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN;
+    if (tool !== 'measure') this.clearMeasure();
+    this.attachGizmo();
+    this.request();
+  }
+
+  toggleGrid() { if (this.grid) { this.grid.visible = !this.grid.visible; this.request(); } }
+
+  clearMeasure() {
+    this.measurePoints = [];
+    this.clear(this.measureGroup);
+    this.callbacks.measure?.(null);
+  }
+
+  // Measures on the mid-depth plane of the domain; a third click starts a new measurement.
+  addMeasurePoint() {
+    if (!this.size) return;
+    const normal = this.camera.getWorldDirection(new THREE.Vector3());
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, new THREE.Vector3(...this.size.map(v => v/2)));
+    const point = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
+    if (!point) return;
+    if (this.measurePoints.length >= 2) this.clearMeasure();
+    this.measurePoints.push(point);
+    this.clear(this.measureGroup);
+    const radius = Math.min(...this.domain.spacing_um_xyz) * .18;
+    for (const p of this.measurePoints) {
+      const dot = new THREE.Mesh(new THREE.SphereGeometry(radius, 10, 8), new THREE.MeshBasicMaterial({ color: 0xf1bb7b }));
+      dot.position.copy(p);
+      this.measureGroup.add(dot);
+    }
+    if (this.measurePoints.length === 2) {
+      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(this.measurePoints),
+        new THREE.LineBasicMaterial({ color: 0xf1bb7b }));
+      this.measureGroup.add(line);
+      const [a, b] = this.measurePoints;
+      this.callbacks.measure?.({ distance: a.distanceTo(b), delta: b.clone().sub(a).toArray() });
+    }
+    this.request();
+  }
 
   pointFromEvent(event) {
     const rect = this.canvas.getBoundingClientRect();
@@ -219,6 +337,7 @@ export class SpatialViewport {
   pick(event) {
     this.pointFromEvent(event);
     if (this.mode === 'space') {
+      if (this.tool === 'measure') { this.addMeasurePoint(); return; }
       if (this.tool === 'population') {
         const point = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1),
           -this.size[2] / 2), new THREE.Vector3());
@@ -230,16 +349,17 @@ export class SpatialViewport {
       return;
     }
     if (!this.meshes?.length) return;
-    const ids = [...new Set(this.raycaster.intersectObjects(this.meshes).map(hit => hit.object.userData.cellId))];
+    const ids = [...new Set(this.raycaster.intersectObjects(this.meshes).map(hit => hit.object.userData.cellIds[hit.instanceId]))];
     if (ids.length) this.callbacks.selectCell(nextHit(ids, this.selectedId));
   }
 
   setCamera(view) {
+    if (!this.size) return;
     this.view = view;
     const center = new THREE.Vector3(...this.size.map(value => value / 2));
     const radius = new THREE.Vector3(...this.size).length() / 2;
     const aspect = this.canvas.clientWidth / Math.max(1, this.canvas.clientHeight);
-    const height = Math.max(radius * 2.5, 2);
+    const height = Math.max(radius * 2.5 / Math.min(1, aspect), 2);
     this.orthographic.left = -height * aspect / 2;
     this.orthographic.right = height * aspect / 2;
     this.orthographic.top = height / 2;
@@ -249,10 +369,14 @@ export class SpatialViewport {
     this.orthographic.zoom = 1;
     const direction = ({ top: [0, 0, 1], front: [0, -1, 0], right: [1, 0, 0],
       orthographic: [1, -1.25, .9], perspective: [1, -1.25, .9] })[view] ?? [1, -1.25, .9];
-    this.camera.position.copy(center).add(new THREE.Vector3(...direction).normalize().multiplyScalar(radius * 3.4));
+    const halfFov = Math.atan(Math.tan(THREE.MathUtils.degToRad(this.perspective.fov / 2)) * Math.min(1, aspect));
+    const distance = radius / Math.sin(halfFov) * 1.12;
+    this.camera.position.copy(center).add(new THREE.Vector3(...direction).normalize().multiplyScalar(distance));
+    this.lastAspect = aspect;
     this.camera.up.set(0, view === 'top' ? 1 : 0, view === 'top' ? 0 : 1);
     this.camera.lookAt(center);
     this.orbit.object = this.camera;
+    this.transform.camera = this.camera;
     this.orbit.target.copy(center);
     this.orbit.update();
     this.resize();
@@ -272,6 +396,11 @@ export class SpatialViewport {
   resize() {
     const { width, height } = this.canvas.getBoundingClientRect();
     if (width < 1 || height < 1) return;
+    const aspect = width / height;
+    if (this.lastAspect && this.camera.isPerspectiveCamera) {
+      this.camera.position.sub(this.orbit.target).multiplyScalar(Math.min(1, this.lastAspect) / Math.min(1, aspect)).add(this.orbit.target);
+    }
+    this.lastAspect = aspect;
     this.renderer.setSize(width, height, false);
     this.perspective.aspect = width / height;
     this.perspective.updateProjectionMatrix();

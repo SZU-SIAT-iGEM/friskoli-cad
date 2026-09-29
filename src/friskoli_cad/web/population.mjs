@@ -2,6 +2,31 @@ const extent = domain => domain.counts_xyz.map((count, axis) => count * domain.s
 const number = value => Number(value.toFixed(4));
 const hash = text => [...text].reduce((value, letter) => Math.imul(value ^ letter.charCodeAt(0), 16777619) >>> 0, 2166136261);
 
+export function rotationQuaternion(rotation = [0, 0, 0]) {
+  const [x, y, z] = rotation.map(d => d * Math.PI / 360);
+  const [a, b, c] = [Math.cos(x), Math.cos(y), Math.cos(z)];
+  const [d, e, f] = [Math.sin(x), Math.sin(y), Math.sin(z)];
+  return [d*b*c+a*e*f, a*e*c-d*b*f, a*b*f+d*e*c, a*b*c-d*e*f];
+}
+export function multiplyQuaternion([x,y,z,w], [a,b,c,d]) {
+  return [w*a+x*d+y*c-z*b, w*b-x*c+y*d+z*a, w*c+x*b-y*a+z*d, w*d-x*a-y*b-z*c];
+}
+export function rotatePoint(point, q) {
+  return multiplyQuaternion(multiplyQuaternion(q, [...point, 0]), [-q[0],-q[1],-q[2],q[3]]).slice(0,3);
+}
+export function checkBlock(domain, block) {
+  const size = extent(domain), rotation = block.rotation ?? [0, 0, 0];
+  if (![...block.center, ...block.size, ...rotation, block.length, block.diameter].every(Number.isFinite) ||
+      block.size.some(v => v <= 0) || block.length < block.diameter || block.diameter <= 0) throw new Error('Invalid population geometry');
+  if (domain.geometry === 'thin_layer' && (Math.abs(rotation[0]) > 1e-8 || Math.abs(rotation[1]) > 1e-8)) throw new Error('Thin-layer volumes only rotate around Z');
+  const q = rotationQuaternion(rotation);
+  for (let bits = 0; bits < 8; bits++) {
+    const corner = rotatePoint(block.size.map((v, i) => (bits & (1 << i) ? 1 : -1) * v / 2), q);
+    if (corner.some((v, i) => v + block.center[i] < -1e-7 || v + block.center[i] > size[i] + 1e-7)) throw new Error('transformOutside');
+  }
+  return true;
+}
+
 function random(seed) {
   let state = seed >>> 0;
   return () => {
@@ -29,7 +54,7 @@ export function blocksFromProject(project) {
     });
     return { id, name: id, center: center.map(number), size: dimensions.map(number),
       count: group.ids.length, length: number(length), diameter: number(diameter), seed: hash(id),
-      dirty: false };
+      rotation: [0, 0, 0], dirty: false };
   });
 }
 
@@ -47,12 +72,13 @@ export function createBlock(project, center, existingIds = []) {
     Math.min(size[axis] - dimensions[axis] / 2, value)));
   if (project.domain.geometry === 'thin_layer') clamped[2] = size[2] / 2;
   return { id, name: id, center: clamped.map(number), size: dimensions.map(number),
-    count: 32, length: number(length), diameter: number(diameter), seed: hash(id), dirty: true };
+    count: 32, length: number(length), diameter: number(diameter), seed: hash(id), rotation: [0, 0, 0], dirty: true };
 }
 
 export function scatterBlock(project, block, staticModule = null) {
   const domain = project.domain;
   const size = extent(domain);
+  checkBlock(domain, block);
   if (!Number.isInteger(block.count) || block.count < 1 || block.count > 2000 ||
       !Number.isInteger(block.seed) || block.length < block.diameter || block.diameter <= 0) {
     throw new Error('Invalid population count, seed, or capsule size');
@@ -60,13 +86,16 @@ export function scatterBlock(project, block, staticModule = null) {
   for (let axis = 0; axis < 3; axis += 1) {
     const pad = axis === 2 && domain.geometry === 'thin_layer' ? block.diameter / 2 : block.length / 2;
     if (!Number.isFinite(block.center[axis]) || !Number.isFinite(block.size[axis]) ||
-        block.size[axis] < pad * 2 || block.center[axis] - block.size[axis] / 2 < 0 ||
-        block.center[axis] + block.size[axis] / 2 > size[axis]) {
+        block.size[axis] < pad * 2) {
       throw new Error('Population volume or capsule exceeds the domain');
     }
   }
   const draw = random(block.seed);
   const previous = project.groups[block.id];
+  const needsNode = !project.graph.nodes.some(node => node.owner.kind === 'population' && node.owner.id === block.id);
+  if (needsNode && (staticModule?.id !== 'population.static' || staticModule.scope !== 'population')) {
+    throw new Error('Backend static population module is unavailable');
+  }
   const otherCells = Object.entries(project.groups).reduce((total, [id, group]) =>
     total + (id === block.id ? 0 : group.ids.length), 0);
   if (otherCells + block.count > 2000) throw new Error('Local replay supports at most 2000 cells');
@@ -79,7 +108,8 @@ export function scatterBlock(project, block, staticModule = null) {
       const usable = block.size[axis] - block.length;
       return number(center - usable / 2 + draw() * usable);
     });
-    positions.push(point);
+    const q = rotationQuaternion(block.rotation);
+    positions.push(rotatePoint(point.map((v, i) => v - block.center[i]), q).map((v, i) => v + block.center[i]));
     if (domain.geometry === 'thin_layer') {
       const angle = draw() * Math.PI;
       orientations.push([0, 0, number(Math.sin(angle)), number(Math.cos(angle))]);
@@ -89,15 +119,13 @@ export function scatterBlock(project, block, staticModule = null) {
       orientations.push([number(a * Math.sin(2 * Math.PI * u2)), number(a * Math.cos(2 * Math.PI * u2)),
         number(b * Math.sin(2 * Math.PI * u3)), number(b * Math.cos(2 * Math.PI * u3))]);
     }
+    orientations[index] = multiplyQuaternion(q, orientations[index]);
   }
   project.groups[block.id] = { ids, positions_um: positions, orientation_xyzw: orientations,
     initial_geometry: ids.map(() => ({ shape: 'capsule', length_um: block.length,
       diameter_um: block.diameter, provenance: { kind: 'estimated', reference: 'user-defined population volume scatter' } })) };
   project.project_version = '0.2.0';
-  if (!project.graph.nodes.some(node => node.owner.kind === 'population' && node.owner.id === block.id)) {
-    if (staticModule?.id !== 'population.static' || staticModule.scope !== 'population') {
-      throw new Error('Backend static population module is unavailable');
-    }
+  if (needsNode) {
     project.graph.nodes.push({ id: `${block.id}_static`, module_id: staticModule.id,
       module_version: staticModule.version, owner: { kind: 'population', id: block.id }, parameters: {} });
   }

@@ -14,7 +14,10 @@
     <header class="menubar">
       <div class="brand"><img src="/assets/friskoli.svg" alt="Friskoli"><span class="brand-rule"></span><img class="cad-mark" src="/assets/cad.svg" alt="CAD"></div>
       <button id="open-button" class="menu-button" type="button" data-i18n="open">Open</button>
+      <button id="new-button" class="menu-button" type="button" data-i18n="new">New</button>
       <button id="save-button" class="menu-button" type="button" data-i18n="save">Save</button>
+      <button id="undo-button" class="menu-button" type="button" data-i18n="undo" title="Ctrl+Z" disabled>Undo</button>
+      <button id="redo-button" class="menu-button" type="button" data-i18n="redo" title="Ctrl+Shift+Z" disabled>Redo</button>
       <span class="project-title" id="project-title">—</span>
       <button id="settings-button" class="menu-button" type="button" data-i18n="settings">Settings</button>
     </header>
@@ -25,6 +28,8 @@
         <button type="button" data-view="results" data-i18n="results">Results</button>
       </nav>
       <div class="run-tools">
+        <button id="export-button" class="menu-button" type="button" data-i18n="export" disabled>Export</button>
+        <button id="check-button" class="menu-button" type="button" data-i18n="checks" disabled>Checks</button>
         <label><span data-i18n="step">Step</span><input id="dt-input" type="number" min="0.000001" step="0.1" value="0.5" aria-label="Time step in seconds"><span>s</span></label>
         <label><span data-i18n="steps">Steps</span><input id="steps-input" type="number" min="1" max="100" step="1" value="8" aria-label="Number of steps"></label>
         <button id="run-button" class="run-button" type="button"><span aria-hidden="true">▶</span> <span data-i18n="run">Run</span></button>
@@ -34,11 +39,18 @@
       <aside class="toolrail" aria-label="Design tools">
         <button id="select-tool" class="active" type="button" title="Select" aria-label="Select">↖</button>
         <button id="population-tool" type="button" title="Place population" aria-label="Place population">◌</button>
+        <button id="move-tool" type="button" title="Move (W)" aria-label="Move population volume">✥</button>
+        <button id="rotate-tool" type="button" title="Rotate (E)" aria-label="Rotate population volume">↻</button>
+        <button id="scale-tool" type="button" title="Scale (E)" aria-label="Scale population volume">⤡</button>
+        <button id="snap-tool" type="button" title="Snap to grid" aria-label="Snap to grid" aria-pressed="false">#</button>
+        <button id="measure-tool" type="button" title="Measure (M)" aria-label="Measure distance">⟷</button>
+        <button id="hand-tool" type="button" title="Pan (H)" aria-label="Pan camera"></button>
+        <button id="orbit-tool" type="button" title="Orbit (O)" aria-label="Orbit camera"></button>
         <span class="rail-rule"></span>
         <button id="fit-tool" type="button" title="Fit view" aria-label="Fit view">⌗</button>
-        <button id="top-tool" type="button" title="Top view" aria-label="Top view">XY</button>
-        <button id="front-tool" type="button" title="Front view" aria-label="Front view">XZ</button>
-        <button id="right-tool" type="button" title="Right view" aria-label="Right view">YZ</button>
+        <button id="top-tool" class="rail-text" type="button" title="Top view" aria-label="Top view">XY</button>
+        <button id="front-tool" class="rail-text" type="button" title="Front view" aria-label="Front view">XZ</button>
+        <button id="right-tool" class="rail-text" type="button" title="Right view" aria-label="Right view">YZ</button>
         <div class="rail-spacer"></div>
         <button id="objects-tool" type="button" title="Objects" aria-label="Objects">☷</button>
         <button id="properties-tool" type="button" title="Properties" aria-label="Properties">▤</button>
@@ -48,17 +60,19 @@
         <div class="search-wrap"><input id="left-search" type="search" placeholder="Search" aria-label="Search objects or modules"></div>
         <div id="left-content" class="dock-scroll"></div>
       </aside>
-      <section class="center-dock">
+      <div class="resize-handle resize-left" id="resize-left" role="separator" tabindex="0" aria-label="Resize objects panel" aria-orientation="vertical"></div><section class="center-dock">
         <div class="documentbar"><span id="document-label" data-i18n="simulation">Simulation</span><span id="document-meta">—</span></div>
         <div class="viewport" id="viewport">
           <canvas id="spatial-canvas" tabindex="0" aria-label="3D space; drag to orbit, right drag to pan, scroll to zoom"></canvas>
           <div id="scene-annotations" class="scene-annotations"></div>
+          <div id="empty-results" class="empty-results" hidden data-i18n="noResults">Run a project to inspect its results.</div>
+          <div id="result-banner" class="result-banner" hidden></div>
           <div class="view-controls" id="view-controls">
             <select id="camera-select" aria-label="Camera view"><option value="perspective" data-i18n="perspective">Perspective</option><option value="orthographic" data-i18n="orthographic">Orthographic</option><option value="top" data-i18n="top">Top · XY</option><option value="front" data-i18n="front">Front · XZ</option><option value="right" data-i18n="right">Right · YZ</option></select>
             <select id="field-select" aria-label="Concentration field"><option value="" data-i18n="noField">No field</option></select>
             <select id="slice-select" aria-label="Concentration field Z plane"></select>
           </div>
-          <div class="viewport-bottom"><span id="view-readout">—</span><div class="zoom-controls"><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="fit-button" type="button" data-i18n="fit">Fit</button><button id="zoom-in" type="button" aria-label="Zoom in">+</button></div></div>
+          <div class="viewport-bottom"><span id="view-readout">—</span><span id="measure-readout" class="measure-readout"></span><div class="zoom-controls"><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="fit-button" type="button" data-i18n="fit">Fit</button><button id="zoom-in" type="button" aria-label="Zoom in">+</button></div></div>
           <div id="workflow-view" class="content-view" hidden></div>
           <div id="viewport-error" class="viewport-error" role="alert" hidden></div>
         </div>
@@ -67,14 +81,30 @@
           <div class="transport"><button id="previous-button" type="button" aria-label="Previous frame">‹</button><button id="play-button" type="button" aria-label="Play">▶</button><button id="next-button" type="button" aria-label="Next frame">›</button><input id="frame-range" type="range" min="0" max="0" value="0" aria-label="Replay frame"></div>
           <div id="event-track" class="event-track"></div>
         </section>
+        <section id="diagnostics" class="diagnostics" hidden>
+          <div class="dock-tabs"><button data-bottom="checks" data-i18n="checks">Checks</button><button data-bottom="runs" data-i18n="runs">Runs</button><button data-bottom="console" data-i18n="log">Log</button><button data-bottom="data" data-i18n="data">Data</button><button id="diagnostics-close" aria-label="Close diagnostics">×</button></div>
+          <div id="data-pane" class="diagnostic-scroll" hidden></div><div id="checks-pane" class="diagnostic-scroll"><ol id="checks-list"></ol></div>
+          <div id="runs-pane" class="diagnostic-scroll" hidden><ol id="runs-list"></ol></div>
+          <div id="console-pane" class="diagnostic-scroll" hidden><ol id="log-list"></ol></div>
+        </section>
       </section>
-      <aside class="right-dock dock" id="right-dock"><div class="dock-tabs"><button class="active" type="button" data-i18n="properties">Properties</button><button class="dock-close" id="close-right" type="button" aria-label="Close properties">×</button></div><div id="inspector" class="dock-scroll"></div></aside>
-      <button id="dock-backdrop" class="dock-backdrop" type="button" aria-label="Close panel" hidden></button>
+      <div class="resize-handle resize-right" id="resize-right" role="separator" tabindex="0" aria-label="Resize properties panel" aria-orientation="vertical"></div><aside class="right-dock dock" id="right-dock"><div class="dock-tabs"><button class="active" type="button" data-inspector="properties" data-i18n="properties">Properties</button><button type="button" data-inspector="evidence" data-i18n="evidence">Evidence</button><button class="dock-close" id="close-right" type="button" aria-label="Close properties">×</button></div><div id="inspector" class="dock-scroll"></div></aside>
+      <div class="resize-handle resize-bottom" id="resize-bottom" role="separator" tabindex="0" aria-label="Resize diagnostics panel" aria-orientation="horizontal"></div><button id="dock-backdrop" class="dock-backdrop" type="button" aria-label="Close panel" hidden></button>
     </main>
-    <footer class="statusbar"><span class="status-dot"></span><span id="status-message" role="status" aria-live="polite">Loading…</span><span class="status-spacer"></span><span id="status-count"></span><span id="status-version"></span></footer>
+    <footer class="statusbar"><span class="status-dot"></span><span id="status-message" role="status" aria-live="polite">Loading…</span><span class="status-spacer"></span><span id="status-count"></span><span id="status-version"></span><button id="mobile-objects" class="mobile-dock-button" data-i18n="objects">Objects</button><button id="mobile-properties" class="mobile-dock-button" data-i18n="properties">Properties</button><button id="log-button" class="status-button" type="button" data-i18n="log">Log</button></footer>
   </div>
   <input id="project-file" type="file" accept=".json,application/json" hidden>
   <div id="context-menu" class="context-menu" hidden></div>
+  <dialog id="welcome-dialog" class="welcome-dialog">
+    <div class="dialog-head"><span class="eyebrow">FRISKOLI / CAD</span><button id="welcome-close" aria-label="Close welcome">×</button></div>
+    <h1 data-i18n="welcomeTitle">Build a living system.</h1><p data-i18n="welcomeHint">Scene, behavior, simulation. One reproducible project.</p>
+    <div class="welcome-actions"><button id="welcome-new"><span data-i18n="newProject">New project</span><small data-i18n="newHint">An empty 3D domain</small></button><button id="welcome-open"><span data-i18n="open">Open</span><small data-i18n="openHint">Project or workspace JSON</small></button></div>
+    <button class="preset-card" id="welcome-demo"><span class="preset-art" aria-hidden="true">◒<i>◒</i>◒</span><span><strong data-i18n="demoTitle">Growth & division</strong><small data-i18n="demoHint">3D · illustrative length-adder model</small></span><span>↗</span></button>
+    <button id="welcome-recover" class="menu-button" data-i18n="recover">Recover local draft</button>
+  </dialog>
+  <dialog id="data-dialog" class="data-dialog"><div class="dialog-head"><h2 data-i18n="projectData">Project data</h2><button id="data-close" aria-label="Close project data">×</button></div><p data-i18n="dataHint">Species, schedules and result channels use the backend project schema. Drafts may contain incomplete connections.</p><textarea id="data-editor" aria-label="Project JSON" spellcheck="false"></textarea><p id="data-error" role="alert"></p><button id="data-apply" class="run-button" data-i18n="apply">Apply</button></dialog>
+  <dialog id="export-dialog"><div class="dialog-head"><h2 data-i18n="export">Export</h2><button id="export-close" aria-label="Close export">×</button></div><button id="export-json" class="inspector-action" data-i18n="exportJSON">Complete result · JSON</button><button id="export-csv" class="inspector-action" data-i18n="exportCSV">Frame statistics · CSV</button><p data-i18n="exportHint">Includes the submitted project, solver settings, run identity and all frames. Native Friskoli format.</p></dialog>
+  <datalist id="species-options"></datalist>
   <div id="settings-overlay" class="settings-overlay" hidden><div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-heading"><div class="dialog-head"><h2 id="settings-heading" data-i18n="settings">Settings</h2><button id="settings-close" type="button" aria-label="Close settings">×</button></div><label for="language-select" data-i18n="language">Interface language</label><select id="language-select"><option value="en">English</option><option value="zh-CN">中文</option></select></div></div>
   <script type="module" src="/app.mjs"></script>
 </body>
