@@ -86,7 +86,7 @@
         <section id="diagnostics" class="diagnostics" hidden>
           <div class="dock-tabs"><button data-bottom="checks" data-i18n="checks">Checks</button><button data-bottom="runs" data-i18n="runs">Runs</button><button data-bottom="console" data-i18n="log">Log</button><button data-bottom="data" data-i18n="data">Data</button><button id="diagnostics-close" aria-label="Close diagnostics">×</button></div>
           <div id="data-pane" class="diagnostic-scroll" hidden></div><div id="checks-pane" class="diagnostic-scroll"><ol id="checks-list"></ol></div>
-          <div id="runs-pane" class="diagnostic-scroll" hidden><ol id="runs-list"></ol></div>
+          <div id="runs-pane" class="diagnostic-scroll" hidden><p id="task-output-note" class="task-note" data-i18n="taskOutputScope" hidden></p><p id="task-recovery-warning" class="task-note error" data-i18n="taskRecoveryFailed" hidden></p><ol id="runs-list"></ol></div>
           <div id="console-pane" class="diagnostic-scroll" hidden><ol id="log-list"></ol></div>
         </section>
       </section>
@@ -118,6 +118,7 @@
   </dialog>
   <dialog id="data-dialog" class="data-dialog"><div class="dialog-head"><h2 data-i18n="projectData">Project data</h2><button id="data-close" aria-label="Close project data">×</button></div><p data-i18n="dataHint">Species, schedules and result channels use the backend project schema. Drafts may contain incomplete connections.</p><textarea id="data-editor" aria-label="Project JSON" spellcheck="false"></textarea><p id="data-error" role="alert"></p><button id="data-apply" class="run-button" data-i18n="apply">Apply</button></dialog>
   <dialog id="export-dialog"><div class="dialog-head"><h2 data-i18n="export">Export</h2><button id="export-close" aria-label="Close export">×</button></div><button id="export-json" class="inspector-action" data-i18n="exportJSON">Complete result · JSON</button><button id="export-csv" class="inspector-action" data-i18n="exportCSV">Frame statistics · CSV</button><p data-i18n="exportHint">Includes the submitted project, solver settings, run identity and all frames. Native Friskoli format.</p></dialog>
+  <dialog id="task-input-dialog" class="data-dialog"><div class="dialog-head"><h2 data-i18n="inputSnapshot">Submitted input snapshot</h2><button id="task-input-close" type="button" data-i18n-aria="closeSnapshot">×</button></div><p data-i18n="snapshotReadOnly">This accepted input is read-only. Edits remain in the current draft.</p><textarea id="task-input-json" readonly aria-label="Submitted task input JSON" spellcheck="false"></textarea></dialog>
   <datalist id="species-options"></datalist>
   <div id="settings-overlay" class="settings-overlay" hidden><div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-heading"><div class="dialog-head"><h2 id="settings-heading" data-i18n="settings">Settings</h2><button id="settings-close" type="button" aria-label="Close settings">×</button></div><label for="language-select" data-i18n="language">Interface language</label><select id="language-select"><option value="en">English</option><option value="zh-CN">中文</option></select></div></div>
   <script type="module" src="/app.mjs"></script>

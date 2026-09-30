@@ -5,6 +5,7 @@ import { renderModuleDocumentation } from './math-inspector.mjs';
 import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
 import { writeWorkspace, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
+import { TaskStore, buildSubmission, matchesDraft, supportsTasks } from './task-store.mjs';
 import { renderResultData } from './results.mjs';
 import { installDockSizing } from './panels.mjs';
 import { SpatialViewport } from './scene3d.mjs';
@@ -27,8 +28,11 @@ const state = { project: null, blocks: [], modules: new Map(), replay: null, vie
   frameIndex: 0, selectedBlock: null, selectedCell: null, graphSelection: null, selectedManifest: null,
   field: '', slice: 0, ranges: {}, timer: null, status: ['ready', {}, false], layout: {},
   history: [], future: [], tool: 'select', snap: false, settings: {dt_s: .5, steps: 8},
-  revision: 0, saved: '', busy: false, checks: [], runs: [], activeRun: null, template: null, capabilities: null };
+  revision: 0, draftToken: crypto.randomUUID(), latestTask: null, saved: '', busy: false, checks: [], runs: [], activeRun: null, template: null, capabilities: null };
 const kernel = new KernelClient();
+let taskStorage = null;
+try { taskStorage = localStorage; } catch { /* display unavailable recovery in the task panel */ }
+const taskStore = new TaskStore(kernel, {storage:taskStorage, onChange:taskUpdated});
 state.objects = new Map();
 state.activeObject = null;
 const TOOLS = { select: 'select-tool', population: 'population-tool', move: 'move-tool', scale: 'scale-tool',
@@ -253,9 +257,8 @@ function renderLeft() {
   if (state.view === 'results') {
     container.append(el('div', 'tree-heading', t('runs')));
     for (const run of state.runs) treeRow(container, run.id, t(run.status), run === state.activeRun, () => {
-      if (!run.replay) { status('runFailed', {message:run.error ?? t('running')}, true); return; }
-      state.activeRun = run; state.replay = run.replay; state.frameIndex = 0; state.selectedCell = null;
-      updateRanges(); renderAll();
+      if (!run.replay) { showBottom('runs'); renderDiagnostics(); return; }
+      selectRun(run);
     }, '◷');
     for (const cell of (currentSnapshot()?.frame.cells ?? []).filter(c => !filter || c.id.toLowerCase().includes(filter)).slice(0, 100)) {
       treeRow(container, cell.id, cell.group_id, state.selectedCell === cell.id, () => selectCell(cell.id), '·');
@@ -508,8 +511,53 @@ function renderDiagnostics() {
   }
   if (!state.checks.length) root.append(el('li', '', t('unchecked')));
   const runs = $('runs-list'); runs.replaceChildren();
-  for (const run of [...state.runs].reverse()) runs.append(el('li', '', `${run.id} · ${t(run.status)}${run.error ? ' · ' + run.error : ''}`));
+  for (const run of [...state.runs].reverse()) {
+    const row = el('li', 'task-record');
+    row.append(el('strong', '', `${run.project.id} · ${run.id}`));
+    const progress = run.task ? ` · ${run.task.progress.committed_step}/${run.settings.steps} ${t('steps')}` : '';
+    row.append(el('span', '', `${t(run.status)}${progress}${run.localId ? ' · ' + t(run.completeness) : ''}`));
+    if (run.task?.cancel_requested && run.status === 'running') row.append(el('span', 'task-note', t('cancelRequested')));
+    if (run.localId) {
+      row.append(el('span', 'task-note', t('taskDraft', {revision:run.submission.edit_revision})));
+      if (!run.eventsComplete) row.append(el('span', 'task-note', t('eventsExpired')));
+      if (run.connection === 'lost') row.append(el('span', 'task-note', t(run.paused ? 'queryPaused' : 'connectionRetry')));
+    }
+    if (run.error) row.append(el('span', 'error', run.error === 'task.idempotency_window_expired' ? t('retryExpired') : run.error));
+    const actions = el('div', 'task-actions');
+    const action = (label, fn) => { const button = el('button', 'menu-button', t(label)); button.type = 'button'; button.addEventListener('click', fn); actions.append(button); };
+    if (run.replay) action('viewPublished', () => selectRun(run));
+    if (run.localId) {
+      action('inputSnapshot', () => { $('task-input-json').value = JSON.stringify(run.submission, null, 2); $('task-input-dialog').showModal(); });
+      if (['queued', 'running'].includes(run.status) && !run.task?.cancel_requested) action('cancelTask', () => taskStore.cancel(run.localId));
+      if (run.paused && run.status !== 'unavailable' && run.error !== 'task.idempotency_window_expired')
+        action(run.runId ? 'retryQuery' : 'retrySubmission', () => taskStore.retry(run.localId));
+    }
+    row.append(actions); runs.append(row);
+  }
+  $('task-recovery-warning').hidden = !taskStore.persistenceError && Boolean(taskStorage);
+  $('task-output-note').hidden = !supportsTasks(state.capabilities);
   renderData();
+}
+
+function selectRun(record) {
+  if (!record.replay) return;
+  state.activeRun = record; state.replay = record.replay; state.frameIndex = 0; state.selectedCell = null;
+  updateRanges(); setView('results');
+}
+
+function taskUpdated(record, records) {
+  const previous = state.runs.find(run => run.localId === record.localId);
+  state.runs = [...state.runs.filter(run => !run.localId), ...records];
+  if (record.localId === state.latestTask && matchesDraft(record, state) && record.status !== previous?.status)
+    status(record.status, {}, ['failed', 'rejected', 'unavailable'].includes(record.status));
+  if (state.activeRun?.localId === record.localId) {
+    state.activeRun = record;
+    if (record.replay) { state.replay = record.replay; state.frameIndex = Math.min(state.frameIndex, record.replay.snapshots.length - 1); updateRanges(); }
+  }
+  if (record.replay && record.replay !== previous?.replay && record.status === 'completed' &&
+      record.localId === state.latestTask && matchesDraft(record, state)) selectRun(record);
+  else if (state.view === 'results' && state.activeRun?.localId === record.localId) renderAll();
+  else { updateRunButton(); renderDiagnostics(); }
 }
 
 function renderData() { renderResultData($('data-pane'), state.replay, state.selectedCell, setFrame,
@@ -837,9 +885,11 @@ function updateRunButton() {
   const pending = state.blocks.some(block => block.dirty);
   const missing = state.project ? missingInputs(state.project.graph, state.modules).length : 0;
   const unavailable = state.project ? unavailableModules(state.project.graph, state.modules).length : 0;
-  $('run-button').disabled = state.busy || pending || !state.project || missing > 0 || unavailable > 0;
+  const unresolved = taskStore.list().some(run => matchesDraft(run, state) && ['submitting', 'submission_unknown'].includes(run.status));
+  $('run-button').disabled = state.busy || unresolved || pending || !state.project || missing > 0 || unavailable > 0;
   $('run-button').title = state.busy ? t('running') : pending ? t('pending') : missing ? t('missingConnections') : '';
   if (unavailable) $('run-button').title = t('unknownModule');
+  if (unresolved) $('run-button').title = t('retrySubmission');
   $('check-button').disabled = state.busy || !state.project;
 }
 
@@ -859,7 +909,7 @@ function renderAll() {
   $('workflow-view').hidden = state.view !== 'workflow';
   $('bottom-dock').hidden = state.view !== 'results' || !state.replay;
   $('result-banner').hidden = state.view !== 'results' || !state.activeRun;
-  $('result-banner').textContent = state.activeRun ? `${state.activeRun.id} · ${t(state.activeRun.revision === state.revision ? 'completed' : 'earlierRevision')}` : '';
+  $('result-banner').textContent = state.activeRun ? `${state.activeRun.id} · ${t(state.activeRun.status)}${state.activeRun.localId ? ' · ' + t(state.activeRun.manifest?.completeness ?? state.activeRun.completeness) + ' · ' + t('taskFramesOnly') : ''}${matchesDraft(state.activeRun, state) ? '' : ' · ' + t('earlierRevision')}` : '';
   $('export-button').disabled = !state.replay;
   $('population-tool').disabled = state.view !== 'space' || !state.activeObject;
   renderScene();
@@ -896,29 +946,36 @@ async function executeProject(candidate) {
   }
   stop();
   const submitted = structuredClone(candidate), settings = structuredClone(state.settings);
+  try { resolveGraph(submitted.graph, state.modules); }
+  catch (error) { status('runFailed', {message:error.message}, true); return false; }
+  if (supportsTasks(state.capabilities)) {
+    try {
+      const submission = buildSubmission(state.capabilities, submitted, settings, `${state.draftToken}:${state.revision}`);
+      const record = taskStore.create(submission, {draftToken:state.draftToken, revision:state.revision,
+        idempotencyRetentionSeconds:state.capabilities.task.limits.idempotency_retention_seconds});
+      state.latestTask = record.localId;
+      showBottom('runs'); renderDiagnostics(); status('taskSubmitted');
+      await taskStore.submit(record.localId);
+      taskStore.start(); return true;
+    } catch (error) { status('runFailed', {message:error.message}, true); return false; }
+  }
   const id = `run-${Date.now()}-${state.runs.length + 1}`;
   submitted.run.run_id = id;
-  const record = {id, project: submitted, settings, revision: state.revision, status: 'running'};
-  state.runs.push(record);
-  state.busy = true;
-  updateRunButton(); renderDiagnostics();
-  status('running');
+  const record = {id, project:submitted, settings, revision:state.revision, draftToken:state.draftToken, status:'running'};
+  state.runs.push(record); state.busy = true;
+  updateRunButton(); renderDiagnostics(); status('running');
   try {
-    resolveGraph(submitted.graph, state.modules);
     const result = await kernel.run(submitted, settings, id);
     if (result.execution?.request_id !== id) throw new Error('Run response identity mismatch');
     record.replay = normalizeReplay(result); record.status = 'completed';
-    state.activeRun = record;
-    state.replay = normalizeReplay(result);
-    state.frameIndex = Math.max(0, state.replay.snapshots.findIndex(item => item.frame.events.length));
-    updateRanges();
-    setView('results');
-    status('runReady', { count: state.replay.snapshots.length,
-      cells: currentSnapshot().frame.cells.length });
+    if (matchesDraft(record, state)) {
+      selectRun(record);
+      status('runReady', {count:record.replay.snapshots.length, cells:currentSnapshot().frame.cells.length});
+    }
     return true;
   } catch (error) {
     record.status = 'failed'; record.error = error.message;
-    status('runFailed', { message: error.message }, true);
+    if (matchesDraft(record, state)) status('runFailed', {message:error.message}, true);
     return false;
   } finally { state.busy = false; updateRunButton(); renderDiagnostics(); }
 }
@@ -967,14 +1024,14 @@ function download(name, content, type = 'application/json') {
 
 async function loadProject(document) {
   const {state:loaded,report} = adaptWorkspace(document, state.modules);
-  if (state.busy) throw new Error(t('running'));
+  state.draftToken = crypto.randomUUID(); state.latestTask = null;
   Object.assign(state, loaded);
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);
   state.selectedBlock = loaded.blocks[0]?.id ?? null;
   state.selectedCell = null;
   state.graphSelection = null;
   state.selectedManifest = null;
-    state.replay = null; state.runs = []; state.activeRun = null;
+    state.replay = null; state.activeRun = null;
     state.history = [];
     state.future = [];
     updateHistoryButtons();
@@ -1222,8 +1279,14 @@ $('data-apply').addEventListener('click', () => {
 });
 $('export-button').addEventListener('click', () => { if (state.activeRun?.replay) $('export-dialog').showModal(); });
 $('export-close').addEventListener('click', () => $('export-dialog').close());
-$('export-json').addEventListener('click', () => { if (state.activeRun?.replay) download(`${state.activeRun.id}.result.json`, JSON.stringify(exportRun(state.activeRun), null, 2)); });
-$('export-csv').addEventListener('click', () => { if (state.replay) download(`${state.replay.run.run_id}.metrics.csv`, metricsCSV(state.replay), 'text/csv'); });
+$('export-json').addEventListener('click', () => {
+  const run = state.activeRun; if (!run?.replay) return;
+  const payload = run.localId ? {task_contract_version:'0.1.0', task_run_id:run.runId, status:run.manifest.status,
+    completeness:run.manifest.completeness, task:run.task, submission:run.submission, manifest:run.manifest, replay:run.replay} : exportRun(run);
+  download(`${run.id}.result.json`, JSON.stringify(payload, null, 2));
+});
+$('task-input-close').addEventListener('click', () => $('task-input-dialog').close());
+$('export-csv').addEventListener('click', () => { if (state.replay) download(`${state.activeRun?.id ?? state.replay.run.run_id}.metrics.csv`, metricsCSV(state.replay), 'text/csv'); });
 window.addEventListener('beforeunload', event => { if (state.project && fingerprint() !== state.saved) { event.preventDefault(); event.returnValue = ''; } });
 for (const [id, glyph] of Object.entries({'select-tool':'select','population-tool':'cell','move-tool':'move','rotate-tool':'reset','scale-tool':'scale',
   'snap-tool':'grid','measure-tool':'measure','fit-tool':'fit','objects-tool':'layers','properties-tool':'settings','hand-tool':'hand','orbit-tool':'reset'})) $(id).innerHTML = icon(glyph);
@@ -1253,6 +1316,7 @@ try {
   state.modules = registry.modules; state.objects = registry.objects;
   state.activeObject = availablePlaceables(state.modules, capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
   state.capabilities = capabilities;
+  if (supportsTasks(capabilities)) { state.runs.push(...taskStore.restore()); taskStore.start(); renderDiagnostics(); }
   state.template = await projectResponse.json();
   showWelcome();
   updateRunButton(); status('ready');

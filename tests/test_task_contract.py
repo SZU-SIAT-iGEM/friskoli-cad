@@ -16,7 +16,8 @@ from referencing import Registry, Resource
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = ROOT / 'src/friskoli_cad/protocol/schemas'
 TASK = json.loads((SCHEMAS / 'task-draft.schema.json').read_text(encoding='utf-8'))
-API_PATH = ROOT / 'docs/protocol/tasks-openapi.json'
+# Keep the N1 frozen specification under test after the stable N2 release.
+API_PATH = ROOT / 'docs/protocol/tasks-openapi-draft.json'
 API = json.loads(API_PATH.read_text(encoding='utf-8'))
 VERSION = '0.1.0-draft.1'
 FORMATS = FormatChecker()

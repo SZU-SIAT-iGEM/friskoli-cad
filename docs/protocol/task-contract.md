@@ -1,20 +1,22 @@
-# 异步任务合同草案
+# 异步任务合同 0.1.0
 
-状态：**N1 draft，`task_contract_version: 0.1.0-draft.1`，未实现服务**。
+状态：**N2 稳定合同，`task_contract_version: 0.1.0`**。
 日期：2026-09-29。本文与 [OpenAPI 3.1](tasks-openapi.json)、
-[JSON Schema](../../src/friskoli_cad/protocol/schemas/task-draft.schema.json) 共同定义 N2 的验收输入。
+[JSON Schema](../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json) 共同定义 N2 的请求与结果。
+N1 的历史 [draft OpenAPI](tasks-openapi-draft.json) 与 [draft Schema](../../src/friskoli_cad/protocol/schemas/task-draft.schema.json) 保留原版本，不用于协商当前服务。
 Schema 校验通过只说明资料结构正确，不证明并发、持久化、资源估算或数值正确。
 
 ## 兼容边界
 
-已核对 `src/friskoli_cad/replay_service.py`：当前 `api_version: 0.2.0`
+`src/friskoli_cad/replay_service.py` 保留原 `api_version: 0.2.0`：
 使用 `POST /api/replay` 同步运行，`POST /api/validate` 检查并初始化，
 GET `/api/modules`、`/api/catalog`、`/api/example-project` 和 `/api/capabilities` 查询。
-当前执行能力为 synchronous，pause/resume/partial_results 均为 false。
+旧 `execution` 字段继续描述同步入口，pause/resume/partial_results 均为 false。
 [现有 OpenAPI](../openapi.json) 继续描述旧接口；本文不修改其请求、结果或错误形状。
-新 `/api/runs` 路径现在不可用。客户端必须先检查未来 capabilities 的 `task` 字段
-及精确合同版本；不支持则保持受限同步工作流，不能假定异步提交成功。
-旧 replay 的 `project_sha256` 使用 Python JSON 序列化，不能与本草案摘要直接比较。
+启用任务服务时，新增 `/api/runs` 路径及 capabilities 的 `task` 字段；
+客户端检查精确合同版本 `0.1.0`，从 `task.execution` 与 `task.version_lock` 构造请求。
+不支持则保持受限同步工作流，不能假定异步提交成功。`--sync-only` 不公布 `task` 能力。
+旧 replay 的 `project_sha256` 使用 Python JSON 序列化，不能与本任务合同的摘要直接比较。
 
 任务独立版本化，不修改 graph/run/frame 0.1.0、Project 0.1.0/0.2.0
 或 Frame 0.1.0/0.2.0。Submission 引用已发布 Project Schema，仍须执行语义验证。
@@ -75,6 +77,12 @@ UTF-8 字节计算。帧采样允许不连续数值步，但 sequence 必须连�
 I-JSON 数字约束的输入。使用 [RFC 8785 JCS](https://www.rfc-editor.org/rfc/rfc8785.html) 的 UTF-8 字节做 SHA-256：
 不自行做 Unicode normalization；对象按 JCS 排序，数组顺序保留，缺失与 null 不等同。
 禁止用 `json.dumps(sort_keys=True)` 假装完整的 JCS 实现。
+本服务对 JSON 整数 token 限制在 `±(2**53−1)`；含小数点或指数的数字按 binary64
+舍入，拒绝非有限结果和非零数下溢为零。`1` 与 `1.0` 的规范化摘要相同。字符串拒绝
+孤立 surrogate 与 Unicode noncharacter；不自行规范化 Unicode。此输入策略随任务合同版本冻结。
+内部持久化和 worker 消息使用独立的 JCS 读取器恢复 binary64：例如 `1e16` 的 JCS 表示是
+整数 token `10000000000000000`，读取时恢复为浮点并校验规范化字节完全相同。
+此内部读取规则不放宽外部请求的安全整数限制，避免重启和事件查询改变已接受输入的摘要。
 
 幂等内容为 Submission 去掉 `request_id` 后的完整对象，包含 edit_revision、
 project、version_lock、execution、output_plan 和合同版本。属性书写顺序变化不冲突；
@@ -95,8 +103,10 @@ TaskCapabilities 公布 retention_seconds、idempotency_retention_seconds。
 对象 `{project, version_lock, execution, output_plan}`，保守包含整个 Project，
 不包含外部 Workspace view/UI、request_id、edit_revision。同一科学摘要不会自动复用结果。
 `registry_sha256` 是精确冻结 registry 文档的 JCS 摘要；`plan_sha256` 是编译计划 JCS 摘要。
-N2 实现前还须确定计划序列化 Schema、实际库/backend/精度/RNG provenance；
-未冻结前不能宣称跨版本可复现。示例中的重复十六进制摘要仅为结构示例。
+稳定 Schema 同时定义 `CompiledPlan` 与 `Provenance`，manifest 包含编译后的有序节点、
+输入绑定、参数、执行语义及实际 Python/NumPy/backend/精度/RNG 说明。实现锁来自当前模块
+实现与声明，不使用版本字符串冒充源码摘要；seed 随输入冻结。可追溯不等于跨机器逐位一致，
+当前不宣称 GPU 或科学标定能力。示例中的重复十六进制摘要仅为结构示例。
 服务器生成 run_id；嵌套 Project.run.run_id 仍是旧项目元数据，不能用于指定存储目录，
 需在输出关联中明确区分，不能静默修改快照。
 
@@ -128,8 +138,8 @@ UI targets 和可读 message；整体错误使用空指针。系统存储错误�
 `task.queue_full`、`task.worker_failed`、`task.output_write_failed`、`task.service_interrupted`。
 HTTP code 与 issue code 分开；当前同步旧 error 对象保持原样。
 
-N1 测试验证 Schema、正反例、状态矩阵和所有 OpenAPI 引用，不模拟异步服务并冒称完成。
-N2 必须另外以真实服务测试：并发同键一次执行/冲突；排队与运行取消；
+N1 历史测试继续验证 draft Schema、正反例、状态矩阵和所有 OpenAPI 引用。
+N2 另以真实服务测试：并发同键一次执行/冲突；排队与运行取消；
 complete/cancel 双向竞争；重连分页与过期游标；worker 崩溃和重启扫描；
 磁盘写失败与孤立块；资源超限；运行中编辑、旧响应晚到不替换新草稿；
 partial 与 complete 原子可见；从安装包读取新增资源。

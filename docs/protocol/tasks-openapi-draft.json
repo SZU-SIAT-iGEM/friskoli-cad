@@ -2,15 +2,15 @@
   "openapi": "3.1.0",
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "info": {
-    "title": "Friskoli asynchronous task API",
-    "version": "0.1.0",
-    "description": "Stable 0.1.0 single-worker task API. The synchronous API remains docs/openapi.json (api_version 0.2.0). Clients must check capabilities.task.task_contract_version. No pause, checkpoint, resume, SSE or binary field containers."
+    "title": "Friskoli asynchronous task API — N1 draft, not implemented",
+    "version": "0.1.0-draft.1",
+    "description": "N2 target only. Current synchronous API remains docs/openapi.json (api_version 0.2.0). Do not call these routes before capabilities advertises this task_contract_version. No pause, checkpoint or resume."
   },
-  "x-implementation-status": "implemented",
+  "x-implementation-status": "draft-not-implemented",
   "x-capabilities-extension": {
-    "description": "The /api/capabilities task field advertises this exact contract, resource bounds and the server-computed version_lock.",
+    "description": "Future /api/capabilities task field; absent in current synchronous service.",
     "schema": {
-      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/TaskCapabilities"
+      "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/TaskCapabilities"
     }
   },
   "paths": {
@@ -18,14 +18,14 @@
       "post": {
         "operationId": "submitRun",
         "description": "Validate and estimate before admission. Atomically persist immutable input, task and idempotency record before 202. Same key and canonical content returns the original task (200), including terminal tasks. request_id is tracing only.",
-        "x-implementation-status": "implemented",
+        "x-implementation-status": "draft-not-implemented",
         "responses": {
           "200": {
             "description": "Existing task reused without execution.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Task"
                 }
               }
             }
@@ -35,7 +35,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Task"
                 }
               }
             },
@@ -54,7 +54,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -64,7 +64,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -74,7 +74,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -84,7 +84,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -94,7 +94,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             },
@@ -113,17 +113,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
-                }
-              }
-            }
-          },
-          "415": {
-            "description": "Request Content-Type is not application/json; no task created.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -145,7 +135,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Submission"
+                "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Submission"
               }
             }
           }
@@ -167,14 +157,14 @@
       "get": {
         "operationId": "getRun",
         "description": "Read committed status after reconnect; this does not resume computation.",
-        "x-implementation-status": "implemented",
+        "x-implementation-status": "draft-not-implemented",
         "responses": {
           "200": {
             "description": "Current durable task snapshot.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Task"
                 }
               }
             }
@@ -184,7 +174,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -194,7 +184,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -204,17 +194,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Task service or durable storage is unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -237,14 +217,14 @@
       "post": {
         "operationId": "cancelRun",
         "description": "Idempotent cancellation. Queued runs transition immediately; running runs set cancel_requested until a committed step boundary. First durable terminal transition wins. Repeat requests on a terminal task return that unchanged task.",
-        "x-implementation-status": "implemented",
+        "x-implementation-status": "draft-not-implemented",
         "responses": {
           "200": {
             "description": "Terminal task, including immediate queued cancellation.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Task"
                 }
               }
             }
@@ -254,7 +234,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Task"
                 }
               }
             }
@@ -264,7 +244,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -274,7 +254,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -284,17 +264,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Task service or durable storage is unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -317,14 +287,14 @@
       "get": {
         "operationId": "getRunEvents",
         "description": "Return durable ordered events strictly after after. Deduplicate by (run_id, seq). Expired cursor (including zero after pruning) is 410; future cursor is 400.",
-        "x-implementation-status": "implemented",
+        "x-implementation-status": "draft-not-implemented",
         "responses": {
           "200": {
             "description": "Bounded page; next_after is last returned seq or unchanged input cursor for an empty page.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/EventPage"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/EventPage"
                 }
               }
             }
@@ -334,7 +304,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -344,7 +314,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -354,17 +324,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Task service or durable storage is unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -409,14 +369,14 @@
       "get": {
         "operationId": "getRunInput",
         "description": "Return immutable accepted submission including original request_id and edit_revision. Client edits never replace this snapshot.",
-        "x-implementation-status": "implemented",
+        "x-implementation-status": "draft-not-implemented",
         "responses": {
           "200": {
             "description": "Accepted input snapshot.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Submission"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Submission"
                 }
               }
             }
@@ -426,7 +386,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -436,7 +396,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -446,17 +406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Task service or durable storage is unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -478,15 +428,15 @@
       ],
       "get": {
         "operationId": "getRunResult",
-        "description": "Return only an atomically published manifest and chunks. No published chunks means 409; complete requires the completed terminal transaction. Published manifests also contain the exact compiled_plan and admission provenance; these do not create separate plan or provenance endpoints.",
-        "x-implementation-status": "implemented",
+        "description": "Return only an atomically published manifest and chunks. No published chunks means 409; complete requires the completed terminal transaction.",
+        "x-implementation-status": "draft-not-implemented",
         "responses": {
           "200": {
             "description": "Published partial or complete manifest.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Manifest"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Manifest"
                 }
               }
             }
@@ -496,7 +446,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -506,7 +456,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -516,7 +466,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -526,17 +476,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Task service or durable storage is unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -568,14 +508,14 @@
       "get": {
         "operationId": "getRunChunk",
         "description": "Fetch immutable published JSON frame chunk. Field/metric formats require a separately versioned extension. IDs never name filesystem paths.",
-        "x-implementation-status": "implemented",
+        "x-implementation-status": "draft-not-implemented",
         "responses": {
           "200": {
             "description": "Published JSON chunk; checksum and byte length are declared by the manifest.",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/ChunkBody"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/ChunkBody"
                 }
               }
             }
@@ -585,7 +525,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -595,7 +535,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
@@ -605,35 +545,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Task service or durable storage is unavailable.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-draft.schema.json#/$defs/Error"
                 }
               }
             }
           }
         }
-      }
-    }
-  },
-  "components": {
-    "schemas": {
-      "CompiledPlan": {
-        "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/CompiledPlan"
-      },
-      "Provenance": {
-        "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Provenance"
-      },
-      "ExecutionSupport": {
-        "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/ExecutionSupport"
       }
     }
   }

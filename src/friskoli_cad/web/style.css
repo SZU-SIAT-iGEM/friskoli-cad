@@ -135,3 +135,11 @@ dialog::backdrop { background: #080e14a6; backdrop-filter: blur(3px); }
 @media (pointer: coarse) and (max-width: 620px) {
   .workspacebar { height: 92px; min-height: 92px; }
 }
+
+/* Asynchronous task controls share the existing CAD diagnostics panel. */
+.task-record { display:flex; flex-direction:column; gap:6px; padding:12px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
+.task-actions { display:flex; flex-wrap:wrap; gap:8px; }
+.task-actions button { min-height:36px; }
+.task-note { color:var(--muted); font-size:12px; line-height:1.5; margin:4px 0; }
+#task-input-json { width:100%; min-height:45vh; resize:vertical; font:12px/1.5 monospace; }
+@media (pointer:coarse) { .task-actions button { min-height:44px; } }
