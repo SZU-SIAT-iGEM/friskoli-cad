@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
 import {moduleName, nodeGeometry, nodeStatus, graphBounds, createPortRow, createNodeHeader} from '../src/friskoli_cad/web/workflow-components.mjs';
-import {GraphEditor, autoLayout} from '../src/friskoli_cad/web/workflow.mjs';
+import {GraphEditor, autoLayout, GRAPH_TOP_INSET} from '../src/friskoli_cad/web/workflow.mjs';
 import {resolveGraph} from '../src/friskoli_cad/web/catalog.mjs';
 
 const manifest = {id:'growth.linear_elongation',version:'1.0.0',scope:'population',phase:2,
@@ -53,7 +53,7 @@ test('zoom preserves the graph point underneath the cursor', () => {
   Object.assign(editor,{board:{},zoom:1,container:{scrollLeft:100,scrollTop:150,getBoundingClientRect:()=>({left:10,top:20,width:400,height:300})},applyZoom(){}});
   editor.zoomBy(1.5,[110,120]);
   assert.equal((editor.container.scrollLeft+100)/editor.zoom,200);
-  assert.equal((editor.container.scrollTop+100)/editor.zoom,250);
+  assert.equal((editor.container.scrollTop+100-GRAPH_TOP_INSET)/editor.zoom,250-GRAPH_TOP_INSET);
 });
 
 // Small DOM boundary double: verifies emitted text/attributes and user callbacks without a browser dependency.

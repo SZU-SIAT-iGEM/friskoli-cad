@@ -5,6 +5,8 @@ import { NODE_WIDTH, element as el, nodeGeometry, nodeStatus, createNodeShell, c
 export { NODE_WIDTH } from './workflow-components.mjs';
 
 const SVG = 'http://www.w3.org/2000/svg';
+// Unscaled content inset reserves room for the sticky toolbar, including coarse pointers.
+export const GRAPH_TOP_INSET = 56;
 const GRID = 14;
 const snap = value => Math.max(0, Math.round(value / GRID) * GRID);
 const key = node => `${node.module_id}@${node.module_version}`;
@@ -88,9 +90,9 @@ export class GraphEditor {
   zoomBy(factor, point = null) {
     if(!this.board)return;
     const rect=this.container.getBoundingClientRect(), x=point?point[0]-rect.left:rect.width/2,y=point?point[1]-rect.top:rect.height/2;
-    const local=[(this.container.scrollLeft+x)/this.zoom,(this.container.scrollTop+y)/this.zoom];
+    const local=[(this.container.scrollLeft+x)/this.zoom,(this.container.scrollTop+y-GRAPH_TOP_INSET)/this.zoom];
     this.zoom=Math.max(.25,Math.min(2.5,this.zoom*factor));this.applyZoom();
-    this.container.scrollLeft=local[0]*this.zoom-x;this.container.scrollTop=local[1]*this.zoom-y;
+    this.container.scrollLeft=local[0]*this.zoom-x;this.container.scrollTop=local[1]*this.zoom-y+GRAPH_TOP_INSET;
   }
   applyZoom(){
     if(!this.board)return;
@@ -102,7 +104,7 @@ export class GraphEditor {
     if (!this.board) return;
     const bounds = graphBounds(this.resolved.nodes, this.layout, this.coarse);
     this.width = Math.max(this.container.clientWidth / this.zoom, bounds.x + bounds.width + 48);
-    this.height = Math.max(this.container.clientHeight / this.zoom, bounds.y + bounds.height + 48);
+    this.height = Math.max((this.container.clientHeight-GRAPH_TOP_INSET) / this.zoom, bounds.y + bounds.height + 48);
     this.board.style.width=`${this.width}px`; this.board.style.height=`${this.height}px`;
     this.svg.setAttribute('width', String(this.width)); this.svg.setAttribute('height', String(this.height)); this.applyZoom();
   }
@@ -112,7 +114,7 @@ export class GraphEditor {
     this.zoom=Math.max(.25,Math.min(1,(this.container.clientWidth-48)/bounds.width,(this.container.clientHeight-88)/bounds.height));
     this.resizeBoard();
     this.container.scrollLeft=Math.max(0,bounds.x*this.zoom-24);
-    this.container.scrollTop=Math.max(0,bounds.y*this.zoom-56);
+    this.container.scrollTop=Math.max(0,bounds.y*this.zoom);
   }
 
   portPoint(nodeId, side, name) {
@@ -141,7 +143,7 @@ export class GraphEditor {
     const scroll = [this.container.scrollLeft, this.container.scrollTop];
     this.container.replaceChildren();
     const board = this.board = el('div', 'graph-board');
-    let width = this.container.clientWidth / this.zoom, height = this.container.clientHeight / this.zoom;
+    let width = this.container.clientWidth / this.zoom, height = Math.max(0,this.container.clientHeight-GRAPH_TOP_INSET) / this.zoom;
     for (const node of this.resolved.nodes) {
       const { x, y } = layout[node.id];
       width = Math.max(width, x + NODE_WIDTH + 48);
@@ -160,6 +162,7 @@ export class GraphEditor {
       if (event.target === board || event.target === this.svg) this.callbacks.select(null);
     });
     this.width=width;this.height=height;this.wrapper=el('div','graph-wrapper');this.wrapper.append(board);
+    this.wrapper.style.marginTop=`${GRAPH_TOP_INSET}px`;
     const toolbar = el('div', 'graph-toolbar'); toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Workflow');
     for (const [label, action] of [['zoomOut', () => this.zoomBy(1/1.2)], ['actual', () => this.zoomBy(1/this.zoom)], ['zoomIn', () => this.zoomBy(1.2)], ['fit', () => this.fit()]]) {
       const button = el('button', '', label === 'zoomOut' ? '−' : label === 'zoomIn' ? '+' : workflowText(this.language, label)); button.type='button';
