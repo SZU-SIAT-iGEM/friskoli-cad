@@ -12,11 +12,13 @@ Friskoli-CAD 是面向趋化工程菌设计的模块化仿真与可视化工具�
 
 对象库和属性面板由后端注册声明生成；菌群散布自动加入可折叠的胶囊读取节点，保存、重开和撤销操作保留关联。欢迎页新增“几何与浓度采样”，模块面板提供离线 LaTeX、符号和证据说明。旧项目缺少指定模块时仍可阅读和保存，运行禁用。详情见[注册目录与工作区 0.3](docs/registry-contract.md)。
 
-N2 已增加[本地异步任务服务](docs/task-service.md)：SQLite 持久队列、独立计算进程、取消、事件游标与分块结果；前端运行记录独立于正在编辑的草稿，支持刷新后查询。稳定[任务合同 0.1.0](docs/protocol/task-contract.md)与旧同步接口并存。异步结果目前只含单菌体帧，不含场热力图；重启恢复查询，不从中断处续算。
+N2 已增加[本地异步任务服务](docs/task-service.md)：SQLite 持久队列、独立计算进程、取消、事件游标与分块结果；前端运行记录独立于正在编辑的草稿，支持刷新后查询。稳定[任务合同 0.1.0](docs/protocol/task-contract.md)与旧同步接口并存。旧 Task 0.1/0.2 只传单菌体帧；新空间 Task 0.3 可传真实浓度场和对象库存。重启恢复查询，不从中断处续算。
 
 **N3 首批 M0–M3：** 欢迎页的“共享底物与 PTS 信号”可运行有限均匀底物、两种来源的 PTS 容量、摄取请求、跨菌群共享结算和 EI/CheA/CheY 信号，共 8 类模块。新执行规则、Project 0.3 / Catalog 0.2 / Task 0.2 独立版本化，保留旧图与任务行为。参数来源、构造例和数值限制见[科学说明](docs/science/pts-minimal.md)，连接与执行顺序见[新 profile](docs/protocol/pts-bulk-profile.md)。这一步是固定菌体的信号链，motor bias 尚未驱动运动；完整趋化、标定、插件安装、候选比较和标准导出继续分阶段实施。
 
 Workflow 节点现由名称/ID、端口、参数摘要、数学式和状态组件组合；完整 ID 可复制，图内提供独立缩放和适合图形。实际浏览器与设备限制见[组件验收](docs/verification-workflow-components.md)，N3 整体验证见[验收记录](docs/verification-n3.md)。
+
+**N3 空间基线：** `spatial-unbiased-v1` 使用 Project 0.4 / Catalog 0.3 / Task 0.3，注册障碍物、可降解底物和引诱物源。底物放置自动生成有删除约束的全局降解机制；显式表面酶与接触范围限制降解，产物和直接来源进入同一养分场，供 PTS 感知与摄取。胶囊检查胞体、器壁和实体碰撞，无偏 run/tumble 保存独立 RNG 和事件时钟；失败步骤整体回滚。浓度热图与耗尽材料显示由真实结果驱动。见[科学语义与限制](docs/science/spatial-baseline.md)、[版本化协议](docs/protocol/spatial-profile.md)和[本阶段验收](docs/verification-spatial.md)。Python checkpoint 仅面向本执行规则；任务暂停续算、信号驱动运动、MCP 独立引诱物对照与实验标定仍待后续。
 
 启动窗口现采用紧凑命令列表，与工作区共用控件风格；关闭、恢复、导入错误与迟到请求处理已修正。浏览器交互、四尺寸与中英文检查见[启动界面验收](docs/verification-startup-ui.md)，其中明确列出实体设备等未测项。
 

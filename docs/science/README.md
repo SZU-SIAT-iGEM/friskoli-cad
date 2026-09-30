@@ -4,6 +4,8 @@
 
 新增实现入口：[科学方程与参数证据](pts-minimal.md)、[共享库存结算](settlement.md)、[执行协议](../protocol/pts-bulk-profile.md)、[中文 Wiki](../wiki/models/pts-minimal.md)与[实际验收](../verification-n3.md)。CAD 包内保存选定来源文件的提交和 SHA、证据与固定条件 fixtures，运行不依赖外部模型目录。
 
+后续空间基线见[底物、养分场、接触降解与运动](spatial-baseline.md)：采用独立执行规则，包含注册实体、表面酶限速释放、局部守恒场及无偏随机运动。它没有完成完整 A/B 模型重现或 MCP 受体链。
+
 ## 来源、修订与阅读入口
 
 | 模型 | 原始基线提交 | 修订提交 | 验证 | 文档 |

@@ -10,7 +10,8 @@
 - **N2 已提交**：异步任务服务与前端运行记录，功能提交 `240090d`、验收文档 `43ffad3`，标签 `n2-async-tasks`。Python 155 项、JavaScript 43 项及隔离安装包检查属于该基线，见[验收记录](docs/verification-n2.md)和[服务说明](docs/task-service.md)。
 - **本轮 N3 首批 M0–M3**：功能已提交 `55a36b6`。8 类科学模块、有限均匀底物、共享结算、胞内累计和 EI/CheA/CheY 信号已接入 CAD；Project 0.3 / Catalog 0.2 / Task 0.2 单独协商，旧执行规则保留。固定菌体示例可从欢迎页打开；参数仍为显式来源值或构造值。265 项 Python / 126 项子测试、55 项 JavaScript 和 696 项安装包检查通过。见[执行协议](docs/protocol/pts-bulk-profile.md)、[科学说明](docs/science/pts-minimal.md)和[本轮验收](docs/verification-n3.md)。
 - **Workflow 首批改进**：节点按名称/ID、端口、参数、数学式与状态组件组合；完整 ID 可复制，新增缩放与适合图形，修正图内白色控件。最终显示修复提交 `680a50e`，为工具条预留空间且保持鼠标缩放锚点。四尺寸浏览器模拟与交互检查见[验收](docs/verification-workflow-components.md)；实体设备未测。
-- **下一主线**：N3 M4 的随机流、完整状态保存和失败回滚，随后 M5 运动、信号耦合及无趋化对照。目前 motor bias 只是读数，完整趋化链、通用 checkpoint 和科学标定没有完成。
+- **N3 空间基线已提交**：数值基础 `8d06ac0`、完整接入 `308cbb0`。M4 独立随机流、完整 JSON 状态与失败回滚，配合 M5 无偏 run/tumble 基线及 N6 必要子集：胞体/器壁/实体碰撞、有限接触酶降解、自动稳定扩散、局部共享摄取。障碍物、可降解底物、引诱物源和所需机制正式登记。PTS 示例使用同一养分场；MCP 的均匀营养背景/独立引诱物对照留作独立案例。412 项 Python / 142 项子测试、78 项 JavaScript、775 项隔离安装检查通过。具体范围见[科学说明](docs/science/spatial-baseline.md)和[验收](docs/verification-spatial.md)。
+- **下一主线**：M5 的信号—运动耦合、感知/适应与无趋化对照；其后才进入候选设计与比较。目前 motor bias 仍是读数，完整趋化链、通用任务 checkpoint 和科学标定没有完成。
 - **未实施**：N4 设计与比较、N5 静态 Wiki / 标准导出与发布，以及 N6–N8 的空间深化、checkpoint、标定和性能扩展。详细依赖与验收见[路线图](docs/design/roadmap-and-acceptance.md)。
 
 | 阶段 | 任务 | 状态 | 完成时可检查的结果 |
