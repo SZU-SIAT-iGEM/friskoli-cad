@@ -37,9 +37,10 @@ export class SpatialViewport {
     this.cells = new THREE.Group();
     this.field = new THREE.Group();
     this.blocks = new THREE.Group();
+    this.objects = new THREE.Group();
     this.measureGroup = new THREE.Group();
     this.measurePoints = [];
-    this.world.add(this.environment, this.field, this.cells, this.blocks, this.measureGroup);
+    this.world.add(this.environment, this.field, this.cells, this.blocks, this.objects, this.measureGroup);
     // Gizmo edits a block mesh live; the block itself is only updated once the drag ends.
     this.transform = new TransformControls(this.camera, canvas);
     this.transform.addEventListener('change', () => this.request());
@@ -79,10 +80,11 @@ export class SpatialViewport {
     canvas.addEventListener('dragover', event => { if (this.mode === 'space') event.preventDefault(); });
     canvas.addEventListener('drop', event => {
       event.preventDefault();
-      if (this.mode !== 'space' || event.dataTransfer.getData('application/friskoli-object') !== 'population' || !this.size) return;
+      const kind = event.dataTransfer.getData('application/friskoli-object');
+      if (this.mode !== 'space' || !['population','obstacle_box','local_source','degradable_box'].includes(kind) || !this.size) return;
       this.pointFromEvent(event);
       const point = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,0,1), -this.size[2]/2), new THREE.Vector3());
-      if (point) this.callbacks.placePopulation(point.toArray());
+      if (point) (kind === 'population' ? this.callbacks.placePopulation : this.callbacks.placeEnvironment)?.(point.toArray());
     });
     canvas.addEventListener('contextmenu', event => {
       event.preventDefault();
@@ -242,6 +244,31 @@ export class SpatialViewport {
     this.request();
   }
 
+  // Shapes are derived from the same graph parameters submitted to the solver.
+  // Source spheres mark release support, never a fabricated concentration field.
+  setObjects(objects, selectedId) {
+    this.clear(this.objects);
+    this.objectHits = [];
+    for (const object of objects) {
+      if (object.kind === 'degradable_box' && object.remaining_molecules === 0) continue;
+      const box = object.kind !== 'local_source';
+      const size = box ? object.upper.map((value,i) => value-object.lower[i]) : null;
+      if (box ? !size.every(value => Number.isFinite(value) && value > 0) :
+        !object.center.every(Number.isFinite) || !Number.isFinite(object.radius) || object.radius <= 0) continue;
+      const geometry = box ? new THREE.BoxGeometry(...size) : new THREE.SphereGeometry(object.radius,20,12);
+      const color = selectedId === object.id ? 0xffc481 : object.kind === 'degradable_box' ? 0xc59c65 : box ? 0x8094ac : 0x69b4ec;
+      const mesh = new THREE.Mesh(geometry,new THREE.MeshStandardMaterial({color,
+        transparent:true,opacity:box ? .6 : .14,roughness:.8,depthWrite:box,side:THREE.DoubleSide}));
+      mesh.position.fromArray(box ? object.lower.map((value,i) => (value+object.upper[i])/2) : object.center);
+      mesh.userData.nodeId = object.id;
+      const outline = new THREE.LineSegments(new THREE.EdgesGeometry(geometry),new THREE.LineBasicMaterial({color,transparent:true,opacity:.75}));
+      outline.raycast = () => {};
+      mesh.add(outline);
+      this.objects.add(mesh); this.objectHits.push(mesh);
+    }
+    this.request();
+  }
+
   // Shows the move/scale gizmo on the selected block while a transform tool is active in Space.
   attachGizmo() {
     const mesh = this.blockHits?.find(item => item.userData.blockId === this.selectedBlock);
@@ -280,7 +307,7 @@ export class SpatialViewport {
 
   setTool(tool) {
     this.tool = tool;
-    this.canvas.style.cursor = tool === 'population' || tool === 'measure' ? 'crosshair' : 'default';
+    this.canvas.style.cursor = ['population','environment','measure'].includes(tool) ? 'crosshair' : 'default';
     this.orbit.mouseButtons.LEFT = tool === 'hand' ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
     this.orbit.touches.ONE = tool === 'orbit' ? THREE.TOUCH.ROTATE : THREE.TOUCH.PAN;
     if (tool !== 'measure') this.clearMeasure();
@@ -338,16 +365,20 @@ export class SpatialViewport {
     this.pointFromEvent(event);
     if (this.mode === 'space') {
       if (this.tool === 'measure') { this.addMeasurePoint(); return; }
-      if (this.tool === 'population') {
+      if (['population','environment'].includes(this.tool)) {
         const point = this.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1),
           -this.size[2] / 2), new THREE.Vector3());
-        if (point) this.callbacks.placePopulation(point.toArray());
+        if (point) (this.tool === 'population' ? this.callbacks.placePopulation : this.callbacks.placeEnvironment)?.(point.toArray());
         return;
       }
+      const objectId = this.raycaster.intersectObjects(this.objectHits ?? [],false)[0]?.object.userData.nodeId;
+      if (objectId) { this.callbacks.selectEnvironment?.(objectId); return; }
       const id = this.raycaster.intersectObjects(this.blockHits ?? [])[0]?.object.userData.blockId;
       if (id) this.callbacks.selectBlock(id);
       return;
     }
+    const objectId = this.raycaster.intersectObjects(this.objectHits ?? [],false)[0]?.object.userData.nodeId;
+    if (objectId) { this.callbacks.selectEnvironment?.(objectId); return; }
     if (!this.meshes?.length) return;
     const ids = [...new Set(this.raycaster.intersectObjects(this.meshes).map(hit => hit.object.userData.cellIds[hit.instanceId]))];
     if (ids.length) this.callbacks.selectCell(nextHit(ids, this.selectedId));

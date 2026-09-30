@@ -19,8 +19,12 @@ const digestKeys = ['document_sha256', 'scientific_sha256', 'registry_sha256', '
 const sameInput = (a, b) => ['document_sha256', 'scientific_sha256', 'registry_sha256', 'plan_sha256', 'edit_revision']
   .every(key => a?.[key] === b?.[key]);
 
-const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0']);
+const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0', '0.3.0']);
 export function taskCapability(capabilities, project) {
+  if (project?.execution_profile === 'spatial-unbiased-v1' && project.project_version === '0.4.0') {
+    const task = capabilities?.task_profiles?.[project.execution_profile];
+    return task?.task_contract_version === '0.3.0' && task.execution?.semantics === project.execution_profile ? task : null;
+  }
   if (project?.execution_profile === 'conservative-pts-bulk-v1' && project.project_version === '0.3.0') {
     const task = capabilities?.task_profiles?.[project.execution_profile];
     return task?.task_contract_version === '0.2.0' && task.execution?.semantics === project.execution_profile ? task : null;
@@ -41,12 +45,50 @@ export function buildSubmission(capabilities, project, settings, editRevision, r
       !execution?.semantics || !execution.backend || !Number.isSafeInteger(execution.default_seed)) {
     throw failure('task.invalid_capabilities');
   }
-  const seed = settings.seed ?? execution.default_seed;
+  const spatial = project.execution_profile === 'spatial-unbiased-v1';
+  const seed = settings.seed ?? (spatial ? project.random_seed : execution.default_seed);
+  if (spatial && settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw failure('task.invalid_output_plan');
   if (!Number.isSafeInteger(seed) || seed < 0) throw failure('task.invalid_seed');
   return immutable({task_contract_version:task.task_contract_version, request_id:requestId,
     edit_revision:String(editRevision), project, version_lock:lock,
     execution:{semantics:execution.semantics, backend:execution.backend, dt_s:settings.dt_s, steps:settings.steps, seed},
-    output_plan:{frame_every_steps:1, observables:Object.keys(project.run.channels), include_fields:false}});
+    output_plan:{frame_every_steps:1, observables:Object.keys(project.run.channels), include_fields:spatial ? (settings.include_fields ?? true) : false}});
+}
+
+// A field-enabled result must carry the complete active species set in every committed frame.
+function taskFields(item, submission) {
+  if (!submission.output_plan.include_fields) return {};
+  if (submission.task_contract_version !== '0.3.0') throw failure('task.unsupported_fields');
+  const fields = item.concentrations;
+  const expected = new Set(submission.project.graph.nodes.filter(node => node.module_id === 'field.diffusive_local')
+    .map(node => node.parameters.species.value));
+  if (!fields || Array.isArray(fields) || typeof fields !== 'object' || Object.keys(fields).length !== expected.size ||
+      [...expected].some(name => !Object.hasOwn(fields, name))) throw failure('task.fields_missing');
+  const [nx, ny, nz] = submission.project.domain.counts_xyz;
+  for (const field of Object.values(fields)) {
+    if (!field || field.unit !== 'uM' || !Array.isArray(field.values_zyx) || field.values_zyx.length !== nz ||
+        field.values_zyx.some(layer => !Array.isArray(layer) || layer.length !== ny ||
+          layer.some(row => !Array.isArray(row) || row.length !== nx ||
+            row.some(value => !Number.isFinite(value) || value < 0)))) throw failure('task.invalid_field');
+  }
+  return fields;
+}
+
+function taskObjects(item, submission) {
+  if (submission.task_contract_version !== '0.3.0') return {};
+  const expected = new Map(submission.project.graph.nodes
+    .filter(node => ['material.degradable_box', 'source.finite_local'].includes(node.module_id))
+    .map(node => [node.id, node]));
+  const states = item.object_states;
+  if (!states || Array.isArray(states) || typeof states !== 'object' || Object.keys(states).length !== expected.size ||
+      [...expected.keys()].some(id => !Object.hasOwn(states, id))) throw failure('task.objects_missing');
+  for (const [id, value] of Object.entries(states)) {
+    const node = expected.get(id), type = node.module_id === 'material.degradable_box' ? 'material.degradable_box' : 'source.attractant';
+    if (!value || value.object_type !== type || Object.keys(value).length !== 2 ||
+        !Number.isFinite(value.remaining_molecules) || value.remaining_molecules < 0 ||
+        value.remaining_molecules > node.parameters.initial_molecules.value) throw failure('task.invalid_object_state');
+  }
+  return {object_states:states};
 }
 
 export function matchesDraft(record, draft) {
@@ -244,8 +286,8 @@ export class TaskStore {
     const replay = normalizeReplay({replay_format_version:'0.1.0', project_id:record.project.id,
       run:record.project.run, domain:record.project.domain,
       execution:{task_contract_version:record.submission.task_contract_version, task_run_id:record.runId, request_id:record.submission.request_id,
-        status:manifest.status, completeness:manifest.completeness, include_fields:false, input_snapshot:manifest.input_snapshot},
-      snapshots:frames.map(item => ({frame:item.frame, concentrations:{}}))});
+        status:manifest.status, completeness:manifest.completeness, include_fields:record.submission.output_plan.include_fields, input_snapshot:manifest.input_snapshot},
+      snapshots:frames.map(item => ({frame:item.frame, concentrations:taskFields(item, record.submission), ...taskObjects(item, record.submission)}))});
     this.replace(id, {manifest, replay});
   }
   async poll(id) {

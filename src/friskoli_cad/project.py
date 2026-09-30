@@ -64,9 +64,9 @@ class ControlSchedule:
         return self.changes[index][1], next_change
 
 
-@lru_cache(maxsize=3)
+@lru_cache(maxsize=4)
 def _project_validator(version: str) -> Draft202012Validator:
-    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json", "0.3.0": "project-v0.3.schema.json"}.get(version)
+    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json", "0.3.0": "project-v0.3.schema.json", "0.4.0": "project-v0.4.schema.json"}.get(version)
     if schema_file is None:
         _fail("project.version", "/project_version", f"unsupported project version {version}")
     schema = json.loads(
@@ -81,7 +81,7 @@ def _fail(code: str, path: str, message: str) -> None:
     raise ProtocolError(code, path, message)
 
 
-def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[str, object], ...]) -> None:
+def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[str, object], ...], *, registry=None) -> None:
     """Check one complete project against its exact graph module versions."""
     try:
         json.dumps(document, allow_nan=False)
@@ -92,9 +92,17 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     if error is not None:
         path = "/" + "/".join(str(part) for part in error.absolute_path)
         _fail("project.schema", path, error.message)
+    if version == "0.4.0":
+        cells = sum(len(group["ids"]) for group in document["groups"].values())
+        voxels = math.prod(document["domain"]["counts_xyz"])
+        if cells > 256 or voxels > 10000 or len(document["species"]) > 8:
+            _fail("spatial.resource_limit", "/", "spatial profile supports at most 256 cells, 10000 voxels and 8 species")
     graph, run = document["graph"], document["run"]
     validate_graph(graph, manifests)
     validate_run_metadata(run, graph, manifests)
+    if version == "0.4.0":
+        from friskoli_cad.engine.spatial_runtime import validate_spatial_project
+        validate_spatial_project(document, manifests, registry=registry)
     if version == "0.3.0":
         from friskoli_cad.engine.pts_runtime import validate_pts_project
         validate_pts_project(document, manifests)
@@ -145,13 +153,13 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
             _fail("project.control_time", f"/controls/{schedule_id}", "changes must precede the repeat boundary")
 
 
-def simulation_from_project(document: Mapping[str, object], registry=None):
+def simulation_from_project(document: Mapping[str, object], registry=None, *, seed=None):
     """Build a simulation from a complete snapshot; old graph-only callers remain valid."""
     from friskoli_cad.engine import CapsuleGeometry, CellGroup, GridDomain, Simulation, SimulationError, World, default_registry
 
     from friskoli_cad.engine.profiles import registry_for_project
     registry = registry_for_project(document) if registry is None else registry
-    validate_project(document, registry.manifests)
+    validate_project(document, registry.manifests, registry=registry)
     domain = document["domain"]
     nx, ny, nz = domain["counts_xyz"]
     dx, dy, dz = domain["spacing_um_xyz"]
@@ -197,6 +205,9 @@ def simulation_from_project(document: Mapping[str, object], registry=None):
         for schedule_id, entry in document["controls"].items()
     }
     world = World(grid, groups, initial, controls)
+    if document["project_version"] == "0.4.0":
+        from friskoli_cad.engine.spatial_runtime import SpatialSimulation
+        return SpatialSimulation(world, document, registry, seed=seed)
     if document["project_version"] == "0.3.0":
         from friskoli_cad.engine.pts_runtime import PTSSimulation
         return PTSSimulation(world, document, registry)

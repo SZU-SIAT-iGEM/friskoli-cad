@@ -34,13 +34,16 @@ export function nextHit(ids, previousId) {
 // Registry versioning does not change the executable module manifest version.
 export function registerCatalog(payload) {
   const known = (payload?.catalog_version === '0.1.0' && payload.execution_semantics === 'legacy-explicit-v1') ||
-    (payload?.catalog_version === '0.2.0' && payload.execution_semantics === 'conservative-pts-bulk-v1');
+    (payload?.catalog_version === '0.2.0' && payload.execution_semantics === 'conservative-pts-bulk-v1') ||
+    (payload?.catalog_version === '0.3.0' && payload.execution_semantics === 'spatial-unbiased-v1');
   if (!known ||
       !Array.isArray(payload.entries) || !Array.isArray(payload.objects)) throw new Error('Unsupported registry catalog');
   const modules = registerModules({protocol_version:'0.1.0', modules:payload.modules});
   const seen = new Set();
   for (const entry of payload.entries) {
     if (!modules.has(entry.key) || seen.has(entry.key)) throw new Error('Invalid registry reference');
+    if (entry.provides_roles !== undefined && (!Array.isArray(entry.provides_roles) ||
+        entry.provides_roles.some(role => typeof role !== 'string' || !role))) throw new Error('Invalid registry roles');
     seen.add(entry.key);
     modules.set(entry.key, {...modules.get(entry.key), declaration: structuredClone(entry)});
   }
@@ -51,6 +54,12 @@ export function registerCatalog(payload) {
         !Array.isArray(object.initializer?.data_modules)) throw new Error('Invalid object declaration');
     for (const key of [object.initializer.module,...object.initializer.data_modules]) {
       if (!modules.has(key)) throw new Error('Missing object initializer module');
+    }
+    if (object.initializer.requirements !== undefined && !Array.isArray(object.initializer.requirements)) throw new Error('Invalid object requirements');
+    for (const requirement of object.initializer.requirements ?? []) {
+      const manifest = modules.get(requirement.default_module);
+      if (!manifest || manifest.scope !== requirement.scope || typeof requirement.role !== 'string' ||
+          !manifest.declaration?.provides_roles?.includes(requirement.role)) throw new Error('Invalid default role provider');
     }
     objects.set(object.id, structuredClone(object));
   }

@@ -108,7 +108,7 @@ class ReplayServiceTests(unittest.TestCase):
                 capabilities = json.load(response)
             self.assertEqual(capabilities["api_version"], "0.2.0")
             self.assertIn("0.3.0", capabilities["workspace_versions"])
-            self.assertEqual(capabilities["catalog_versions"], ["0.1.0", "0.2.0"])
+            self.assertEqual(capabilities["catalog_versions"], ["0.1.0", "0.2.0", "0.3.0"])
             with urlopen(root + "/api/catalog") as response:
                 registry = json.load(response)
             self.assertEqual(registry["modules"], catalog["modules"])

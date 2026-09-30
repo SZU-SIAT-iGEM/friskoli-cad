@@ -5,6 +5,7 @@ Declarations describe editor capabilities. They never provide executable code.
 from __future__ import annotations
 
 from copy import deepcopy
+from jsonschema import Draft202012Validator
 
 from .protocol import ProtocolError, validate_manifest
 from .protocol.validation import _check_schema
@@ -34,7 +35,7 @@ def _port_contract(port, semantics="legacy-explicit-v1"):
 
 
 def validate_catalog(catalog):
-    _check_schema("catalog-v0.2" if catalog.get("catalog_version") == "0.2.0" else "catalog", catalog)
+    _check_schema({"0.2.0": "catalog-v0.2", "0.3.0": "catalog-v0.3"}.get(catalog.get("catalog_version"), "catalog"), catalog)
     manifests = {}
     for index, manifest in enumerate(catalog["modules"]):
         validate_manifest(manifest)
@@ -58,6 +59,11 @@ def validate_catalog(catalog):
             raise ProtocolError("catalog.equations", f"/entries/{index}/mathematics", "equations are required")
         if math["verification"]["status"] == "tested" and not math["verification"]["tests"]:
             raise ProtocolError("catalog.evidence", f"/entries/{index}/mathematics", "test references are required")
+        for parameter_name, value in entry.get("default_parameters", {}).items():
+            schema = manifests[key]["parameters"].get(parameter_name)
+            if schema is None or not Draft202012Validator(schema).is_valid(value):
+                raise ProtocolError("catalog.default_parameter", f"/entries/{index}/default_parameters/{parameter_name}",
+                                    "constructed default differs from module parameter contract")
         entries[key] = entry
     if set(entries) != set(manifests):
         raise ProtocolError("catalog.coverage", "/entries", "every runtime needs a declaration")
@@ -67,12 +73,24 @@ def validate_catalog(catalog):
             raise ProtocolError("catalog.duplicate", f"/objects/{index}/id", item["id"])
         ids.add(item["id"])
         initializer = item["initializer"]
+        if initializer["adapter"] == "environment.node@1" and catalog["catalog_version"] != "0.3.0":
+            raise ProtocolError("catalog.initializer", f"/objects/{index}/initializer/adapter", "environment adapter requires catalog 0.3.0")
+        requirements = initializer.get("requirements", [])
+        roles = [requirement["role"] for requirement in requirements]
+        if len(roles) != len(set(roles)):
+            raise ProtocolError("catalog.duplicate", f"/objects/{index}/initializer/requirements", "duplicate required role")
+        for requirement_index, requirement in enumerate(requirements):
+            provider = requirement["default_module"]
+            if (provider not in manifests or manifests[provider]["scope"] != requirement["scope"]
+                    or requirement["role"] not in entries[provider].get("provides_roles", [])):
+                raise ProtocolError("catalog.requirement", f"/objects/{index}/initializer/requirements/{requirement_index}",
+                                    "default provider must resolve with the declared scope and explicitly provide the required role")
         references = [("module", initializer["module"])] + [
             (f"data_modules/{i}", key) for i, key in enumerate(initializer["data_modules"])
         ]
         for field, key in references:
             path = f"/objects/{index}/initializer/{field}"
-            if key not in manifests or manifests[key]["scope"] != "population":
+            if key not in manifests or manifests[key]["scope"] != ("environment" if initializer["adapter"] == "environment.node@1" else "population"):
                 raise ProtocolError("catalog.reference", path, key)
             if initializer["adapter"] == "population.block@1":
                 if manifests[key]["parameters"] or manifests[key]["inputs"]:
@@ -84,6 +102,8 @@ def validate_catalog(catalog):
         if initializer["module"] in initializer["data_modules"]:
             raise ProtocolError("catalog.duplicate", f"/objects/{index}/initializer/data_modules",
                                 "initializer is also listed as a data module")
+        if initializer["adapter"] == "environment.node@1" and manifests[initializer["module"]]["inputs"]:
+            raise ProtocolError("catalog.initializer", f"/objects/{index}/initializer/module", "environment adapter cannot supply inputs")
         paths = [field["path"] for field in item["properties"]]
         if len(paths) != len(set(paths)):
             raise ProtocolError("catalog.duplicate", f"/objects/{index}/properties", "duplicate property path")
@@ -96,8 +116,12 @@ def validate_catalog(catalog):
                 bound is not None and int(bound) != bound for bound in (lower, upper)
             ):
                 raise ProtocolError("catalog.property_range", path, "integer bounds must be integral")
+            if initializer["adapter"] == "environment.node@1":
+                parameter = manifests[initializer["module"]]["parameters"].get(prop["path"])
+                if parameter is None or prop["type"] not in ("number", "string") or (prop["type"], prop["unit"]) != (parameter["type"], parameter.get("unit", "1")):
+                    raise ProtocolError("catalog.property_type", path, "field differs from environment module parameter")
             if initializer["adapter"] == "population.block@1":
-                if (prop["type"], prop["unit"]) != _BLOCK_FIELDS[prop["path"]]:
+                if (prop["type"], prop["unit"]) != _BLOCK_FIELDS.get(prop["path"]):
                     raise ProtocolError("catalog.property_type", path, "field differs from block adapter contract")
                 if prop["path"] == "count" and (lower is None or lower < 1 or upper is None or upper > 2000):
                     raise ProtocolError("catalog.property_range", path, "count must stay within 1..2000")
@@ -110,7 +134,7 @@ def validate_catalog(catalog):
 
 
 def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
-    catalog = {"catalog_version": "0.1.0" if execution_semantics == "legacy-explicit-v1" else "0.2.0", "module_protocol_versions": ["0.1.0"],
+    catalog = {"catalog_version": {"legacy-explicit-v1": "0.1.0", "conservative-pts-bulk-v1": "0.2.0", "spatial-unbiased-v1": "0.3.0"}[execution_semantics], "module_protocol_versions": ["0.1.0"],
                "execution_semantics": execution_semantics, "modules": [], "entries": [], "objects": []}
     for module in modules:
         manifest = deepcopy(dict(module.manifest))
@@ -126,6 +150,10 @@ def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
                  "ports": {side: {name: _port_contract(port, execution_semantics) for name, port in manifest[side].items()}
                            for side in ("inputs", "outputs")}}
         entry.update(declaration)
+        if execution_semantics == "spatial-unbiased-v1":
+            for field in ("provides_roles", "default_parameters"):
+                if hasattr(module, field):
+                    entry[field] = deepcopy(getattr(module, field))
         if entry["world_access"] != getattr(module, "world_access", "legacy_inferred"):
             raise ProtocolError("catalog.world_access", f"/entries/{len(catalog['entries'])}/world_access",
                                 "declaration differs from executable module")

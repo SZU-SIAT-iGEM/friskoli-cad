@@ -10,9 +10,11 @@ export function readWorkspace(document) {
   const version = document?.workspace_format_version;
   if (version && !['0.1.0', '0.2.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
   const project = structuredClone(version ? document.project : document);
-  if (!project || !['0.1.0', '0.2.0', '0.3.0'].includes(project.project_version) || typeof project.id !== 'string' ||
+  if (!project || !['0.1.0', '0.2.0', '0.3.0', '0.4.0'].includes(project.project_version) || typeof project.id !== 'string' ||
       (project.project_version === '0.3.0' && project.execution_profile !== 'conservative-pts-bulk-v1') ||
-      (project.project_version !== '0.3.0' && project.execution_profile !== undefined) ||
+      (project.project_version === '0.4.0' && (project.execution_profile !== 'spatial-unbiased-v1' ||
+        !Number.isSafeInteger(project.random_seed) || project.random_seed < 0)) ||
+      (!['0.3.0','0.4.0'].includes(project.project_version) && project.execution_profile !== undefined) ||
       !vector(project.domain?.counts_xyz, true) || !project.domain.counts_xyz.every(Number.isInteger) ||
       !vector(project.domain.spacing_um_xyz, true) || !['thin_layer', 'volume'].includes(project.domain.geometry) ||
       !project.groups || !project.species || !project.controls || !Array.isArray(project.graph?.nodes) ||
@@ -65,6 +67,7 @@ export function readWorkspace(document) {
       (point.collapsed !== undefined && typeof point.collapsed !== 'boolean')) throw new Error('Invalid graph layout');
   const settings = structuredClone(document.run_settings ?? { dt_s: .5, steps: 8 });
   if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isInteger(settings.steps) || settings.steps < 1 || settings.steps > 100) throw new Error('Invalid run settings');
+  if (settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw new Error('Invalid field output setting');
   return { project, blocks, layout, settings };
 }
 

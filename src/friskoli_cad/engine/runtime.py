@@ -274,6 +274,7 @@ class Snapshot:
     concentration_units: Mapping[str, str]
     environment_fields: Mapping[str, Mapping[str, FieldOutput]]
     domain: GridDomain
+    object_states: Mapping[str, Mapping[str, object]] = field(default_factory=dict)
 
 
 class Simulation:

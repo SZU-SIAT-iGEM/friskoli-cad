@@ -13,7 +13,8 @@ import { GraphEditor, autoLayout } from './workflow.mjs';
 import { addNode, connect, connectionProblem, disconnect, missingInputs, preferredTiming, removeNode,
   setParameter } from './graph-edit.mjs';
 import { applyLanguage, currentLanguage, setLanguage, t } from './i18n.mjs';
-import { availablePlaceables, objectForBlock, initializeObject } from './placeables.mjs';
+import { availablePlaceables, objectForBlock, initializeObject, environmentObjects,
+  initializeEnvironmentObject, deleteEnvironmentObject, roleProviders, requiredRoleRemovalProblem, applyRegisteredDefaults } from './placeables.mjs';
 import { icon } from './icons.mjs';
 
 const $ = id => document.getElementById(id);
@@ -25,7 +26,7 @@ const el = (tag, className = '', value = '') => {
 };
 const fmt = (value, digits = 2) => Number.isFinite(value) ? Number(value.toFixed(digits)).toString() : '—';
 const state = { project: null, blocks: [], modules: new Map(), replay: null, view: 'space', left: 'objects',
-  frameIndex: 0, selectedBlock: null, selectedCell: null, graphSelection: null, selectedManifest: null,
+  frameIndex: 0, selectedBlock: null, selectedCell: null, selectedEnvironment: null, graphSelection: null, selectedManifest: null,
   field: '', slice: 0, ranges: {}, timer: null, status: ['ready', {}, false], layout: {},
   history: [], future: [], tool: 'select', snap: false, settings: {dt_s: .5, steps: 8},
   revision: 0, draftToken: crypto.randomUUID(), latestTask: null, saved: '', busy: false, checks: [], runs: [], activeRun: null, template: null, capabilities: null };
@@ -63,6 +64,7 @@ function restore(saved) {
   const sel = state.graphSelection;
   if (sel && !(sel.kind === 'node' ? graph.nodes : graph.edges).some(item => item.id === sel.id)) state.graphSelection = null;
   if (!state.blocks.some(block => block.id === state.selectedBlock)) state.selectedBlock = null;
+  if (!graph.nodes.some(node => node.id === state.selectedEnvironment)) state.selectedEnvironment = null;
 }
 function updateHistoryButtons() {
   $('undo-button').disabled = !state.history.length;
@@ -113,6 +115,9 @@ function status(key, values = {}, error = false) {
 // Space tools: select, place, move/scale gizmo, measure. Any tool other than select switches to Space.
 function useTool(tool) {
   if (!state.project) return;
+  if (tool === 'population' && !availablePlaceables(state.modules,state.capabilities,state.objects).some(item => item.kind === 'population' && item.status === 'ready')) {
+    status('populationAdapterMissing',{},true); return;
+  }
   if (tool !== 'select' && state.view !== 'space') setView('space');
   state.tool = tool;
   viewport?.setTool(tool);
@@ -173,6 +178,17 @@ function currentSnapshot() {
   return state.project ? draftSnapshot(state.project) : null;
 }
 
+function visibleProject() {
+  return state.view === 'results' ? state.activeRun?.submission?.project ?? state.activeRun?.project ?? null : state.project;
+}
+function visibleEnvironment() {
+  const project = visibleProject();
+  if (!project) return [];
+  const registry = state.registries.get(project.execution_profile ?? 'legacy-explicit-v1');
+  return environmentObjects(project,registry?.objects ?? state.objects,registry?.modules ?? state.modules,
+    state.view === 'results' ? currentSnapshot()?.object_states ?? {} : null);
+}
+
 function renderScene() {
   if (!state.project) return;
   renderFieldControls();
@@ -184,7 +200,8 @@ function renderScene() {
   if (state.view !== 'workflow') {
     viewport?.setSnapshot(snapshot ?? {frame:{cells:[]},concentrations:{}}, state.view === 'results' ? state.selectedCell : null,
       state.view === 'results' ? state.field : '', state.slice, state.ranges[state.field]);
-    viewport?.setBlocks(state.blocks, state.selectedBlock);
+    viewport?.setBlocks(state.blocks.map(block => objectForBlock(block,state.objects) ? block : {...block,locked:true}), state.selectedBlock);
+    viewport?.setObjects(visibleEnvironment(),state.selectedEnvironment);
   }
   const [nx, ny, nz] = domain.counts_xyz;
   const [dx, dy, dz] = domain.spacing_um_xyz;
@@ -225,20 +242,35 @@ function closeDocks() {
 
 function selectBlock(id) {
   state.selectedBlock = id;
+  state.selectedEnvironment = null;
   state.selectedCell = null;
   renderLeft();
   renderInspector();
-  viewport?.setBlocks(state.blocks, id);
+  renderScene();
   closeDocks();
 }
 
 function selectCell(id) {
   state.selectedCell = id;
+  state.selectedEnvironment = null;
   renderLeft();
   renderInspector();
   renderScene();
   renderData();
   closeDocks();
+}
+
+function selectEnvironment(id) {
+  state.selectedEnvironment = id; state.selectedBlock = null; state.selectedCell = null;
+  renderLeft(); renderInspector(); renderScene(); closeDocks();
+}
+
+function renderEnvironmentRows(container,filter) {
+  for (const object of visibleEnvironment()) {
+    if (filter && !`${object.id} ${object.declaration.label}`.toLowerCase().includes(filter)) continue;
+    treeRow(container,t(object.declaration.label),object.id,state.selectedEnvironment === object.id,
+      () => selectEnvironment(object.id),object.kind !== 'local_source' ? '▧' : '◉');
+  }
 }
 
 function treeRow(parent, label, meta, active, action, icon = '◇') {
@@ -261,6 +293,7 @@ function renderLeft() {
       if (!run.replay) { showBottom('runs'); renderDiagnostics(); return; }
       selectRun(run);
     }, '◷');
+    renderEnvironmentRows(container,filter);
     for (const cell of (currentSnapshot()?.frame.cells ?? []).filter(c => !filter || c.id.toLowerCase().includes(filter)).slice(0, 100)) {
       treeRow(container, cell.id, cell.group_id, state.selectedCell === cell.id, () => selectCell(cell.id), '·');
     }
@@ -290,9 +323,9 @@ function renderLeft() {
   }
   if (state.view === 'space') {
     container.append(el('div', 'tree-heading', t('library')));
-    for (const item of availablePlaceables(state.modules, state.capabilities, state.objects)) {
+    for (const item of availablePlaceables(state.modules, state.capabilities, state.objects,state.project)) {
       const ready = item.status === 'ready';
-      const row = el('button', `tree-row library-row${ready ? '' : ' unavailable'}${ready && state.tool === item.tool ? ' active' : ''}`);
+      const row = el('button', `tree-row library-row${ready ? '' : ' unavailable'}${ready && state.tool === item.tool && state.activeObject === item.id ? ' active' : ''}`);
       row.type = 'button';
       row.title = ready ? t(item.hint) : `${t(item.hint)} ${t(item.status)}`;
       const glyph = el('span', 'tree-icon');
@@ -310,7 +343,8 @@ function renderLeft() {
     }
   }
   container.append(el('div', 'tree-heading', `${t('domain')} · ${state.blocks.length}`));
-  treeRow(container, state.project.id, t('domain'), !state.selectedBlock, () => { state.selectedBlock = null; renderInspector(); renderLeft(); });
+  treeRow(container, state.project.id, t('domain'), !state.selectedBlock && !state.selectedEnvironment, () => { state.selectedBlock = null; state.selectedEnvironment = null; renderInspector(); renderLeft(); });
+  renderEnvironmentRows(container,filter);
   for (const block of state.blocks) {
     if (filter && !`${block.name} ${block.id}`.toLowerCase().includes(filter) && state.view !== 'results') continue;
     const shownCount = state.view === 'results' ? currentSnapshot().frame.cells.filter(cell => cell.group_id === block.id).length : block.count;
@@ -362,6 +396,13 @@ function numberField(parent, label, block, key, axis = null, definition = {}) {
 
 function renderBlockInspector(root, block) {
   root.append(el('div', 'inspector-title', block.name), el('div', 'inspector-subtitle', `${t('population')} · ${block.id}`));
+  if (!objectForBlock(block,state.objects)) {
+    root.append(el('p','pending-note',t('populationAdapterMissing')));
+    renderExistingCells(root,block);
+    const remove = el('button','inspector-action danger',t('delete'));
+    remove.addEventListener('click',() => removeBlock(block.id)); root.append(remove);
+    return;
+  }
   const count = section(root, t('population'));
   const nameRow = el('label', 'edit-row');
   const nameInput = el('input');
@@ -413,6 +454,71 @@ function renderBlockInspector(root, block) {
   if (block.dirty) root.append(el('div', 'pending-note', t('pending')));
 }
 
+function renderExistingCells(root,block) {
+  const group = state.project.groups[block.id];
+  if (!group) return;
+  group.ids.forEach((id,index) => {
+    const part = el('details','property-section');
+    part.append(el('summary','',id)); root.append(part);
+    const field = (label,value,write) => {
+      const row = el('label','edit-row',label), input = el('input');
+      input.type = 'number'; input.step = 'any'; input.value = value; input.setAttribute('aria-label',`${id} ${label}`);
+      input.disabled = Boolean(block.locked);
+      input.addEventListener('change',() => edit('updated',() => {
+        const value = Number(input.value);
+        if (input.value === '' || !Number.isFinite(value)) throw new Error('Invalid cell data');
+        write(state.project.groups[block.id],value);
+        const fresh = blocksFromProject(state.project).find(item => item.id === block.id);
+        if (fresh) Object.assign(block,{center:fresh.center,size:fresh.size,length:fresh.length,diameter:fresh.diameter,dirty:false});
+      })); row.append(input); part.append(row);
+    };
+    for (let axis=0;axis<3;axis++) field(`${'XYZ'[axis]} · µm`,group.positions_um[index][axis],(target,value) => {
+      const extent = state.project.domain.counts_xyz[axis]*state.project.domain.spacing_um_xyz[axis];
+      if (value < 0 || value > extent) throw new Error('Cells outside domain');
+      target.positions_um[index][axis] = value;
+    });
+    for (const name of ['length_um','diameter_um']) if (group.initial_geometry?.[index]) {
+      field(t(name === 'length_um' ? 'length' : 'diameter')+' · µm',group.initial_geometry[index][name],(target,value) => {
+        const geometry = target.initial_geometry[index]; geometry[name] = value;
+        if (geometry.diameter_um <= 0 || geometry.length_um < geometry.diameter_um) throw new Error('Invalid cell geometry');
+      });
+    }
+  });
+}
+
+function renderEnvironmentInspector(root,object) {
+  const project = visibleProject(), registry = state.registries.get(project.execution_profile ?? 'legacy-explicit-v1');
+  const manifest = (registry?.modules ?? state.modules).get(object.declaration.initializer.module);
+  root.append(el('div','inspector-title',object.id),el('div','inspector-subtitle',t(object.declaration.label)));
+  root.append(el('p','empty-message',t(object.kind === 'obstacle_box' ? 'obstacleScope' : object.kind === 'degradable_box' ? 'materialScope' : 'sourceScope')));
+  const part = section(root,t('parameters'));
+  if (state.view === 'results' && ['degradable_box','local_source'].includes(object.kind)) {
+    kv(part,t('remainingNutrient'),object.remaining_molecules === null ? t('objectStateUnavailable') : `${fmt(object.remaining_molecules,4)} molecule`);
+    if (object.kind === 'degradable_box' && object.remaining_molecules === 0) root.append(el('p','empty-message',t('materialExhausted')));
+  }
+  for (const property of object.declaration.properties) {
+    const definition = manifest.parameters[property.path];
+    if (!definition) continue;
+    if (state.view === 'results') kv(part,t(property.label),`${object.node.parameters[property.path]?.value ?? '—'} ${property.unit === '1' ? '' : property.unit ?? ''}`);
+    else parameterField(part,object.node,manifest,property.path,{...definition,label:t(property.label)});
+  }
+  for (const requirement of object.declaration.initializer.requirements ?? []) {
+    const providers = roleProviders(project,registry?.modules ?? state.modules,requirement);
+    kv(part,requirement.role,providers.map(node => node.id).join(', ') || t('missing'));
+  }
+  if (state.view === 'results') { root.append(el('p','empty-message',t('frozenObject'))); return; }
+  const graph = el('button','inspector-action',t('workflow'));
+  graph.addEventListener('click',() => { setView('workflow'); selectGraph({kind:'node',id:object.id}); }); root.append(graph);
+  const remove = el('button','inspector-action danger',t('deleteObject'));
+  remove.addEventListener('click',() => removeEnvironment(object.id)); root.append(remove);
+}
+
+function removeEnvironment(id) {
+  edit('nodeRemoved',() => {
+    deleteEnvironmentObject(state.project,id); delete state.layout[id]; state.selectedEnvironment = null;
+  },{id});
+}
+
 function renderCellInspector(root, cell) {
   root.append(el('div', 'inspector-title', state.selectedCell), el('div', 'inspector-subtitle', t('cells')));
   if (!cell) { root.append(el('p', 'empty-message', t('noCell'))); return; }
@@ -437,6 +543,16 @@ function renderDomainInspector(root) {
   const form = el('form', 'domain-form');
   const name = el('input'); name.value = state.project.id; name.required = true; name.setAttribute('aria-label', t('name'));
   const nameRow = el('label', 'edit-row', t('name')); nameRow.append(name); form.append(nameRow);
+  let seed = null;
+  if (state.project.project_version === '0.4.0') {
+    seed = el('input'); seed.type = 'number'; seed.min = '0'; seed.max = String(Number.MAX_SAFE_INTEGER); seed.step = '1'; seed.required = true;
+    seed.value = state.project.random_seed; seed.setAttribute('aria-label',t('randomSeed'));
+    const row = el('label','edit-row',t('randomSeed')); row.append(seed); form.append(row);
+    const outputRow = el('label','edit-row',t('includeFields')), output = el('input');
+    output.type = 'checkbox'; output.checked = state.settings.include_fields !== false;
+    output.addEventListener('change',() => edit('updated',() => { state.settings.include_fields = output.checked; }));
+    outputRow.append(output); part.append(outputRow);
+  }
   const mode = el('select'); mode.setAttribute('aria-label', t('geometry'));
   mode.append(new Option('3D', 'volume'), new Option(t('thinLayer'), 'thin_layer')); mode.value = state.project.domain.geometry;
   const row = el('label', 'edit-row', t('geometry')); row.append(mode); form.append(row);
@@ -459,6 +575,11 @@ function renderDomainInspector(root) {
       const [counts, spacing] = inputs.map(group => group.map(input => Number(input.value)));
       if (mode.value === 'thin_layer' && counts[2] !== 1) throw new Error('Thin layers require one Z grid cell');
       if (!counts.every(n => Number.isInteger(n) && n > 0) || !spacing.every(n => Number.isFinite(n) && n > 0)) throw new Error('Invalid domain');
+      if (seed) {
+        const value = Number(seed.value);
+        if (!Number.isSafeInteger(value) || value < 0 || seed.value === '') throw new Error('Invalid random seed');
+        state.project.random_seed = value;
+      }
       const domain = {geometry:mode.value, counts_xyz:counts, spacing_um_xyz:spacing};
       for (const block of state.blocks) checkBlock(domain, block);
       const extent = counts.map((n,i) => n*spacing[i]);
@@ -487,7 +608,7 @@ function renderDomainInspector(root) {
 
 function duplicateBlock(id) {
   const source = state.blocks.find(b => b.id === id);
-  if (!source || source.locked) return;
+  if (!source || source.locked || !objectForBlock(source,state.objects)) return;
   edit('updated', () => {
     const newId = createBlock(state.project, source.center, state.blocks.map(b => b.id)).id;
     const copy = {...structuredClone(source), id:newId, name:source.name + ' copy', dirty:true, hidden:false, locked:false};
@@ -537,12 +658,14 @@ function renderDiagnostics() {
   }
   $('task-recovery-warning').hidden = !taskStore.persistenceError && Boolean(taskStorage);
   $('task-output-note').hidden = !supportsTasks(state.capabilities, state.project);
+  $('task-output-note').textContent = t(state.project?.execution_profile === 'spatial-unbiased-v1' ? 'spatialTaskOutputScope' : 'taskOutputScope');
   renderData();
 }
 
 function selectRun(record) {
   if (!record.replay) return;
-  state.activeRun = record; state.replay = record.replay; state.frameIndex = 0; state.selectedCell = null;
+  state.activeRun = record; state.replay = record.replay; state.frameIndex = 0; state.selectedCell = null; state.selectedEnvironment = null;
+  state.field = Object.keys(record.replay.snapshots[0]?.concentrations ?? {})[0] ?? '';
   updateRanges(); setView('results');
 }
 
@@ -607,7 +730,7 @@ function parameterField(parent, node, manifest, name, definition) {
     input.value = String(entry?.value ?? '');
   }
   input.setAttribute('aria-label', name);
-  const label = definition.unit ? `${name} [${definition.unit}]` : name;
+  const label = definition.unit ? `${definition.label ?? name} [${definition.unit}]` : definition.label ?? name;
   row.append(el('span', '', label), input);
   if (entry?.provenance) row.title = `${entry.provenance.kind} · ${entry.provenance.reference}`;
   input.addEventListener('change', () => {
@@ -638,6 +761,7 @@ function addGraphNode(manifest) {
   let node;
   if (edit('nodeAdded', () => {
     node = addNode(state.project.graph, manifest, owner, Object.keys(state.project.species ?? {}));
+    applyRegisteredDefaults(node,manifest);
   }, { id: manifest.id })) {
     state.graphSelection = { kind: 'node', id: node.id };
     state.selectedManifest = null;
@@ -650,6 +774,10 @@ function deleteGraphItem(selection) {
   if (!selection) return;
   edit(selection.kind === 'node' ? 'nodeRemoved' : 'edgeRemoved', () => {
     const graph = state.project.graph;
+    if (selection.kind === 'node') {
+      const role = requiredRoleRemovalProblem(state.project,selection.id,state.objects,state.modules);
+      if (role) throw new Error(t('requiredMechanism',{role}));
+    }
     const removed = selection.kind === 'node' ? removeNode(graph, selection.id) : disconnect(graph, selection.id);
     if (!removed) throw new Error('edge.node');
     if (selection.kind === 'node') delete state.layout[selection.id];
@@ -738,6 +866,9 @@ function renderManifest(root, manifest, node = null) {
     for (const [name, definition] of Object.entries(manifest.parameters)) parameterField(params, node, manifest, name, definition);
     const remove = el('button', 'inspector-action danger', t('deleteNode'));
     remove.type = 'button';
+    const role = requiredRoleRemovalProblem(state.project,node.id,state.objects,state.modules);
+    remove.disabled = Boolean(role);
+    if (role) { remove.title = t('requiredMechanism',{role}); root.append(el('p','pending-note',remove.title)); }
     remove.addEventListener('click', () => deleteGraphItem({ kind: 'node', id: node.id }));
     root.append(remove);
   } else {
@@ -770,6 +901,10 @@ function renderInspector() {
   if (state.inspectorTab === 'evidence') { renderEvidence(root); return; }
   if (state.view !== 'results' && state.left === 'modules' && state.selectedManifest) {
     renderManifest(root, state.modules.get(state.selectedManifest)); return;
+  }
+  if (state.view !== 'workflow' && state.selectedEnvironment) {
+    const object = visibleEnvironment().find(item => item.id === state.selectedEnvironment);
+    if (object) { renderEnvironmentInspector(root,object); return; }
   }
   if (state.view === 'space') {
     const block = state.blocks.find(item => item.id === state.selectedBlock);
@@ -911,8 +1046,12 @@ function renderAll() {
   $('bottom-dock').hidden = state.view !== 'results' || !state.replay;
   $('result-banner').hidden = state.view !== 'results' || !state.activeRun;
   $('result-banner').textContent = state.activeRun ? `${state.activeRun.id} · ${t(state.activeRun.status)}${state.activeRun.localId ? ' · ' + t(state.activeRun.manifest?.completeness ?? state.activeRun.completeness) + ' · ' + t('taskFramesOnly') : ''}${matchesDraft(state.activeRun, state) ? '' : ' · ' + t('earlierRevision')}` : '';
+  const hasFields = state.replay?.snapshots.some(snapshot => Object.keys(snapshot.concentrations ?? {}).length);
+  if (hasFields) $('result-banner').textContent = $('result-banner').textContent.replace(t('taskFramesOnly'),t('taskWithFields'));
   $('export-button').disabled = !state.replay;
-  $('population-tool').disabled = state.view !== 'space' || !state.activeObject;
+  $('population-tool').disabled = state.view !== 'space' || !availablePlaceables(state.modules,state.capabilities,state.objects).some(item => item.kind === 'population' && item.status === 'ready');
+  const transformable = state.view === 'space' && state.blocks.some(block => block.id === state.selectedBlock && !block.locked && objectForBlock(block,state.objects));
+  for (const id of ['move-tool','scale-tool','rotate-tool']) $(id).disabled = !transformable;
   renderScene();
   renderTimeline();
   renderLeft();
@@ -995,16 +1134,17 @@ function showContext(id, x, y) {
   scatterButton.addEventListener('click', () => { menu.hidden = true; scatter(id); });
   menu.append(scatterButton);
   const block = state.blocks.find(b => b.id === id);
-  scatterButton.disabled = Boolean(block?.locked);
+  scatterButton.disabled = Boolean(block?.locked) || !objectForBlock(block,state.objects);
   for (const [key, action] of [['duplicate', () => duplicateBlock(id)], ['delete', () => removeBlock(id)]]) {
-    const b = el('button', '', t(key)); b.disabled = Boolean(block?.locked); b.addEventListener('click', () => { menu.hidden = true; action(); }); menu.append(b);
+    const b = el('button', '', t(key)); b.disabled = Boolean(block?.locked) || (key === 'duplicate' && !objectForBlock(block,state.objects)); b.addEventListener('click', () => { menu.hidden = true; action(); }); menu.append(b);
   }
   menu.style.left = `${Math.min(x, innerWidth - 190)}px`;
   menu.style.top = `${Math.max(0, Math.min(y, innerHeight - 150))}px`;
   menu.hidden = false;
   state.selectedBlock = id;
+  state.selectedEnvironment = null;
   renderInspector();
-  viewport?.setBlocks(state.blocks, id);
+  renderScene();
 }
 
 function saveWorkspace() {
@@ -1030,12 +1170,13 @@ async function loadProject(document) {
   if (!registry) throw new Error('Unsupported execution profile: ' + profile);
   const {state:loaded,report} = adaptWorkspace(document, registry.modules);
   state.modules = registry.modules; state.objects = registry.objects;
-  state.activeObject = availablePlaceables(state.modules, state.capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
+  state.activeObject = availablePlaceables(state.modules, state.capabilities, state.objects,loaded.project).find(item => item.status === 'ready')?.id ?? null;
   state.draftToken = crypto.randomUUID(); state.latestTask = null;
   Object.assign(state, loaded);
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);
   state.selectedBlock = loaded.blocks[0]?.id ?? null;
   state.selectedCell = null;
+  state.selectedEnvironment = null;
   state.graphSelection = null;
   state.selectedManifest = null;
     state.replay = null; state.activeRun = null;
@@ -1053,9 +1194,18 @@ async function loadProject(document) {
 
 try {
   viewport = new SpatialViewport($('spatial-canvas'), $('scene-annotations'), {
-    selectCell, selectBlock,
+    selectCell, selectBlock, selectEnvironment,
+    placeEnvironment(point) {
+      const object = availablePlaceables(state.modules,state.capabilities,state.objects,state.project).find(item => item.id === state.activeObject && item.status === 'ready' && item.kind !== 'population');
+      if (!object || !state.project) return;
+      edit('objectPlaced',() => {
+        state.selectedEnvironment = initializeEnvironmentObject(state.project,object,state.modules,point);
+        state.selectedBlock = null;
+        state.layout = autoLayout(state.project.graph,state.modules,state.layout);
+      }); useTool('select');
+    },
     placePopulation(point) {
-      if (!state.project || !state.activeObject) return;
+      if (!state.project || !availablePlaceables(state.modules,state.capabilities,state.objects).some(item => item.id === state.activeObject && item.kind === 'population' && item.status === 'ready')) return;
       edit('blockPlaced', () => {
         const block = createBlock(state.project, point, state.blocks.map(item => item.id));
         block.object_type = state.activeObject;
@@ -1193,6 +1343,7 @@ document.addEventListener('keydown', event => {
   if (state.view === 'space') {
     const tool = {v:'select',b:'population',t:'move',w:'move',e:'rotate',r:'scale',m:'measure',h:'hand',o:'orbit'}[key];
     if (tool) { event.preventDefault(); useTool(tool); return; }
+    if ((key === 'delete' || key === 'backspace') && state.selectedEnvironment) { event.preventDefault(); removeEnvironment(state.selectedEnvironment); return; }
     if ((key === 'delete' || key === 'backspace') && state.selectedBlock) { event.preventDefault(); removeBlock(state.selectedBlock); return; }
   }
   if (state.view === 'workflow' && (event.key === 'Delete' || event.key === 'Backspace') && state.graphSelection) {
@@ -1220,6 +1371,8 @@ function refreshWelcome() {
   let recovery = false;
   try { recovery = Boolean(localStorage.getItem(RECOVERY_KEY)); } catch { /* storage unavailable */ }
   for (const button of $('welcome-dialog').querySelectorAll('.start-command')) button.disabled = welcomePending;
+  $('welcome-pts').disabled = welcomePending || !state.registries.has('conservative-pts-bulk-v1');
+  $('welcome-spatial').disabled = welcomePending || !state.registries.has('spatial-unbiased-v1');
   $('welcome-recover').disabled = welcomePending || !recovery;
   $('welcome-recovery-hint').dataset.i18n = recovery ? 'recoveryPresent' : 'recoveryAbsent';
   $('welcome-recovery-hint').textContent = t($('welcome-recovery-hint').dataset.i18n);
@@ -1273,6 +1426,7 @@ $('welcome-new').addEventListener('click', () => loadWelcome(() => blankProject(
 $('welcome-demo').addEventListener('click', () => loadWelcome(() => state.template));
 $('welcome-registry').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/registry-readout')));
 $('welcome-pts').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/pts-bulk')));
+$('welcome-spatial').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/spatial-baseline')));
 $('welcome-recover').addEventListener('click', () => loadWelcome(() => {
   const recovery = localStorage.getItem(RECOVERY_KEY);
   if (!recovery) throw new Error(t('recoveryAbsent'));
@@ -1289,7 +1443,7 @@ $('export-button').addEventListener('click', () => { if (state.activeRun?.replay
 $('export-close').addEventListener('click', () => $('export-dialog').close());
 $('export-json').addEventListener('click', () => {
   const run = state.activeRun; if (!run?.replay) return;
-  const payload = run.localId ? {task_contract_version:'0.1.0', task_run_id:run.runId, status:run.manifest.status,
+  const payload = run.localId ? {task_contract_version:run.submission.task_contract_version, task_run_id:run.runId, status:run.manifest.status,
     completeness:run.manifest.completeness, task:run.task, submission:run.submission, manifest:run.manifest, replay:run.replay} : exportRun(run);
   download(`${run.id}.result.json`, JSON.stringify(payload, null, 2));
 });
@@ -1327,6 +1481,10 @@ try {
     state.registries.set('conservative-pts-bulk-v1', ptsRegistry);
   }
   $('welcome-pts').disabled = !state.registries.has('conservative-pts-bulk-v1');
+  if (capabilities.execution_profiles?.includes('spatial-unbiased-v1')) {
+    const spatialRegistry = registerCatalog(await kernel.request('/api/catalog?execution_profile=spatial-unbiased-v1'));
+    state.registries.set('spatial-unbiased-v1',spatialRegistry);
+  }
   state.modules = registry.modules; state.objects = registry.objects;
   state.activeObject = availablePlaceables(state.modules, capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
   state.capabilities = capabilities;

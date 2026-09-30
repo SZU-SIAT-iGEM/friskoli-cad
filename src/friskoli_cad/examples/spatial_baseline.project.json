@@ -1,0 +1,1411 @@
+{
+  "project_version": "0.4.0",
+  "execution_profile": "spatial-unbiased-v1",
+  "id": "constructed-spatial-baseline",
+  "domain": {
+    "geometry": "volume",
+    "counts_xyz": [
+      10,
+      8,
+      4
+    ],
+    "spacing_um_xyz": [
+      2,
+      2,
+      2
+    ]
+  },
+  "groups": {
+    "a": {
+      "ids": [
+        "a0",
+        "a1"
+      ],
+      "positions_um": [
+        [
+          4.75,
+          7,
+          4
+        ],
+        [
+          6.75,
+          7,
+          4
+        ]
+      ],
+      "orientation_xyzw": [
+        [
+          0,
+          0,
+          0,
+          1
+        ],
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "initial_geometry": [
+        {
+          "shape": "capsule",
+          "length_um": 1.4,
+          "diameter_um": 0.6,
+          "provenance": {
+            "kind": "example",
+            "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+          }
+        },
+        {
+          "shape": "capsule",
+          "length_um": 1.4,
+          "diameter_um": 0.6,
+          "provenance": {
+            "kind": "example",
+            "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+          }
+        }
+      ]
+    },
+    "b": {
+      "ids": [
+        "b0"
+      ],
+      "positions_um": [
+        [
+          4.75,
+          9,
+          4
+        ]
+      ],
+      "orientation_xyzw": [
+        [
+          0,
+          0,
+          0,
+          1
+        ]
+      ],
+      "initial_geometry": [
+        {
+          "shape": "capsule",
+          "length_um": 1.4,
+          "diameter_um": 0.6,
+          "provenance": {
+            "kind": "example",
+            "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+          }
+        }
+      ]
+    }
+  },
+  "species": {
+    "nutrient": {
+      "concentration_unit": "uM",
+      "initial_concentration": {
+        "value": 0,
+        "unit": "uM",
+        "provenance": {
+          "kind": "example",
+          "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+        }
+      }
+    }
+  },
+  "controls": {},
+  "graph": {
+    "protocol_version": "0.1.0",
+    "id": "constructed-spatial-baseline-graph",
+    "nodes": [
+      {
+        "id": "a_area",
+        "module_id": "pts.capsule_area",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "a"
+        },
+        "parameters": {}
+      },
+      {
+        "id": "a_capacity",
+        "module_id": "pts.capacity_rebuilt",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "a"
+        },
+        "parameters": {
+          "g_requested": {
+            "value": 100,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "reference_pts_copies": {
+            "value": 2,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "molecule"
+          },
+          "basal_inner_fraction": {
+            "value": 0.5,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "pts_max_available_fraction": {
+            "value": 0.4,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "ascf_area_um2": {
+            "value": 0.1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "um^2/molecule"
+          }
+        }
+      },
+      {
+        "id": "a_sample",
+        "module_id": "field.sample_local",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "a"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          }
+        }
+      },
+      {
+        "id": "a_request",
+        "module_id": "uptake.pts_request",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "a"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "turnover_s": {
+            "value": 2,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/s"
+          },
+          "half_saturation_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          }
+        }
+      },
+      {
+        "id": "a_settle",
+        "module_id": "uptake.local_settlement",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "a"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "initial_molecules": {
+            "value": 0,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "molecule"
+          }
+        }
+      },
+      {
+        "id": "a_signal",
+        "module_id": "signal.pts_accepted",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "a"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "ei_total_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "ei_dephos_per_molecule": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/molecule"
+          },
+          "ei_rephos_s": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/s"
+          },
+          "ei_chea_inhibition_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "chea_total_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "chey_total_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "chey_phos_per_um_s": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/(uM*s)"
+          },
+          "chey_dephos_s": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/s"
+          },
+          "motor_hill": {
+            "value": 2,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "motor_half_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "initial_ei_fraction": {
+            "value": 0.6,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "initial_chey_p_um": {
+            "value": 0.2,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          }
+        }
+      },
+      {
+        "id": "b_area",
+        "module_id": "pts.capsule_area",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "b"
+        },
+        "parameters": {}
+      },
+      {
+        "id": "b_capacity",
+        "module_id": "pts.capacity_simplified",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "b"
+        },
+        "parameters": {
+          "g_requested": {
+            "value": 100,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "reference_pts_copies": {
+            "value": 2,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "molecule"
+          },
+          "g_cap": {
+            "value": 3,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "reference_area_um2": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "um^2"
+          }
+        }
+      },
+      {
+        "id": "b_sample",
+        "module_id": "field.sample_local",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "b"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          }
+        }
+      },
+      {
+        "id": "b_request",
+        "module_id": "uptake.pts_request",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "b"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "turnover_s": {
+            "value": 2,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/s"
+          },
+          "half_saturation_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          }
+        }
+      },
+      {
+        "id": "b_settle",
+        "module_id": "uptake.local_settlement",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "b"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "initial_molecules": {
+            "value": 0,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "molecule"
+          }
+        }
+      },
+      {
+        "id": "b_signal",
+        "module_id": "signal.pts_accepted",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "b"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "ei_total_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "ei_dephos_per_molecule": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/molecule"
+          },
+          "ei_rephos_s": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/s"
+          },
+          "ei_chea_inhibition_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "chea_total_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "chey_total_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "chey_phos_per_um_s": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/(uM*s)"
+          },
+          "chey_dephos_s": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1/s"
+          },
+          "motor_hill": {
+            "value": 2,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "motor_half_um": {
+            "value": 1,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          },
+          "initial_ei_fraction": {
+            "value": 0.6,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "1"
+          },
+          "initial_chey_p_um": {
+            "value": 0.2,
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            },
+            "unit": "uM"
+          }
+        }
+      },
+      {
+        "id": "nutrient_field",
+        "module_id": "field.diffusive_local",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "nutrient_field"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "diffusivity_um2_s": {
+            "value": 4,
+            "unit": "um^2/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          }
+        }
+      },
+      {
+        "id": "attractant_source",
+        "module_id": "source.finite_local",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "attractant_source"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "center_x_um": {
+            "value": 16,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "center_y_um": {
+            "value": 8,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "center_z_um": {
+            "value": 4,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "radius_um": {
+            "value": 1.5,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "initial_molecules": {
+            "value": 20000,
+            "unit": "molecule",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "release_rate": {
+            "value": 2000,
+            "unit": "molecule/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          }
+        }
+      },
+      {
+        "id": "obstacle",
+        "module_id": "space.axis_aligned_obstacle",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "obstacle"
+        },
+        "parameters": {
+          "lower_x_um": {
+            "value": 10,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "lower_y_um": {
+            "value": 6,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "lower_z_um": {
+            "value": 0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "upper_x_um": {
+            "value": 12,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "upper_y_um": {
+            "value": 10,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "upper_z_um": {
+            "value": 8,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          }
+        }
+      },
+      {
+        "id": "a_motion",
+        "module_id": "motion.unbiased_run_tumble",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "a"
+        },
+        "parameters": {
+          "speed_um_s": {
+            "value": 2,
+            "unit": "um/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "tumble_rate_s": {
+            "value": 1,
+            "unit": "1/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          }
+        }
+      },
+      {
+        "id": "b_motion",
+        "module_id": "motion.unbiased_run_tumble",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "b"
+        },
+        "parameters": {
+          "speed_um_s": {
+            "value": 2,
+            "unit": "um/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          },
+          "tumble_rate_s": {
+            "value": 1,
+            "unit": "1/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: spatial-baseline-v1; numerical demonstration, not measured or biologically calibrated. PTS signal has no coupling to motion."
+            }
+          }
+        }
+      },
+      {
+        "id": "material",
+        "module_id": "material.degradable_box",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "material"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          },
+          "initial_molecules": {
+            "value": 20000,
+            "unit": "molecule",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          },
+          "lower_x_um": {
+            "value": 2,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          },
+          "lower_y_um": {
+            "value": 6,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          },
+          "lower_z_um": {
+            "value": 0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          },
+          "upper_x_um": {
+            "value": 4,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          },
+          "upper_y_um": {
+            "value": 10,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          },
+          "upper_z_um": {
+            "value": 8,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          }
+        }
+      },
+      {
+        "id": "degradation",
+        "module_id": "reaction.contact_degradation",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "degradation"
+        },
+        "parameters": {
+          "kcat_s": {
+            "value": 2,
+            "unit": "1/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          },
+          "contact_range_um": {
+            "value": 0.1,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          }
+        }
+      },
+      {
+        "id": "a_enzyme",
+        "module_id": "surface.enzyme_activity",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "a"
+        },
+        "parameters": {
+          "enzyme_copies": {
+            "value": 10,
+            "unit": "molecule",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          }
+        }
+      },
+      {
+        "id": "b_enzyme",
+        "module_id": "surface.enzyme_activity",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "b"
+        },
+        "parameters": {
+          "enzyme_copies": {
+            "value": 10,
+            "unit": "molecule",
+            "provenance": {
+              "kind": "example",
+              "reference": "constructed: contact enzyme release baseline; not measured or calibrated; unbiased motion without chemotactic coupling."
+            }
+          }
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "a_area_surface_area_to_a_capacity_surface_area",
+        "from": {
+          "node": "a_area",
+          "port": "surface_area"
+        },
+        "to": {
+          "node": "a_capacity",
+          "port": "surface_area"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "a_capacity_functional_copies_to_a_request_functional_copies",
+        "from": {
+          "node": "a_capacity",
+          "port": "functional_copies"
+        },
+        "to": {
+          "node": "a_request",
+          "port": "functional_copies"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "a_sample_concentration_to_a_request_concentration",
+        "from": {
+          "node": "a_sample",
+          "port": "concentration"
+        },
+        "to": {
+          "node": "a_request",
+          "port": "concentration"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "a_request_requested_flux_to_a_settle_requested_flux",
+        "from": {
+          "node": "a_request",
+          "port": "requested_flux"
+        },
+        "to": {
+          "node": "a_settle",
+          "port": "requested_flux"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "a_settle_accepted_flux_to_a_signal_accepted_flux",
+        "from": {
+          "node": "a_settle",
+          "port": "accepted_flux"
+        },
+        "to": {
+          "node": "a_signal",
+          "port": "accepted_flux"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "b_area_surface_area_to_b_capacity_surface_area",
+        "from": {
+          "node": "b_area",
+          "port": "surface_area"
+        },
+        "to": {
+          "node": "b_capacity",
+          "port": "surface_area"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "b_capacity_functional_copies_to_b_request_functional_copies",
+        "from": {
+          "node": "b_capacity",
+          "port": "functional_copies"
+        },
+        "to": {
+          "node": "b_request",
+          "port": "functional_copies"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "b_sample_concentration_to_b_request_concentration",
+        "from": {
+          "node": "b_sample",
+          "port": "concentration"
+        },
+        "to": {
+          "node": "b_request",
+          "port": "concentration"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "b_request_requested_flux_to_b_settle_requested_flux",
+        "from": {
+          "node": "b_request",
+          "port": "requested_flux"
+        },
+        "to": {
+          "node": "b_settle",
+          "port": "requested_flux"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "b_settle_accepted_flux_to_b_signal_accepted_flux",
+        "from": {
+          "node": "b_settle",
+          "port": "accepted_flux"
+        },
+        "to": {
+          "node": "b_signal",
+          "port": "accepted_flux"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "substrate_field_concentration_to_a_sample_field",
+        "from": {
+          "node": "nutrient_field",
+          "port": "concentration"
+        },
+        "to": {
+          "node": "a_sample",
+          "port": "field"
+        },
+        "timing": "previous_step"
+      },
+      {
+        "id": "a_motion_position_to_a_sample_position",
+        "from": {
+          "node": "a_motion",
+          "port": "position"
+        },
+        "to": {
+          "node": "a_sample",
+          "port": "position"
+        },
+        "timing": "previous_step"
+      },
+      {
+        "id": "substrate_field_concentration_to_a_settle_field",
+        "from": {
+          "node": "nutrient_field",
+          "port": "concentration"
+        },
+        "to": {
+          "node": "a_settle",
+          "port": "field"
+        },
+        "timing": "previous_step"
+      },
+      {
+        "id": "substrate_field_concentration_to_b_sample_field",
+        "from": {
+          "node": "nutrient_field",
+          "port": "concentration"
+        },
+        "to": {
+          "node": "b_sample",
+          "port": "field"
+        },
+        "timing": "previous_step"
+      },
+      {
+        "id": "b_motion_position_to_b_sample_position",
+        "from": {
+          "node": "b_motion",
+          "port": "position"
+        },
+        "to": {
+          "node": "b_sample",
+          "port": "position"
+        },
+        "timing": "previous_step"
+      },
+      {
+        "id": "substrate_field_concentration_to_b_settle_field",
+        "from": {
+          "node": "nutrient_field",
+          "port": "concentration"
+        },
+        "to": {
+          "node": "b_settle",
+          "port": "field"
+        },
+        "timing": "previous_step"
+      }
+    ]
+  },
+  "run": {
+    "protocol_version": "0.1.0",
+    "run_id": "constructed-spatial-baseline-run",
+    "graph_id": "constructed-spatial-baseline-graph",
+    "groups": [
+      "a",
+      "b"
+    ],
+    "channels": {
+      "a_area.surface_area": {
+        "node": "a_area",
+        "port": "surface_area",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "surface_area",
+        "unit": "um^2"
+      },
+      "a_capacity.functional_copies": {
+        "node": "a_capacity",
+        "port": "functional_copies",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "carrier_copies",
+        "unit": "molecule"
+      },
+      "a_capacity.g_effective": {
+        "node": "a_capacity",
+        "port": "g_effective",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "expression_gain",
+        "unit": "1"
+      },
+      "a_sample.concentration": {
+        "node": "a_sample",
+        "port": "concentration",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "concentration",
+        "unit": "uM"
+      },
+      "a_request.requested_flux": {
+        "node": "a_request",
+        "port": "requested_flux",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "requested_flux",
+        "unit": "molecule/s"
+      },
+      "a_settle.accepted_flux": {
+        "node": "a_settle",
+        "port": "accepted_flux",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "accepted_flux",
+        "unit": "molecule/s"
+      },
+      "a_settle.accepted_amount": {
+        "node": "a_settle",
+        "port": "accepted_amount",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "accepted_amount",
+        "unit": "molecule"
+      },
+      "a_settle.cumulative_uptake": {
+        "node": "a_settle",
+        "port": "cumulative_uptake",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "cumulative_uptake",
+        "unit": "molecule"
+      },
+      "a_signal.ei_fraction": {
+        "node": "a_signal",
+        "port": "ei_fraction",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "ei_dephosphorylated_fraction",
+        "unit": "1"
+      },
+      "a_signal.chea_active": {
+        "node": "a_signal",
+        "port": "chea_active",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "chea_active_concentration",
+        "unit": "uM"
+      },
+      "a_signal.chey_p": {
+        "node": "a_signal",
+        "port": "chey_p",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "chey_phosphorylated_concentration",
+        "unit": "uM"
+      },
+      "a_signal.motor_bias": {
+        "node": "a_signal",
+        "port": "motor_bias",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "motor_bias",
+        "unit": "1"
+      },
+      "b_area.surface_area": {
+        "node": "b_area",
+        "port": "surface_area",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "surface_area",
+        "unit": "um^2"
+      },
+      "b_capacity.functional_copies": {
+        "node": "b_capacity",
+        "port": "functional_copies",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "carrier_copies",
+        "unit": "molecule"
+      },
+      "b_capacity.g_effective": {
+        "node": "b_capacity",
+        "port": "g_effective",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "expression_gain",
+        "unit": "1"
+      },
+      "b_sample.concentration": {
+        "node": "b_sample",
+        "port": "concentration",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "concentration",
+        "unit": "uM"
+      },
+      "b_request.requested_flux": {
+        "node": "b_request",
+        "port": "requested_flux",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "requested_flux",
+        "unit": "molecule/s"
+      },
+      "b_settle.accepted_flux": {
+        "node": "b_settle",
+        "port": "accepted_flux",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "accepted_flux",
+        "unit": "molecule/s"
+      },
+      "b_settle.accepted_amount": {
+        "node": "b_settle",
+        "port": "accepted_amount",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "accepted_amount",
+        "unit": "molecule"
+      },
+      "b_settle.cumulative_uptake": {
+        "node": "b_settle",
+        "port": "cumulative_uptake",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "cumulative_uptake",
+        "unit": "molecule"
+      },
+      "b_signal.ei_fraction": {
+        "node": "b_signal",
+        "port": "ei_fraction",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "ei_dephosphorylated_fraction",
+        "unit": "1"
+      },
+      "b_signal.chea_active": {
+        "node": "b_signal",
+        "port": "chea_active",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "chea_active_concentration",
+        "unit": "uM"
+      },
+      "b_signal.chey_p": {
+        "node": "b_signal",
+        "port": "chey_p",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "chey_phosphorylated_concentration",
+        "unit": "uM"
+      },
+      "b_signal.motor_bias": {
+        "node": "b_signal",
+        "port": "motor_bias",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "motor_bias",
+        "unit": "1"
+      },
+      "a_motion.blocked": {
+        "node": "a_motion",
+        "port": "blocked",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "motion_blocked",
+        "unit": "1"
+      },
+      "a_motion.turns": {
+        "node": "a_motion",
+        "port": "turns",
+        "group_id": "a",
+        "shape": "cell.scalar",
+        "quantity": "turn_count",
+        "unit": "1"
+      },
+      "b_motion.blocked": {
+        "node": "b_motion",
+        "port": "blocked",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "motion_blocked",
+        "unit": "1"
+      },
+      "b_motion.turns": {
+        "node": "b_motion",
+        "port": "turns",
+        "group_id": "b",
+        "shape": "cell.scalar",
+        "quantity": "turn_count",
+        "unit": "1"
+      },
+      "a_enzyme.enzyme_copies": {
+        "group_id": "a",
+        "node": "a_enzyme",
+        "port": "enzyme_copies",
+        "shape": "cell.scalar",
+        "quantity": "enzyme_copies",
+        "unit": "molecule"
+      },
+      "b_enzyme.enzyme_copies": {
+        "group_id": "b",
+        "node": "b_enzyme",
+        "port": "enzyme_copies",
+        "shape": "cell.scalar",
+        "quantity": "enzyme_copies",
+        "unit": "molecule"
+      }
+    }
+  },
+  "random_seed": 20260930
+}

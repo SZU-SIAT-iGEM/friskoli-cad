@@ -16,7 +16,7 @@ import time
 import uuid
 import psutil
 from friskoli_cad.project import validate_project
-from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, profile_for_project
+from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, profile_for_project, task_version
 from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.protocol.task_validation import (VERSION, TaskValidationError, canonical_bytes, canonical_loads, sha256, strict_json_loads, validate_submission)
 from .metadata import BACKEND, compiled_plan, estimate, provenance, registry_metadata
@@ -80,7 +80,8 @@ class TaskService:
         self._corrupt = set()
         self._registry, self._version_lock, self._sources = registry_metadata()
         self._profile_metadata = {LEGACY_PROFILE: (self._registry, self._version_lock, self._sources),
-                                  PTS_PROFILE: registry_metadata(PTS_PROFILE)}
+                                  PTS_PROFILE: registry_metadata(PTS_PROFILE),
+                                  SPATIAL_PROFILE: registry_metadata(SPATIAL_PROFILE)}
         self._ctx = multiprocessing.get_context("spawn")
         self.directory.mkdir(parents=True, exist_ok=True)
         self._owner_file = (self.directory / "service.lock").open("a+b")
@@ -186,9 +187,10 @@ class TaskService:
         if profile not in self._profile_metadata:
             raise TaskError(422, "task.execution_unsupported", "Unsupported execution profile.", "/execution/semantics", phase="resolve")
         _, version_lock, _ = self._profile_metadata[profile]
-        return {"task_contract_version": VERSION if profile == LEGACY_PROFILE else "0.2.0", "mode": "single-worker",
+        return {"task_contract_version": task_version(profile), "mode": "single-worker",
             "pause": False, "resume": False, "checkpoint": False, "partial_results": True,
-            "hash_canonicalization": "RFC8785", "limits": asdict(self.limits),
+            "hash_canonicalization": "RFC8785", "limits": {**asdict(self.limits),
+                **({"cells": min(256, self.limits.cells), "voxels": min(10000, self.limits.voxels)} if profile == SPATIAL_PROFILE else {})},
             "version_lock": canonical_loads(self._dump(version_lock)),
             "execution": {"semantics": profile, "backend": BACKEND, "default_seed": 0}}
 
@@ -206,7 +208,7 @@ class TaskService:
         project, execution = submission["project"], submission["execution"]
         profile = profile_for_project(project)
         registry, full, _ = self._profile_metadata[profile]
-        expected_version = VERSION if profile == LEGACY_PROFILE else "0.2.0"
+        expected_version = task_version(profile)
         if (execution["semantics"] != profile or execution["backend"] != BACKEND
                 or submission["task_contract_version"] != expected_version):
             raise TaskError(422, "task.execution_unsupported", "Unsupported execution semantics or backend.", "/execution", phase="resolve")
@@ -223,7 +225,7 @@ class TaskService:
                 or any(key not in full_map or value != full_map[key] for key, value in unique.items())):
             raise TaskError(422, "task.lock_mismatch", "Exact implementation locks are required for every graph module.", "/version_lock/implementations", phase="resolve")
         try:
-            validate_project(project, registry.manifests)
+            validate_project(project, registry.manifests, registry=registry)
             plan = compiled_plan(project, registry)
         except ProtocolError as error:
             path = getattr(error, "path", "")
@@ -273,7 +275,7 @@ class TaskService:
             if existing:
                 return self._same(existing, digest), False
         plan, budget = self._admit(submission)
-        metadata = provenance(submission["execution"]["seed"], self._sources)
+        metadata = provenance(submission["execution"]["seed"], self._sources, submission["project"])
         with self._transaction():
             existing = self._db.execute("SELECT * FROM idempotency WHERE key=?", (key,)).fetchone()
             if existing:
@@ -433,7 +435,9 @@ class TaskService:
             chunk_id = f"chunk_{sequence:08d}"
             body = canonical_bytes({"task_contract_version": contract_version, "run_id": run_id,
                 "chunk_id": chunk_id, "frames": [{"sequence": sequence, "step_index": message["step"],
-                    "time_s": message["time_s"], "grid_revision": message["grid_revision"], "frame": message["frame"]}]})
+                    "time_s": message["time_s"], "grid_revision": message["grid_revision"], "frame": message["frame"],
+                    **({"concentrations": message["concentrations"]} if "concentrations" in message else {}),
+                    **({"object_states": message["object_states"]} if "object_states" in message else {})}]})
             if len(body) > self.limits.chunk_bytes or sum(item["bytes"] for item in descriptors) + len(body) > self.limits.output_bytes:
                 raise TaskError(413, "task.resource_limit", "Actual output exceeds the published output limit.", "/output_plan", phase="publish")
             metadata = {"chunk_id": chunk_id, "href": f"/api/runs/{run_id}/chunks/{chunk_id}",

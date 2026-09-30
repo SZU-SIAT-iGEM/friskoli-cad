@@ -5,11 +5,12 @@ import json
 import os
 import multiprocessing
 import threading
+import numpy as np
 from pathlib import Path
 
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.engine.runtime import SimulationError
-from friskoli_cad.engine.profiles import PTS_PROFILE
+from friskoli_cad.engine.profiles import PTS_PROFILE, SPATIAL_PROFILE
 from friskoli_cad.protocol.task_validation import canonical_bytes, sha256
 from .metadata import source_hashes
 
@@ -47,7 +48,7 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
     try:
         if source_hashes() != expected_sources:
             raise ValueError("Execution source changed after admission.")
-        simulation = simulation_from_project(submission["project"])
+        simulation = simulation_from_project(submission["project"], seed=submission["execution"]["seed"])
         execution = submission["execution"]
         observations = set(submission["output_plan"]["observables"])
         every = submission["output_plan"]["frame_every_steps"]
@@ -67,6 +68,32 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
                     in cell["channels"].items() if key in observations}}
                     for cell in frame["cells"]]
                 message["frame"] = frame
+                if execution["semantics"] == SPATIAL_PROFILE:
+                    expected_objects = {node["id"]: node for node in submission["project"]["graph"]["nodes"]
+                        if node["module_id"] in ("material.degradable_box", "source.finite_local")}
+                    states = snapshot.object_states
+                    if set(states) != set(expected_objects):
+                        raise ValueError("Incomplete object inventory snapshot")
+                    for node_id, inventory in states.items():
+                        node = expected_objects[node_id]
+                        expected_type = "material.degradable_box" if node["module_id"] == "material.degradable_box" else "source.attractant"
+                        amount = inventory.get("remaining_molecules")
+                        if (set(inventory) != {"object_type", "remaining_molecules"} or inventory["object_type"] != expected_type
+                            or type(amount) not in (int, float) or not np.isfinite(amount)
+                            or not 0 <= amount <= node["parameters"]["initial_molecules"]["value"]):
+                            raise ValueError("Invalid object inventory snapshot")
+                    message["object_states"] = {key: dict(value) for key, value in states.items()}
+                if submission["output_plan"]["include_fields"]:
+                    expected = {node["parameters"]["species"]["value"] for node in submission["project"]["graph"]["nodes"]
+                                if node["module_id"] == "field.diffusive_local"}
+                    if set(snapshot.concentration_fields) != expected or any(
+                        snapshot.concentration_units[species] != "uM" or values.shape != snapshot.domain.shape
+                        or not np.isfinite(values).all() or (values < 0).any()
+                        for species, values in snapshot.concentration_fields.items()
+                    ):
+                        raise ValueError("Invalid complete spatial fields")
+                    message["concentrations"] = {species: {"unit": snapshot.concentration_units[species],
+                        "values_zyx": values.tolist()} for species, values in snapshot.concentration_fields.items()}
                 domain = snapshot.domain
                 message["grid_revision"] = sha256({"shape": list(domain.shape),
                     "spacing": [domain.dx_um, domain.dy_um, domain.dz_um]})
@@ -76,7 +103,7 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
         # peer left to consume another error message.
         pass
     except BaseException as error:
-        known = isinstance(error, SimulationError) and submission["execution"]["semantics"] == PTS_PROFILE
+        known = isinstance(error, SimulationError) and submission["execution"]["semantics"] in (PTS_PROFILE, SPATIAL_PROFILE)
         code = error.code if known else ("task.resource_limit" if isinstance(error, WorkerLimit) else "task.worker_failed")
         # Numerical error paths are input pointers; arbitrary exception details never expose paths.
         message = str(error) if known or isinstance(error, WorkerLimit) else "Numerical worker failed during " + phase + "."
