@@ -10,7 +10,9 @@ export function readWorkspace(document) {
   const version = document?.workspace_format_version;
   if (version && !['0.1.0', '0.2.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
   const project = structuredClone(version ? document.project : document);
-  if (!project || !['0.1.0', '0.2.0'].includes(project.project_version) || typeof project.id !== 'string' ||
+  if (!project || !['0.1.0', '0.2.0', '0.3.0'].includes(project.project_version) || typeof project.id !== 'string' ||
+      (project.project_version === '0.3.0' && project.execution_profile !== 'conservative-pts-bulk-v1') ||
+      (project.project_version !== '0.3.0' && project.execution_profile !== undefined) ||
       !vector(project.domain?.counts_xyz, true) || !project.domain.counts_xyz.every(Number.isInteger) ||
       !vector(project.domain.spacing_um_xyz, true) || !['thin_layer', 'volume'].includes(project.domain.geometry) ||
       !project.groups || !project.species || !project.controls || !Array.isArray(project.graph?.nodes) ||

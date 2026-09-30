@@ -64,9 +64,9 @@ class ControlSchedule:
         return self.changes[index][1], next_change
 
 
-@lru_cache(maxsize=2)
+@lru_cache(maxsize=3)
 def _project_validator(version: str) -> Draft202012Validator:
-    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json"}.get(version)
+    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json", "0.3.0": "project-v0.3.schema.json"}.get(version)
     if schema_file is None:
         _fail("project.version", "/project_version", f"unsupported project version {version}")
     schema = json.loads(
@@ -95,6 +95,9 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     graph, run = document["graph"], document["run"]
     validate_graph(graph, manifests)
     validate_run_metadata(run, graph, manifests)
+    if version == "0.3.0":
+        from friskoli_cad.engine.pts_runtime import validate_pts_project
+        validate_pts_project(document, manifests)
     manifest_by_key = {(item["id"], item["version"]): item for item in manifests}
     providers: dict[str, int] = {}
     control_uses: dict[str, int] = {}
@@ -146,7 +149,8 @@ def simulation_from_project(document: Mapping[str, object], registry=None):
     """Build a simulation from a complete snapshot; old graph-only callers remain valid."""
     from friskoli_cad.engine import CapsuleGeometry, CellGroup, GridDomain, Simulation, SimulationError, World, default_registry
 
-    registry = default_registry() if registry is None else registry
+    from friskoli_cad.engine.profiles import registry_for_project
+    registry = registry_for_project(document) if registry is None else registry
     validate_project(document, registry.manifests)
     domain = document["domain"]
     nx, ny, nz = domain["counts_xyz"]
@@ -193,5 +197,8 @@ def simulation_from_project(document: Mapping[str, object], registry=None):
         for schedule_id, entry in document["controls"].items()
     }
     world = World(grid, groups, initial, controls)
+    if document["project_version"] == "0.3.0":
+        from friskoli_cad.engine.pts_runtime import PTSSimulation
+        return PTSSimulation(world, document, registry)
     frame_version = "0.2.0" if document["project_version"] == "0.2.0" else "0.1.0"
     return Simulation(world, document["graph"], document["run"], registry, frame_version)

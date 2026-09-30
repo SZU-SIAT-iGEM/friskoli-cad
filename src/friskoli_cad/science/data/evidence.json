@@ -1,0 +1,450 @@
+{
+  "schema_version": "1.0.0",
+  "science_version": "pts-minimal-v1",
+  "maturity": "exploratory",
+  "biological_default_parameters": false,
+  "parameters": [
+    {
+      "id": "ei_total_uM",
+      "value": 6,
+      "unit": "uM",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.ei_total_uM",
+        "simplified-v4/config.py:EI_TOTAL"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "ei_dephos_per_molecule",
+      "value": 0.001,
+      "unit": "molecule^-1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.ei_dephos_per_flux_s",
+        "simplified-v4/config.py:K_D"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "ei_rephos_s",
+      "value": 20,
+      "unit": "s^-1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.ei_rephos_s",
+        "simplified-v4/config.py:K_R"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "ei_chea_inhibition_uM",
+      "value": 0.3,
+      "unit": "uM",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.ei_chea_inhibition_uM",
+        "simplified-v4/config.py:K_I"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "chea_total_uM",
+      "value": 5,
+      "unit": "uM",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.chea_total_uM",
+        "simplified-v4/config.py:A_T"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "chey_total_uM",
+      "value": 8,
+      "unit": "uM",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.chey_total_uM",
+        "simplified-v4/config.py:Y_T"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "chey_phos_per_uM_s",
+      "value": 2,
+      "unit": "uM^-1 s^-1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.chey_phos_per_uM_s",
+        "simplified-v4/config.py:K_Y"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "chey_dephos_s",
+      "value": 10,
+      "unit": "s^-1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.chey_dephos_s",
+        "simplified-v4/config.py:K_Z"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "motor_hill",
+      "value": 10.3,
+      "unit": "1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.motor_hill",
+        "simplified-v4/config.py:MOTOR_HILL"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "motor_half_uM",
+      "value": 3.1,
+      "unit": "uM",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:SignalingParameters.motor_half_uM",
+        "simplified-v4/config.py:K_Y_MOTOR"
+      ],
+      "note": "Source configuration value, not a fitted or verified construct-specific biological constant."
+    },
+    {
+      "id": "reference_pts_copies",
+      "value": 500,
+      "unit": "molecule",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:TransportParameters.reference_pts_copies",
+        "simplified-v4/config.py:N_0"
+      ]
+    },
+    {
+      "id": "half_saturation_uM",
+      "value": 30,
+      "unit": "uM",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:TransportParameters.pts_half_saturation_uM",
+        "simplified-v4/config.py:K_S"
+      ]
+    },
+    {
+      "id": "turnover_s",
+      "value": 20,
+      "unit": "s^-1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:TransportParameters.pts_turnover_s",
+        "simplified-v4/config.py:K_CAT"
+      ]
+    },
+    {
+      "id": "basal_inner_fraction",
+      "value": 0.5,
+      "unit": "1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:MembraneParameters.basal_inner_fraction"
+      ]
+    },
+    {
+      "id": "pts_max_available_fraction",
+      "value": 0.55,
+      "unit": "1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:MembraneParameters.pts_max_available_fraction"
+      ]
+    },
+    {
+      "id": "ascf_area_um2",
+      "value": 3e-05,
+      "unit": "um^2 molecule^-1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "rebuilt-v2/parameters.py:MembraneParameters.ascf_area_um2"
+      ]
+    },
+    {
+      "id": "g_cap",
+      "value": 10,
+      "unit": "1",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "simplified-v4/config.py:G_CAP"
+      ]
+    },
+    {
+      "id": "reference_area_um2",
+      "value": 3.1702064327658226,
+      "unit": "um^2",
+      "provenance": "source-derived",
+      "calibration": "unknown",
+      "source_locations": [
+        "simplified-v4/model_b_morphology/membrane_occupancy.py:S0 (V_BIRTH=0.5 um^3, CELL_RADIUS=0.4 um)"
+      ]
+    }
+  ],
+  "parameter_sets": {
+    "rebuilt-source-comparison-v1": {
+      "provenance": "source-derived",
+      "capacity": {
+        "reference_pts_copies": 500,
+        "basal_inner_fraction": 0.5,
+        "pts_max_available_fraction": 0.55,
+        "ascf_area_um2": 3e-05
+      },
+      "request": {
+        "turnover_s": 20,
+        "half_saturation_uM": 30
+      },
+      "signal": {
+        "ei_total_uM": 6,
+        "ei_dephos_per_molecule": 0.001,
+        "ei_rephos_s": 20,
+        "ei_chea_inhibition_uM": 0.3,
+        "chea_total_uM": 5,
+        "chey_total_uM": 8,
+        "chey_phos_per_uM_s": 2,
+        "chey_dephos_s": 10,
+        "motor_hill": 10.3,
+        "motor_half_uM": 3.1
+      }
+    },
+    "simplified-source-comparison-v1": {
+      "provenance": "source-derived",
+      "capacity": {
+        "reference_pts_copies": 500,
+        "g_cap": 10,
+        "reference_area_um2": 3.1702064327658226
+      },
+      "request": {
+        "turnover_s": 20,
+        "half_saturation_uM": 30
+      },
+      "signal": {
+        "ei_total_uM": 6,
+        "ei_dephos_per_molecule": 0.001,
+        "ei_rephos_s": 20,
+        "ei_chea_inhibition_uM": 0.3,
+        "chea_total_uM": 5,
+        "chey_total_uM": 8,
+        "chey_phos_per_uM_s": 2,
+        "chey_dephos_s": 10,
+        "motor_hill": 10.3,
+        "motor_half_uM": 3.1
+      }
+    },
+    "constructed-minimal-v1": {
+      "provenance": "constructed",
+      "capacity_rebuilt": {
+        "reference_pts_copies": 2,
+        "basal_inner_fraction": 0.5,
+        "pts_max_available_fraction": 0.4,
+        "ascf_area_um2": 0.1
+      },
+      "capacity_simplified": {
+        "reference_pts_copies": 2,
+        "g_cap": 3,
+        "reference_area_um2": 1
+      },
+      "request": {
+        "turnover_s": 2,
+        "half_saturation_uM": 1
+      },
+      "signal": {
+        "ei_total_uM": 1,
+        "ei_dephos_per_molecule": 1,
+        "ei_rephos_s": 1,
+        "ei_chea_inhibition_uM": 1,
+        "chea_total_uM": 1,
+        "chey_total_uM": 1,
+        "chey_phos_per_uM_s": 1,
+        "chey_dephos_s": 1,
+        "motor_hill": 2,
+        "motor_half_uM": 1
+      }
+    }
+  },
+  "formulas": [
+    {
+      "id": "capsule_area",
+      "expression": "A = pi*d*L",
+      "semantics": "L total pole-to-pole length, d diameter; L >= d > 0",
+      "source_locations": [
+        "rebuilt-v2/model/geometry.py:capsule_surface_area"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [],
+      "specific_equation_calibration": "unknown"
+    },
+    {
+      "id": "rebuilt_capacity",
+      "expression": "N_target=N0*G; N_cap=(1-f_basal)*A*f_pts/a_ascf; N_functional=min(N_target,N_cap)",
+      "semantics": "A footprint capacity; all N are total expected copies per cell",
+      "source_locations": [
+        "rebuilt-v2/model/transport.py:effective_pts_expression"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [],
+      "specific_equation_calibration": "unknown"
+    },
+    {
+      "id": "simplified_capacity",
+      "expression": "N_target=N0*G; N_cap=N0*G_cap*A/A0; N_functional=min(N_target,N_cap)",
+      "semantics": "B reference-area capacity, independent of A footprint assumption",
+      "source_locations": [
+        "simplified-v4/model_b_morphology/membrane_occupancy.py:effective_pts_expression"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [],
+      "specific_equation_calibration": "unknown"
+    },
+    {
+      "id": "pts_request",
+      "expression": "J_request=N_functional*k_cat*S/(K_S+S)",
+      "semantics": "Bulk-only; J molecule/s per cell, S uM; no stock deduction",
+      "source_locations": [
+        "rebuilt-v2/model/transport.py:compartment_requests (surface=contact=contact_fraction=0)",
+        "simplified-v4/core/batch.py:transport_demand"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [],
+      "specific_equation_calibration": "unknown"
+    },
+    {
+      "id": "ei_rhs",
+      "expression": "de/dt=k_d*J_accepted*(1-e)-k_r*e",
+      "semantics": "e is dephosphorylated EI fraction; k_d molecule^-1",
+      "source_locations": [
+        "rebuilt-v2/model/signaling.py:pts_step",
+        "simplified-v4/core/batch.py:pts_step"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [
+        "E1",
+        "E2"
+      ],
+      "specific_equation_calibration": "unknown"
+    },
+    {
+      "id": "chea_readout",
+      "expression": "A_active=A_total*K_I/(K_I+E_total*e)",
+      "semantics": "Concentrations in uM; phenomenological inhibition, not full receptor network",
+      "source_locations": [
+        "rebuilt-v2/model/signaling.py:pts_step",
+        "simplified-v4/core/batch.py:pts_step"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [
+        "E1",
+        "E2"
+      ],
+      "specific_equation_calibration": "unknown"
+    },
+    {
+      "id": "chey_rhs",
+      "expression": "dY/dt=k_Y*A_active*(Y_total-Y)-k_Z*Y",
+      "semantics": "CheY-P concentration uM; total protein concentration held fixed",
+      "source_locations": [
+        "rebuilt-v2/model/signaling.py:pts_step",
+        "simplified-v4/core/batch.py:pts_step"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [
+        "E1",
+        "E2"
+      ],
+      "specific_equation_calibration": "unknown"
+    },
+    {
+      "id": "motor_readout",
+      "expression": "bias=Y^h/(K_motor^h+Y^h)",
+      "semantics": "Dimensionless single-motor surrogate, no cell tumble hazard or adaptation",
+      "source_locations": [
+        "rebuilt-v2/model/signaling.py:pts_step",
+        "simplified-v4/core/batch.py:pts_step"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [
+        "E3"
+      ],
+      "specific_equation_calibration": "unknown"
+    },
+    {
+      "id": "constant_flux_steady",
+      "expression": "e*=k_d*J/(k_d*J+k_r); Y*=Y_total*k_Y*A(e*)/(k_Y*A(e*)+k_Z)",
+      "semantics": "Unique only for nonzero relaxation rates; no finite-reservoir equilibrium claim",
+      "source_locations": [
+        "analytic derivation of source ODE"
+      ],
+      "provenance": "source-derived",
+      "mechanism_evidence": [],
+      "specific_equation_calibration": "unknown"
+    }
+  ],
+  "numerics": {
+    "id": "endpoint-frozen-chea-exponential-v1",
+    "expression": "e_new=e_old*exp(-beta_e*dt)+e_ss*(1-exp(-beta_e*dt)); A_new=A(e_new); Y_new=Y_old*exp(-beta_y*dt)+Y_ss(A_new)*(1-exp(-beta_y*dt))",
+    "order": "EI exact for constant accepted flux; CheY frozen at endpoint CheA; full coupled scheme first order",
+    "repairs": [
+      "Reject invalid inputs instead of implicit clipping.",
+      "Exact zero Hill response; stable scaled saturation and log Hill arithmetic.",
+      "No epsilon forcing nonunique zero-rate steady state to zero; time advance freezes states when rates vanish."
+    ],
+    "signal_policy": "accepted-flux-only; no pre-settlement request signal",
+    "boundaries": "Pure numerical formulas only; caller owns species/group identity, settlement and transactions."
+  },
+  "literature": [
+    {
+      "id": "E1",
+      "doi": "10.1371/journal.pbio.2000074",
+      "url": "https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2000074",
+      "checked": "2026-09-30",
+      "location": "Abstract; Introduction; Results overall influx",
+      "supports": "PTS core senses overall PTS sugar influx and communicates with chemotaxis pathway in tested E. coli system.",
+      "does_not_support": "The team EI/CheA/CheY surrogate equations, fitted parameter values, AscF-cellobiose specificity, or arbitrary finite dt accepted-flux approximation."
+    },
+    {
+      "id": "E2",
+      "doi": "10.1073/pnas.1205307109",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/22778402/",
+      "checked": "2026-09-30",
+      "location": "PubMed original abstract (2026-09-29 report reused; current fetch returned no text)",
+      "supports": "PTS signaling reaches the chemoreceptor-CheA-CheW complex with shared adaptation.",
+      "does_not_support": "Deleting the sensory complex constitutes a validated mechanism; no adaptation implemented here."
+    },
+    {
+      "id": "E3",
+      "doi": "10.1126/science.287.5458.1652",
+      "url": "https://cluzel.fas.harvard.edu/sites/g/files/omnuum7156/files/cluzel/files/cluzel_science_00.pdf",
+      "checked": "2026-09-29",
+      "location": "Existing source-model review: original PDF p1652/Fig1A",
+      "supports": "Steep single-motor CheY-P response.",
+      "does_not_support": "Whole-cell tumble hazard or parameters calibrated to this engineered strain."
+    }
+  ]
+}

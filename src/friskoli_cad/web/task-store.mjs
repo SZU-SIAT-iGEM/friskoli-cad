@@ -19,13 +19,23 @@ const digestKeys = ['document_sha256', 'scientific_sha256', 'registry_sha256', '
 const sameInput = (a, b) => ['document_sha256', 'scientific_sha256', 'registry_sha256', 'plan_sha256', 'edit_revision']
   .every(key => a?.[key] === b?.[key]);
 
-export function supportsTasks(capabilities) {
-  return capabilities?.task?.task_contract_version === TASK_CONTRACT_VERSION;
+const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0']);
+export function taskCapability(capabilities, project) {
+  if (project?.execution_profile === 'conservative-pts-bulk-v1' && project.project_version === '0.3.0') {
+    const task = capabilities?.task_profiles?.[project.execution_profile];
+    return task?.task_contract_version === '0.2.0' && task.execution?.semantics === project.execution_profile ? task : null;
+  }
+  if (project?.execution_profile) return null;
+  return capabilities?.task?.task_contract_version === TASK_CONTRACT_VERSION ? capabilities.task : null;
+}
+export function supportsTasks(capabilities, project) {
+  return !!taskCapability(capabilities, project);
 }
 
 export function buildSubmission(capabilities, project, settings, editRevision, requestId = identity()) {
-  if (!supportsTasks(capabilities)) throw failure('task.unsupported_contract');
-  const task = capabilities.task, lock = task.version_lock, execution = task.execution;
+  const task = taskCapability(capabilities, project);
+  if (!task) throw failure('task.unsupported_contract');
+  const lock = task.version_lock, execution = task.execution;
   if (!/^[a-f0-9]{64}$/.test(lock?.registry_sha256) || !Array.isArray(lock.implementations) ||
       lock.implementations.some(item => !item.id || !item.version || !/^[a-f0-9]{64}$/.test(item.sha256)) ||
       !execution?.semantics || !execution.backend || !Number.isSafeInteger(execution.default_seed)) {
@@ -33,7 +43,7 @@ export function buildSubmission(capabilities, project, settings, editRevision, r
   }
   const seed = settings.seed ?? execution.default_seed;
   if (!Number.isSafeInteger(seed) || seed < 0) throw failure('task.invalid_seed');
-  return immutable({task_contract_version:TASK_CONTRACT_VERSION, request_id:requestId,
+  return immutable({task_contract_version:task.task_contract_version, request_id:requestId,
     edit_revision:String(editRevision), project, version_lock:lock,
     execution:{semantics:execution.semantics, backend:execution.backend, dt_s:settings.dt_s, steps:settings.steps, seed},
     output_plan:{frame_every_steps:1, observables:Object.keys(project.run.channels), include_fields:false}});
@@ -44,7 +54,7 @@ export function matchesDraft(record, draft) {
 }
 
 function validateTask(task, record) {
-  if (task?.task_contract_version !== TASK_CONTRACT_VERSION || !SERVER_STATES.has(task.status) ||
+  if (task?.task_contract_version !== record.submission.task_contract_version || !SERVER_STATES.has(task.status) ||
       !/^[A-Za-z0-9_-]{1,128}$/.test(task.run_id) || (record.runId && record.runId !== task.run_id) ||
       !Number.isSafeInteger(task.last_event_seq) || task.last_event_seq < 1 ||
       !Number.isSafeInteger(task.progress?.committed_step) || task.progress.committed_step < 0 ||
@@ -96,7 +106,7 @@ export class TaskStore {
       if (new TextEncoder().encode(JSON.stringify(saved)).length > this.maxBytes) throw failure('task.storage_limit');
       for (const item of saved.records.slice(-this.maxRecords)) {
         if (!item || typeof item.localId !== 'string' || typeof item.idempotencyKey !== 'string' ||
-            item.submission?.task_contract_version !== TASK_CONTRACT_VERSION || !item.submission.project?.run ||
+            !supportedVersions.has(item.submission?.task_contract_version) || !item.submission.project?.run ||
             !Number.isFinite(item.createdAt) || !Number.isSafeInteger(item.cursor) || item.cursor < 0 ||
             !Number.isFinite(item.retryDeadline) || this.records.has(item.localId)) continue;
         const record = immutable({...item, project:item.submission.project, settings:item.submission.execution,
@@ -193,7 +203,7 @@ export class TaskStore {
     let record = this.get(id);
     if (record.completeness === 'none') return;
     const manifest = await this.client.taskResult(record.runId);
-    if (manifest?.task_contract_version !== TASK_CONTRACT_VERSION || manifest.run_id !== record.runId ||
+    if (manifest?.task_contract_version !== record.submission.task_contract_version || manifest.run_id !== record.runId ||
         !sameInput(manifest.input_snapshot, record.task.input_snapshot) || !Array.isArray(manifest.chunks) || !manifest.chunks.length ||
         !['running', ...TERMINAL_TASK_STATES].includes(manifest.status) || !['partial', 'complete'].includes(manifest.completeness) ||
         !Number.isSafeInteger(manifest.progress?.committed_step) || manifest.progress.committed_step < 0 ||
@@ -218,7 +228,7 @@ export class TaskStore {
         .some(key => cached.descriptor[key] !== chunk[key])) throw failure('task.chunk_changed');
       if (!cached) { cached = {descriptor:structuredClone(chunk), body:await this.client.taskChunk(record.runId, chunk)}; cache.set(chunk.chunk_id, cached); }
       const body = cached.body;
-      if (body?.task_contract_version !== TASK_CONTRACT_VERSION || body.run_id !== record.runId || body.chunk_id !== chunk.chunk_id ||
+      if (body?.task_contract_version !== record.submission.task_contract_version || body.run_id !== record.runId || body.chunk_id !== chunk.chunk_id ||
           !Array.isArray(body.frames) || !body.frames.length || body.frames[0].step_index !== chunk.first_step ||
           body.frames.at(-1).step_index !== chunk.last_step) throw failure('task.invalid_chunk');
       for (const item of body.frames) {
@@ -233,7 +243,7 @@ export class TaskStore {
         (manifest.completeness === 'complete' && previousStep !== record.settings.steps)) throw failure('task.incomplete_manifest');
     const replay = normalizeReplay({replay_format_version:'0.1.0', project_id:record.project.id,
       run:record.project.run, domain:record.project.domain,
-      execution:{task_contract_version:TASK_CONTRACT_VERSION, task_run_id:record.runId, request_id:record.submission.request_id,
+      execution:{task_contract_version:record.submission.task_contract_version, task_run_id:record.runId, request_id:record.submission.request_id,
         status:manifest.status, completeness:manifest.completeness, include_fields:false, input_snapshot:manifest.input_snapshot},
       snapshots:frames.map(item => ({frame:item.frame, concentrations:{}}))});
     this.replace(id, {manifest, replay});

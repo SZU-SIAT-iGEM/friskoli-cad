@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from friskoli_cad.engine import SimulationError
 from friskoli_cad.engine.modules import default_registry
+from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, registry_for_profile, registry_for_project
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.project import validate_project
 from friskoli_cad.protocol import ProtocolError, validate_frame_sequence
@@ -50,6 +51,7 @@ STATIC_FILES = {
     "/catalog.mjs": ("catalog.mjs", "text/javascript; charset=utf-8"),
     "/population.mjs": ("population.mjs", "text/javascript; charset=utf-8"),
     "/workflow.mjs": ("workflow.mjs", "text/javascript; charset=utf-8"),
+    "/workflow-components.mjs": ("workflow-components.mjs", "text/javascript; charset=utf-8"),
     "/graph-edit.mjs": ("graph-edit.mjs", "text/javascript; charset=utf-8"),
     "/placeables.mjs": ("placeables.mjs", "text/javascript; charset=utf-8"),
     "/icons.mjs": ("icons.mjs", "text/javascript; charset=utf-8"),
@@ -92,7 +94,7 @@ def prepare_project(project: Mapping[str, object], *, dt_s: float, steps: int):
         raise ReplayRequestError("replay.steps", "steps must be an integer from 1 to 100")
     if type(dt_s) not in (int, float) or not math.isfinite(dt_s) or dt_s <= 0:
         raise ReplayRequestError("replay.dt", "dt_s must be positive and finite")
-    validate_project(project, default_registry().manifests)
+    validate_project(project, registry_for_project(project).manifests)
     nx, ny, nz = project["domain"]["counts_xyz"]
     if nx * ny > MAX_VIEW_TILES or nx * ny * nz * (steps + 1) > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "grid exceeds the local viewer limit", 413)
@@ -250,15 +252,27 @@ class ReplayHandler(BaseHTTPRequestHandler):
         elif path == "/api/examples/registry-readout":
             self._send(200, files("friskoli_cad").joinpath("examples", "registry_readout.project.json").read_bytes(),
                        "application/json; charset=utf-8")
+        elif path == "/api/examples/pts-bulk":
+            self._send(200, files("friskoli_cad").joinpath("examples", "pts_bulk.project.json").read_bytes(),
+                       "application/json; charset=utf-8")
         elif path == "/api/modules":
             self._json(200, {"protocol_version": "0.1.0", "modules": default_registry().manifests})
         elif path == "/api/catalog":
-            self._json(200, default_registry().catalog)
+            try:
+                query = parse_qs(target.query, keep_blank_values=True, strict_parsing=True) if target.query else {}
+            except ValueError:
+                query = {"invalid": []}
+            profile = query.get("execution_profile", [LEGACY_PROFILE])
+            if set(query) - {"execution_profile"} or len(profile) != 1 or profile[0] not in (LEGACY_PROFILE, PTS_PROFILE):
+                self._json(422, {"error": {"code": "catalog.profile", "path": "/execution_profile", "message": "Unsupported execution profile"}})
+                return
+            self._json(200, registry_for_profile(profile[0]).catalog)
         elif path == "/api/capabilities":
             capabilities = {
                 "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0"],
-                "catalog_versions": ["0.1.0"], "execution_semantics": "legacy-explicit-v1",
-                "project_versions": ["0.1.0", "0.2.0"], "replay_versions": ["0.1.0"],
+                "catalog_versions": ["0.1.0", "0.2.0"], "execution_semantics": "legacy-explicit-v1",
+                "execution_profiles": [LEGACY_PROFILE, PTS_PROFILE],
+                "project_versions": ["0.1.0", "0.2.0", "0.3.0"], "replay_versions": ["0.1.0"],
                 "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
                 "limits": {"request_bytes": MAX_REQUEST_BYTES, "cells": MAX_VIEW_CELLS,
                            "xy_tiles": MAX_VIEW_TILES, "replay_values": MAX_REPLAY_VALUES, "steps": 100},
@@ -268,6 +282,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
             service = getattr(self.server, "task_service", None)
             if service is not None:
                 capabilities["task"] = service.capabilities()
+                capabilities["task_profiles"] = {PTS_PROFILE: service.capabilities(PTS_PROFILE)}
             self._json(200, capabilities)
         elif path in STATIC_FILES:
             filename, content_type = STATIC_FILES[path]

@@ -5,7 +5,7 @@ import { renderModuleDocumentation } from './math-inspector.mjs';
 import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
 import { writeWorkspace, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
-import { TaskStore, buildSubmission, matchesDraft, supportsTasks } from './task-store.mjs';
+import { TaskStore, buildSubmission, matchesDraft, supportsTasks, taskCapability } from './task-store.mjs';
 import { renderResultData } from './results.mjs';
 import { installDockSizing } from './panels.mjs';
 import { SpatialViewport } from './scene3d.mjs';
@@ -34,6 +34,7 @@ let taskStorage = null;
 try { taskStorage = localStorage; } catch { /* display unavailable recovery in the task panel */ }
 const taskStore = new TaskStore(kernel, {storage:taskStorage, onChange:taskUpdated});
 state.objects = new Map();
+state.registries = new Map();
 state.activeObject = null;
 const TOOLS = { select: 'select-tool', population: 'population-tool', move: 'move-tool', scale: 'scale-tool',
   rotate: 'rotate-tool', hand: 'hand-tool', orbit: 'orbit-tool', measure: 'measure-tool' };
@@ -535,7 +536,7 @@ function renderDiagnostics() {
     row.append(actions); runs.append(row);
   }
   $('task-recovery-warning').hidden = !taskStore.persistenceError && Boolean(taskStorage);
-  $('task-output-note').hidden = !supportsTasks(state.capabilities);
+  $('task-output-note').hidden = !supportsTasks(state.capabilities, state.project);
   renderData();
 }
 
@@ -948,11 +949,11 @@ async function executeProject(candidate) {
   const submitted = structuredClone(candidate), settings = structuredClone(state.settings);
   try { resolveGraph(submitted.graph, state.modules); }
   catch (error) { status('runFailed', {message:error.message}, true); return false; }
-  if (supportsTasks(state.capabilities)) {
+  if (supportsTasks(state.capabilities, submitted)) {
     try {
       const submission = buildSubmission(state.capabilities, submitted, settings, `${state.draftToken}:${state.revision}`);
       const record = taskStore.create(submission, {draftToken:state.draftToken, revision:state.revision,
-        idempotencyRetentionSeconds:state.capabilities.task.limits.idempotency_retention_seconds});
+        idempotencyRetentionSeconds:taskCapability(state.capabilities, submitted).limits.idempotency_retention_seconds});
       state.latestTask = record.localId;
       showBottom('runs'); renderDiagnostics(); status('taskSubmitted');
       await taskStore.submit(record.localId);
@@ -1023,7 +1024,13 @@ function download(name, content, type = 'application/json') {
 }
 
 async function loadProject(document) {
-  const {state:loaded,report} = adaptWorkspace(document, state.modules);
+  const project = document.workspace_format_version ? document.project : document;
+  const profile = project?.execution_profile ?? 'legacy-explicit-v1';
+  const registry = state.registries.get(profile);
+  if (!registry) throw new Error('Unsupported execution profile: ' + profile);
+  const {state:loaded,report} = adaptWorkspace(document, registry.modules);
+  state.modules = registry.modules; state.objects = registry.objects;
+  state.activeObject = availablePlaceables(state.modules, state.capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
   state.draftToken = crypto.randomUUID(); state.latestTask = null;
   Object.assign(state, loaded);
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);
@@ -1265,6 +1272,7 @@ $('welcome-open').addEventListener('click', () => chooseProjectFile(true));
 $('welcome-new').addEventListener('click', () => loadWelcome(() => blankProject(state.template)));
 $('welcome-demo').addEventListener('click', () => loadWelcome(() => state.template));
 $('welcome-registry').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/registry-readout')));
+$('welcome-pts').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/pts-bulk')));
 $('welcome-recover').addEventListener('click', () => loadWelcome(() => {
   const recovery = localStorage.getItem(RECOVERY_KEY);
   if (!recovery) throw new Error(t('recoveryAbsent'));
@@ -1313,6 +1321,12 @@ try {
   const [catalogResponse, projectResponse, capabilities] = await Promise.all([fetch('/api/catalog'), fetch('/api/example-project'), kernel.capabilities()]);
   if (!catalogResponse.ok || !projectResponse.ok) throw new Error('Local kernel unavailable');
   const registry = registerCatalog(await catalogResponse.json());
+  state.registries.set('legacy-explicit-v1', registry);
+  if (capabilities.execution_profiles?.includes('conservative-pts-bulk-v1')) {
+    const ptsRegistry = registerCatalog(await kernel.request('/api/catalog?execution_profile=conservative-pts-bulk-v1'));
+    state.registries.set('conservative-pts-bulk-v1', ptsRegistry);
+  }
+  $('welcome-pts').disabled = !state.registries.has('conservative-pts-bulk-v1');
   state.modules = registry.modules; state.objects = registry.objects;
   state.activeObject = availablePlaceables(state.modules, capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
   state.capabilities = capabilities;

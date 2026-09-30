@@ -33,7 +33,9 @@ export function nextHit(ids, previousId) {
 
 // Registry versioning does not change the executable module manifest version.
 export function registerCatalog(payload) {
-  if (payload?.catalog_version !== '0.1.0' || payload.execution_semantics !== 'legacy-explicit-v1' ||
+  const known = (payload?.catalog_version === '0.1.0' && payload.execution_semantics === 'legacy-explicit-v1') ||
+    (payload?.catalog_version === '0.2.0' && payload.execution_semantics === 'conservative-pts-bulk-v1');
+  if (!known ||
       !Array.isArray(payload.entries) || !Array.isArray(payload.objects)) throw new Error('Unsupported registry catalog');
   const modules = registerModules({protocol_version:'0.1.0', modules:payload.modules});
   const seen = new Set();

@@ -16,9 +16,10 @@ import time
 import uuid
 import psutil
 from friskoli_cad.project import validate_project
+from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, profile_for_project
 from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.protocol.task_validation import (VERSION, TaskValidationError, canonical_bytes, canonical_loads, sha256, strict_json_loads, validate_submission)
-from .metadata import BACKEND, SEMANTICS, compiled_plan, estimate, provenance, registry_metadata
+from .metadata import BACKEND, compiled_plan, estimate, provenance, registry_metadata
 from .worker import run_worker
 
 TERMINAL = frozenset(("completed", "failed", "cancelled", "interrupted"))
@@ -78,6 +79,8 @@ class TaskService:
         self._process = None
         self._corrupt = set()
         self._registry, self._version_lock, self._sources = registry_metadata()
+        self._profile_metadata = {LEGACY_PROFILE: (self._registry, self._version_lock, self._sources),
+                                  PTS_PROFILE: registry_metadata(PTS_PROFILE)}
         self._ctx = multiprocessing.get_context("spawn")
         self.directory.mkdir(parents=True, exist_ok=True)
         self._owner_file = (self.directory / "service.lock").open("a+b")
@@ -179,15 +182,21 @@ class TaskService:
                             progress=task["progress"], issues=task["issues"])
             self._db.execute("UPDATE tasks SET manifest=? WHERE run_id=?", (self._dump(manifest), task["run_id"]))
 
-    def capabilities(self):
-        return {"task_contract_version": VERSION, "mode": "single-worker",
+    def capabilities(self, profile=LEGACY_PROFILE):
+        if profile not in self._profile_metadata:
+            raise TaskError(422, "task.execution_unsupported", "Unsupported execution profile.", "/execution/semantics", phase="resolve")
+        _, version_lock, _ = self._profile_metadata[profile]
+        return {"task_contract_version": VERSION if profile == LEGACY_PROFILE else "0.2.0", "mode": "single-worker",
             "pause": False, "resume": False, "checkpoint": False, "partial_results": True,
             "hash_canonicalization": "RFC8785", "limits": asdict(self.limits),
-            "version_lock": canonical_loads(self._dump(self._version_lock)),
-            "execution": {"semantics": SEMANTICS, "backend": BACKEND, "default_seed": 0}}
+            "version_lock": canonical_loads(self._dump(version_lock)),
+            "execution": {"semantics": profile, "backend": BACKEND, "default_seed": 0}}
 
     def version_lock(self, project=None):
-        lock = canonical_loads(self._dump(self._version_lock))
+        profile = LEGACY_PROFILE if project is None else profile_for_project(project)
+        if profile not in self._profile_metadata:
+            raise TaskError(422, "task.execution_unsupported", "Unsupported execution profile.", "/execution/semantics", phase="resolve")
+        lock = canonical_loads(self._dump(self._profile_metadata[profile][1]))
         if project is not None:
             used = {(node["module_id"], node["module_version"]) for node in project["graph"]["nodes"]}
             lock["implementations"] = [item for item in lock["implementations"] if (item["id"], item["version"]) in used]
@@ -195,11 +204,15 @@ class TaskService:
 
     def _admit(self, submission):
         project, execution = submission["project"], submission["execution"]
-        if execution["semantics"] != SEMANTICS or execution["backend"] != BACKEND:
+        profile = profile_for_project(project)
+        registry, full, _ = self._profile_metadata[profile]
+        expected_version = VERSION if profile == LEGACY_PROFILE else "0.2.0"
+        if (execution["semantics"] != profile or execution["backend"] != BACKEND
+                or submission["task_contract_version"] != expected_version):
             raise TaskError(422, "task.execution_unsupported", "Unsupported execution semantics or backend.", "/execution", phase="resolve")
         if not math.isfinite(execution["dt_s"] * execution["steps"]):
             raise TaskError(422, "task.time_overflow", "Simulation duration must be finite.", "/execution")
-        provided, expected, full = submission["version_lock"], self.version_lock(project), self._version_lock
+        provided, expected = submission["version_lock"], self.version_lock(project)
         if provided["registry_sha256"] != full["registry_sha256"]:
             raise TaskError(422, "task.lock_mismatch", "Registry lock does not match this service.", "/version_lock/registry_sha256", phase="resolve")
         entries = provided["implementations"]
@@ -210,8 +223,8 @@ class TaskService:
                 or any(key not in full_map or value != full_map[key] for key, value in unique.items())):
             raise TaskError(422, "task.lock_mismatch", "Exact implementation locks are required for every graph module.", "/version_lock/implementations", phase="resolve")
         try:
-            validate_project(project, self._registry.manifests)
-            plan = compiled_plan(project, self._registry)
+            validate_project(project, registry.manifests)
+            plan = compiled_plan(project, registry)
         except ProtocolError as error:
             path = getattr(error, "path", "")
             raise TaskError(422, getattr(error, "code", "task.project_invalid"), str(error),
@@ -221,7 +234,7 @@ class TaskService:
             raise TaskError(422, "task.observable_unknown", "Output plan includes an unknown frame channel.", "/output_plan/observables", phase="validate")
         if submission["output_plan"]["frame_every_steps"] != 1 and any("divide" in node["outputs"] for node in plan["nodes"]):
             raise TaskError(422, "task.sampling_unsupported", "Division models require every complete frame to preserve lineage events.", "/output_plan/frame_every_steps", phase="validate")
-        budget = estimate(submission, self._registry)
+        budget = estimate(submission, registry)
         for name, bound in (("cells", "cells"), ("voxels", "voxels"), ("steps", "steps"),
                             ("memory_bytes", "estimated_memory_bytes"), ("output_bytes", "output_bytes")):
             if budget[name] > getattr(self.limits, bound):
@@ -273,9 +286,9 @@ class TaskService:
             run_id, stamp = "run_" + uuid.uuid4().hex, _now()
             snapshot = {"href": f"/api/runs/{run_id}/input", "document_sha256": hashlib.sha256(data).hexdigest(),
                 "scientific_sha256": sha256({name: submission[name] for name in ("project", "version_lock", "execution", "output_plan")}),
-                "plan_sha256": sha256(plan), "registry_sha256": self._version_lock["registry_sha256"],
+                "plan_sha256": sha256(plan), "registry_sha256": self.version_lock(submission["project"])["registry_sha256"],
                 "canonicalization": "RFC8785", "edit_revision": submission["edit_revision"]}
-            task = {"task_contract_version": VERSION, "run_id": run_id, "status": "queued",
+            task = {"task_contract_version": submission["task_contract_version"], "run_id": run_id, "status": "queued",
                 "created_at": stamp, "updated_at": stamp, "finished_at": None, "cancel_requested": False,
                 "input_snapshot": snapshot, "estimate": budget,
                 "progress": {"committed_step": 0, "simulation_time_s": 0}, "last_event_seq": 0,
@@ -413,11 +426,12 @@ class TaskService:
             row = self._row(run_id)
             existing = canonical_loads(row["manifest"]) if row["manifest"] else None
             descriptors = existing["chunks"][:] if existing else []
+            contract_version = canonical_loads(row["task"])["task_contract_version"]
         metadata = None
         if "frame" in message:
             sequence = len(descriptors)
             chunk_id = f"chunk_{sequence:08d}"
-            body = canonical_bytes({"task_contract_version": VERSION, "run_id": run_id,
+            body = canonical_bytes({"task_contract_version": contract_version, "run_id": run_id,
                 "chunk_id": chunk_id, "frames": [{"sequence": sequence, "step_index": message["step"],
                     "time_s": message["time_s"], "grid_revision": message["grid_revision"], "frame": message["frame"]}]})
             if len(body) > self.limits.chunk_bytes or sum(item["bytes"] for item in descriptors) + len(body) > self.limits.output_bytes:
@@ -442,7 +456,7 @@ class TaskService:
             elif message["final"]:
                 task["status"], task["finished_at"] = "completed", _now()
                 task["result"]["completeness"] = "complete"
-            manifest = {"task_contract_version": VERSION, "run_id": run_id,
+            manifest = {"task_contract_version": task["task_contract_version"], "run_id": run_id,
                 "input_snapshot": task["input_snapshot"], "chunks": descriptors,
                 "compiled_plan": canonical_loads(row["plan"]), "provenance": canonical_loads(row["provenance"])} if descriptors else None
             self._event(task, "progress" if task["status"] == "running" else task["status"], manifest)
@@ -452,13 +466,16 @@ class TaskService:
         folder = self.directory / "runs" / run_id
         spool = folder / "worker"
         spool.mkdir(parents=True, exist_ok=True)
-        acknowledgement = self._ctx.Event()
-        process = self._ctx.Process(target=run_worker, args=(submission, str(spool), acknowledgement,
+        acknowledgement_reader, acknowledgement_writer = self._ctx.Pipe(duplex=False)
+        process = self._ctx.Process(target=run_worker, args=(submission, str(spool), acknowledgement_reader,
                                     asdict(self.limits), self._sources), name="friskoli-numerical-worker", daemon=True)
         self._process = process
         started = time.monotonic()
         try:
             process.start()
+            # Only the child owns the reader. Keeping a parent copy would hide
+            # a dead reader from send_bytes and leak a pipe handle per task.
+            acknowledgement_reader.close()
             observed = psutil.Process(process.pid)
             while not self._stop.is_set():
                 if time.monotonic() - started > self.limits.wall_time_s:
@@ -475,16 +492,26 @@ class TaskService:
                     message = canonical_loads(ready.read_bytes())
                     ready.unlink()
                     if message["kind"] == "error":
-                        self._finish(run_id, "failed", _issue(message["code"], message["message"], phase=message["phase"]))
+                        self._finish(run_id, "failed", _issue(message["code"], message["message"], path=message.get("path", ""), phase=message["phase"]))
                         return
                     if self._publish(run_id, message) in TERMINAL:
                         return
-                    acknowledgement.set()
+                    try:
+                        # At most one byte can be outstanding: the child must
+                        # consume it before it can publish the next ready file.
+                        # No process-shared condition lock can be poisoned by
+                        # terminating the child while it waits for this ack.
+                        acknowledgement_writer.send_bytes(b"\x01")
+                    except (BrokenPipeError, EOFError, OSError) as error:
+                        raise TaskError(500, "task.worker_failed",
+                            "Numerical worker disconnected before acknowledging its committed step.", phase="execute") from error
                 elif not process.is_alive():
                     raise TaskError(500, "task.worker_failed", "Numerical worker exited before publishing its final step.", phase="execute")
                 self._stop.wait(0.01)
             self._finish(run_id, "interrupted", _issue("task.service_interrupted", "Service closed before this task finished.", phase="recover"))
         finally:
+            acknowledgement_reader.close()
+            acknowledgement_writer.close()
             if process.pid is not None:
                 if process.is_alive():
                     process.terminate()

@@ -8,6 +8,8 @@ import threading
 from pathlib import Path
 
 from friskoli_cad.project import simulation_from_project
+from friskoli_cad.engine.runtime import SimulationError
+from friskoli_cad.engine.profiles import PTS_PROFILE
 from friskoli_cad.protocol.task_validation import canonical_bytes, sha256
 from .metadata import source_hashes
 
@@ -21,10 +23,10 @@ def _send(spool: Path, acknowledgement, message: dict, maximum: int) -> None:
         stream.write(data)
         stream.flush()
         os.fsync(stream.fileno())
-    acknowledgement.clear()
     os.replace(temporary, spool / "ready.json")
     # The parent only acknowledges after the complete step is committed.
-    acknowledgement.wait()
+    if acknowledgement.recv_bytes() != b"\x01":
+        raise ValueError("Invalid committed-step acknowledgement")
 
 
 class WorkerLimit(ValueError):
@@ -69,12 +71,19 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
                 message["grid_revision"] = sha256({"shape": list(domain.shape),
                     "spacing": [domain.dx_um, domain.dy_um, domain.dz_um]})
             _send(spool, acknowledgement, message, limits["chunk_bytes"] + 4096)
+    except (EOFError, BrokenPipeError):
+        # The parent stopped or closed its confirmation channel; there is no
+        # peer left to consume another error message.
+        pass
     except BaseException as error:
-        code = "task.resource_limit" if isinstance(error, WorkerLimit) else "task.worker_failed"
+        known = isinstance(error, SimulationError) and submission["execution"]["semantics"] == PTS_PROFILE
+        code = error.code if known else ("task.resource_limit" if isinstance(error, WorkerLimit) else "task.worker_failed")
         # Numerical error paths are input pointers; arbitrary exception details never expose paths.
-        message = str(error) if isinstance(error, WorkerLimit) else "Numerical worker failed during " + phase + "."
+        message = str(error) if known or isinstance(error, WorkerLimit) else "Numerical worker failed during " + phase + "."
         try:
             _send(spool, acknowledgement, {"kind": "error", "code": code,
-                "message": message, "phase": phase}, 4096)
+                "message": message, "phase": phase, "path": error.path if known else ""}, 4096)
         except BaseException:
             pass
+    finally:
+        acknowledgement.close()

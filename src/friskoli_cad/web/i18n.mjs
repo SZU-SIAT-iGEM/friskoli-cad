@@ -7,7 +7,7 @@ const messages = {
     retryQuery:'Retry query',retrySubmission:'Retry same submission',taskSubmitted:'Submitting frozen input. The draft remains editable.',
     taskDraft:'Frozen revision {revision}; changes stay in the editor draft.',
     taskFramesOnly:'Frames only · no field heatmaps',
-    taskOutputScope:'N2 tasks publish cell frames and selected channels. Concentration fields and field heatmaps are not included. Editing or opening a project does not cancel a task.',
+    taskOutputScope:'Background tasks publish cell frames and selected channels. Concentration fields and field heatmaps are not included. Editing or opening a project does not cancel a task.',
     snapshotReadOnly:'This submitted input is read-only. Task run_id is distinct from the project’s legacy run_id. Execution seed is recorded in this snapshot.',
     eventsExpired:'Event history expired. Current state was recovered; earlier events are incomplete.',
     queryPaused:'Automatic queries stopped after repeated errors. Use Retry query to reconnect.',
@@ -16,6 +16,7 @@ const messages = {
     taskRecoveryFailed:'Task recovery could not be saved in this browser. Keep this page open and export published results.',
 
     registryDemoTitle:'Geometry & sampling',registryDemoHint:'Registry example · constructed validation values',
+    ptsDemoTitle:'Shared substrate & PTS signals',ptsDemoHint:'Static cells · constructed parameters · no motion',
     mathematics:'Mathematics & algorithm',mathPending:'Mathematical documentation has not yet been registered.',
     symbolsAndSource:'Symbols and LaTeX source',implementationEvidence:'Implementation and evidence',
     registeredTests:'Referenced implementation tests. These are not evidence of biological calibration.',mathUnreviewed:'Not reviewed.',
@@ -100,7 +101,7 @@ const messages = {
     retryQuery:'重新查询',retrySubmission:'重试原提交',taskSubmitted:'正在提交冻结输入，草稿仍可编辑。',
     taskDraft:'冻结修订 {revision}；后续修改保留在编辑草稿中。',
     taskFramesOnly:'仅帧数据 · 不含场热图',
-    taskOutputScope:'N2 任务发布菌体帧和所选通道，不含浓度场数据及场热图。编辑或打开其他项目不会取消任务。',
+    taskOutputScope:'后台任务发布菌体帧和所选通道，不含浓度场数据及场热图。编辑或打开其他项目不会取消任务。',
     snapshotReadOnly:'提交时的输入为只读。任务 run_id 与项目内的旧 run_id 分开记录；执行 seed 可在此快照中查看。',
     eventsExpired:'较早事件已过期，已恢复当前状态；事件历史并不完整。',
     queryPaused:'多次查询失败后已停止自动重试，可点击重新查询恢复连接。',
@@ -109,6 +110,7 @@ const messages = {
     taskRecoveryFailed:'此浏览器未能保存任务恢复记录。请保留页面并导出已发布结果。',
 
     registryDemoTitle:'几何与浓度采样',registryDemoHint:'注册贯通样例 · 构造验证值，非科学标定',
+    ptsDemoTitle:'共享底物与 PTS 信号',ptsDemoHint:'静止菌体 · 构造参数 · 尚未接入运动',
     mathematics:'数学表达与算法',mathPending:'该模块尚未登记数学说明。',
     symbolsAndSource:'符号与 LaTeX 源码',implementationEvidence:'实现与验证依据',
     registeredTests:'列出实现测试的引用；不代表生物学标定或等价性证明。',mathUnreviewed:'尚未审查。',

@@ -233,7 +233,7 @@ class DivisionRefreshModule(RuntimeModule, Protocol):
 
 
 class ModuleRegistry:
-    def __init__(self, modules: Iterable[RuntimeModule]):
+    def __init__(self, modules: Iterable[RuntimeModule], execution_semantics="legacy-explicit-v1"):
         by_key = {}
         for module in modules:
             validate_manifest(module.manifest)
@@ -242,7 +242,7 @@ class ModuleRegistry:
                 raise SimulationError("module.duplicate", f"module {key} is registered twice")
             by_key[key] = module
         self._modules = MappingProxyType(by_key)
-        self._catalog = build_catalog(by_key.values())
+        self._catalog = build_catalog(by_key.values(), execution_semantics)
 
     @property
     def catalog(self) -> dict:

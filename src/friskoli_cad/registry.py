@@ -24,17 +24,17 @@ def module_key(manifest):
     return f"{manifest['id']}@{manifest['version']}"
 
 
-def _port_contract(port):
+def _port_contract(port, semantics="legacy-explicit-v1"):
     prefix = port["shape"].split(".")[0]
     return {"shape": port["shape"], "quantity": port["quantity"], "unit": port["unit"],
             "entity": {"cell": "owner.cells", "field": "world.grid", "source": "owner.source",
                        "global": "world", "event": "events"}[prefix],
-            "time": "legacy-explicit-v1; timing is declared on each edge",
+            "time": semantics + "; timing is declared on each edge",
             "species_parameter": port.get("species_parameter")}
 
 
 def validate_catalog(catalog):
-    _check_schema("catalog", catalog)
+    _check_schema("catalog-v0.2" if catalog.get("catalog_version") == "0.2.0" else "catalog", catalog)
     manifests = {}
     for index, manifest in enumerate(catalog["modules"]):
         validate_manifest(manifest)
@@ -49,7 +49,7 @@ def validate_catalog(catalog):
             raise ProtocolError("catalog.duplicate", f"/entries/{index}/key", key)
         if key not in manifests:
             raise ProtocolError("catalog.reference", f"/entries/{index}/key", key)
-        expected = {side: {name: _port_contract(port) for name, port in manifests[key][side].items()}
+        expected = {side: {name: _port_contract(port, catalog["execution_semantics"]) for name, port in manifests[key][side].items()}
                     for side in ("inputs", "outputs")}
         if entry["ports"] != expected:
             raise ProtocolError("catalog.port", f"/entries/{index}/ports", "declaration differs from executable manifest")
@@ -109,9 +109,9 @@ def validate_catalog(catalog):
     return catalog
 
 
-def build_catalog(modules):
-    catalog = {"catalog_version": "0.1.0", "module_protocol_versions": ["0.1.0"],
-               "execution_semantics": "legacy-explicit-v1", "modules": [], "entries": [], "objects": []}
+def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
+    catalog = {"catalog_version": "0.1.0" if execution_semantics == "legacy-explicit-v1" else "0.2.0", "module_protocol_versions": ["0.1.0"],
+               "execution_semantics": execution_semantics, "modules": [], "entries": [], "objects": []}
     for module in modules:
         manifest = deepcopy(dict(module.manifest))
         declaration = deepcopy(getattr(module, "declaration", {}))
@@ -123,7 +123,7 @@ def build_catalog(modules):
                      "implementation": f"{type(module).__module__}.{type(module).__name__}",
                      "verification": {"status": "unreviewed", "tests": []},
                      "assumptions": ["Scientific explanation has not yet been registered."]},
-                 "ports": {side: {name: _port_contract(port) for name, port in manifest[side].items()}
+                 "ports": {side: {name: _port_contract(port, execution_semantics) for name, port in manifest[side].items()}
                            for side in ("inputs", "outputs")}}
         entry.update(declaration)
         if entry["world_access"] != getattr(module, "world_access", "legacy_inferred"):

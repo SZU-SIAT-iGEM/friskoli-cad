@@ -8,27 +8,30 @@ from importlib.resources import files
 import numpy as np
 
 from friskoli_cad.engine.compiler import compile_graph
-from friskoli_cad.engine.modules import default_registry
+from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, profile_for_project, registry_for_profile, pts_schedule
 from friskoli_cad.protocol.task_validation import sha256
 
-SEMANTICS = "legacy-explicit-v1"
+SEMANTICS = LEGACY_PROFILE
 BACKEND = "numpy-cpu"
 
 
 def source_hashes() -> dict:
     root = files("friskoli_cad")
     paths = [("project.py", root.joinpath("project.py"))]
-    for folder in ("engine", "protocol"):
+    for folder in ("engine", "protocol", "science"):
         paths.extend((folder + "/" + entry.name, entry)
                      for entry in root.joinpath(folder).iterdir()
                      if entry.name.endswith(".py") and entry.name != "task_validation.py")
+    paths.extend(("science/data/" + entry.name, entry)
+                 for entry in root.joinpath("science", "data").iterdir()
+                 if entry.name.endswith(".json"))
     paths.append(("tasks/worker.py", root.joinpath("tasks", "worker.py")))
     return {name: hashlib.sha256(path.read_bytes()).hexdigest()
             for name, path in sorted(paths)}
 
 
-def registry_metadata() -> tuple:
-    registry = default_registry()
+def registry_metadata(profile=LEGACY_PROFILE) -> tuple:
+    registry = registry_for_profile(profile)
     registry_document = {"manifests": list(registry.manifests), "catalog": registry.catalog}
     sources = source_hashes()
     implementations = [{"id": item["id"], "version": item["version"],
@@ -41,8 +44,9 @@ def registry_metadata() -> tuple:
 
 def compiled_plan(project, registry) -> dict:
     plan = compile_graph(project["graph"], registry.manifests)
-    return {"plan_version": "0.1.0", "graph_id": plan.id,
-        "execution_semantics": SEMANTICS, "nodes": [{
+    return {"plan_version": "0.2.0" if profile_for_project(project) == PTS_PROFILE else "0.1.0", "graph_id": plan.id,
+        **({"schedule": pts_schedule(plan)} if profile_for_project(project) == PTS_PROFILE else {}),
+        "execution_semantics": profile_for_project(project), "nodes": [{
             "id": node.id, "module_id": node.module_id, "module_version": node.module_version,
             "owner_kind": node.owner_kind, "owner_id": node.owner_id, "phase": node.phase,
             "parameters": {name: {"value": item.value, "unit": item.unit,
@@ -80,7 +84,10 @@ def estimate(submission, registry) -> dict:
     every = submission["output_plan"]["frame_every_steps"]
     frames = 1 + steps // every + int(steps % every != 0)
     # Includes Python/NumPy startup allowance, temporaries, previous/current arrays and JSON.
-    memory = 64 * 1024 * 1024 + voxels * max(1, field_arrays) * 8 * 16
+    # The PTS profile owns one well-mixed bulk scalar, not a voxel inventory.
+    # It still retains the domain counts for geometry validation and limits.
+    field_elements = 1 if profile_for_project(project) == PTS_PROFILE else voxels
+    memory = 64 * 1024 * 1024 + field_elements * max(1, field_arrays) * 8 * 16
     memory += cells * (4096 + cell_arrays * 8 * 16)
     # UTF-8 names and channel IDs are included, rather than assuming ASCII names.
     channel_bytes = sum(len(name.encode("utf-8")) + 32

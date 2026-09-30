@@ -262,6 +262,52 @@ class TaskServiceTests(unittest.TestCase):
         next_task, _ = self.service.submit(submission(self.service), "after-crash")
         self.assertEqual(terminal(self.service, next_task["run_id"])["status"], "completed")
 
+    def test_repeated_kill_at_durable_publish_ack_boundary_does_not_poison_service(self):
+        # Kill at the actual publish/confirmation boundary, not just after an
+        # arbitrary sleep. A dead process must not leave the parent's ack
+        # blocked on a multiprocessing Event's shared condition lock.
+        original = self.service._publish
+        for index in range(6):
+            with self.subTest(iteration=index):
+                killed = []
+                def kill_before_confirmation(run_id, message):
+                    # Alternate death immediately before and after durable
+                    # publication. Both retain the complete initial frame.
+                    process = self.service._process
+                    if index % 2 == 0:
+                        process.terminate()
+                        process.join(timeout=5)
+                        self.assertIsNotNone(process.exitcode)
+                    status = original(run_id, message)
+                    if index % 2:
+                        process.terminate()
+                        process.join(timeout=5)
+                        self.assertIsNotNone(process.exitcode)
+                    killed.append(message["step"])
+                    return status
+                with patch.object(self.service, "_publish", side_effect=kill_before_confirmation):
+                    task, _ = self.service.submit(submission(self.service, steps=3), f"ack-crash-{index}")
+                    result = terminal(self.service, task["run_id"])
+                self.assertEqual(killed, [0])
+                self.assertEqual(result["status"], "failed")
+                self.assertEqual(result["issues"][0]["code"], "task.worker_failed")
+                self.assertEqual(result["progress"]["committed_step"], 0)
+                self.assertEqual(result["result"]["completeness"], "partial")
+                manifest = self.service.manifest(task["run_id"])
+                self.assertEqual(len(manifest["chunks"]), 1)
+                self.service.chunk(task["run_id"], manifest["chunks"][0]["chunk_id"])
+                # The same manager must execute another real worker after
+                # each failure; merely marking the first task failed is not enough.
+                following, _ = self.service.submit(submission(self.service, steps=1), f"ack-recovery-{index}")
+                self.assertEqual(terminal(self.service, following["run_id"])["status"], "completed")
+        thread = self.service._thread
+        self.service.close()
+        self.assertFalse(thread.is_alive())
+        # Closing also releases the directory owner lock, not just the thread.
+        self.service = TaskService(self.temp.name)
+        following, _ = self.service.submit(submission(self.service, steps=1), "ack-reopened")
+        self.assertEqual(terminal(self.service, following["run_id"])["status"], "completed")
+
     def test_cancel_wins_before_final_publication_and_complete_wins_after(self):
         reached, proceed = threading.Event(), threading.Event()
         original = self.service._write_atomic

@@ -210,9 +210,12 @@ def sha256(obj: Any) -> str:
 
 
 @lru_cache(maxsize=16)
-def _validator(definition: str) -> Draft202012Validator:
+def _validator(definition: str, version: str = VERSION) -> Draft202012Validator:
     folder = files("friskoli_cad.protocol").joinpath("schemas")
-    schema = json.loads(folder.joinpath(_SCHEMA_NAME).read_text(encoding="utf-8"))
+    schema_name = {VERSION: _SCHEMA_NAME, "0.2.0": "task-v0.2.schema.json"}.get(version)
+    if schema_name is None:
+        _fail("task.version", "Unsupported task contract version.", "/task_contract_version")
+    schema = json.loads(folder.joinpath(schema_name).read_text(encoding="utf-8"))
     registry = Registry()
     for path in folder.iterdir():
         if path.name.endswith(".schema.json"):
@@ -227,7 +230,8 @@ def _validator(definition: str) -> Draft202012Validator:
 def validate_submission(obj: Any) -> None:
     """Validate stable Submission structure; runtime semantic checks follow."""
     canonical_bytes(obj)
-    errors = sorted(_validator("Submission").iter_errors(obj),
+    version = obj.get("task_contract_version", VERSION) if isinstance(obj, dict) else VERSION
+    errors = sorted(_validator("Submission", version).iter_errors(obj),
                     key=lambda error: (_pointer(error.absolute_path), error.message))
     if errors:
         raise TaskValidationError([{"code": "task.schema_invalid",

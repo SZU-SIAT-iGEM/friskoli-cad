@@ -1,16 +1,13 @@
 import { resolveGraph } from './catalog.mjs';
+import { currentLanguage } from './i18n.mjs';
+import { NODE_WIDTH, element as el, nodeGeometry, nodeStatus, createNodeShell, createNodeHeader,
+  createPortRow, createNodeFooter, graphBounds, workflowText } from './workflow-components.mjs';
+export { NODE_WIDTH } from './workflow-components.mjs';
 
 const SVG = 'http://www.w3.org/2000/svg';
-export const NODE_WIDTH = 214;
-const HEAD = 66, ROW = 22, GRID = 14;
+const GRID = 14;
 const snap = value => Math.max(0, Math.round(value / GRID) * GRID);
 const key = node => `${node.module_id}@${node.module_version}`;
-const el = (tag, className = '', value = '') => {
-  const item = document.createElement(tag);
-  item.className = className;
-  item.textContent = value;
-  return item;
-};
 const svgPath = (d, className) => {
   const path = document.createElementNS(SVG, 'path');
   path.setAttribute('d', d);
@@ -18,9 +15,8 @@ const svgPath = (d, className) => {
   return path;
 };
 
-export function nodeHeight(manifest, collapsed = false) {
-  return HEAD + Math.max(1, collapsed ? 1 : Object.keys(manifest.inputs).length,
-    collapsed ? 1 : Object.keys(manifest.outputs).length) * ROW + 10;
+export function nodeHeight(manifest, collapsed = false, coarse = false) {
+  return nodeGeometry(manifest, collapsed, coarse).height;
 }
 
 // Keeps saved positions and places new nodes in their phase column below existing cards.
@@ -31,16 +27,17 @@ export function autoLayout(graph, modules, layout = {}) {
   for (const node of graph.nodes) {
     if (next[node.id]) continue;
     const manifest = modules.get(key(node));
-    const x = 70 + phases.indexOf(manifest?.phase ?? 0) * 280;
-    const height = manifest ? nodeHeight(manifest) : 120;
+    const x = 70 + phases.indexOf(manifest?.phase ?? 0) * 322;
+    const collapsed = manifest?.declaration?.category === 'data';
+    const height = manifest ? nodeHeight(manifest, collapsed, true) : 180;
     let y = 70;
     const clash = () => Object.entries(next).some(([id, p]) => {
       const other = graph.nodes.find(item => item.id === id);
-      const h = modules.get(other ? key(other) : '') ? nodeHeight(modules.get(key(other))) : 120;
+      const h = modules.get(other ? key(other) : '') ? nodeHeight(modules.get(key(other)), p.collapsed, true) : 180;
       return Math.abs(p.x - x) < NODE_WIDTH + 20 && y < p.y + h + 24 && p.y < y + height + 24;
     });
     while (clash()) y += GRID * 2;
-    next[node.id] = { x, y, ...(manifest?.declaration?.category === 'data' ? {collapsed:true} : {}) };
+    next[node.id] = { x, y, ...(collapsed ? {collapsed:true} : {}) };
   }
   return next;
 }
@@ -59,15 +56,21 @@ export class GraphEditor {
     this.layout = {};
     this.zoom = 1;
     this.pointers = new Map();
+    this.coarse = globalThis.matchMedia?.('(pointer: coarse)').matches ?? false;
+    if (globalThis.ResizeObserver) new ResizeObserver(() => {
+      if (this.board && container.clientWidth && container.clientHeight) this.resizeBoard();
+    }).observe(container);
     container.addEventListener('wheel', event => {
       if (!event.ctrlKey && !event.metaKey) return;
       event.preventDefault(); this.zoomBy(Math.exp(-event.deltaY * .005), [event.clientX,event.clientY]);
     }, {passive:false});
     container.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || event.target.closest('.graph-toolbar,button:not(.port-dot),input,summary,.graph-mathematics')) return;
       this.pointers.set(event.pointerId,[event.clientX,event.clientY]);
+      if (this.pointers.size > 1) { this.cancelDrag?.(); this.cancelWire?.(); this.panStart = null; }
       if (event.target.closest('.graph-node,.edge-hit')) return;
       container.setPointerCapture(event.pointerId); this.panStart=[event.clientX,event.clientY,container.scrollLeft,container.scrollTop];
-    });
+    }, true);
     container.addEventListener('pointermove', event => {
       if (!this.pointers.has(event.pointerId)) return;
       const old=[...this.pointers.values()];this.pointers.set(event.pointerId,[event.clientX,event.clientY]);
@@ -75,7 +78,10 @@ export class GraphEditor {
         if(distance(old)>0)this.zoomBy(distance(next)/distance(old),[(next[0][0]+next[1][0])/2,(next[0][1]+next[1][1])/2]);this.panStart=null;
       }else if(this.panStart){container.scrollLeft=this.panStart[2]-(event.clientX-this.panStart[0]);container.scrollTop=this.panStart[3]-(event.clientY-this.panStart[1]);}
     });
-    const end=event=>{this.pointers.delete(event.pointerId);this.panStart=null;};
+    const end=event=>{
+      this.pointers.delete(event.pointerId); this.panStart=null;
+      if (this.pointers.size === 1) { const [x,y] = [...this.pointers.values()][0]; this.panStart=[x,y,container.scrollLeft,container.scrollTop]; }
+    };
     container.addEventListener('pointerup',end);container.addEventListener('pointercancel',end);
   }
 
@@ -86,8 +92,28 @@ export class GraphEditor {
     this.zoom=Math.max(.25,Math.min(2.5,this.zoom*factor));this.applyZoom();
     this.container.scrollLeft=local[0]*this.zoom-x;this.container.scrollTop=local[1]*this.zoom-y;
   }
-  applyZoom(){if(!this.board)return;this.board.style.transform=`scale(${this.zoom})`;this.wrapper.style.width=`${this.width*this.zoom}px`;this.wrapper.style.height=`${this.height*this.zoom}px`;}
-  fit(){if(!this.board)return;this.zoom=Math.max(.25,Math.min(1,this.container.clientWidth/this.width,this.container.clientHeight/this.height));this.applyZoom();this.container.scrollLeft=0;this.container.scrollTop=0;}
+  applyZoom(){
+    if(!this.board)return;
+    this.board.style.transform=`scale(${this.zoom})`;
+    this.wrapper.style.width=`${this.width*this.zoom}px`; this.wrapper.style.height=`${this.height*this.zoom}px`;
+    if (this.zoomLabel) this.zoomLabel.textContent=`${Math.round(this.zoom*100)}%`;
+  }
+  resizeBoard() {
+    if (!this.board) return;
+    const bounds = graphBounds(this.resolved.nodes, this.layout, this.coarse);
+    this.width = Math.max(this.container.clientWidth / this.zoom, bounds.x + bounds.width + 48);
+    this.height = Math.max(this.container.clientHeight / this.zoom, bounds.y + bounds.height + 48);
+    this.board.style.width=`${this.width}px`; this.board.style.height=`${this.height}px`;
+    this.svg.setAttribute('width', String(this.width)); this.svg.setAttribute('height', String(this.height)); this.applyZoom();
+  }
+  fit(){
+    if(!this.board)return;
+    const bounds = graphBounds(this.resolved.nodes, this.layout, this.coarse);
+    this.zoom=Math.max(.25,Math.min(1,(this.container.clientWidth-48)/bounds.width,(this.container.clientHeight-88)/bounds.height));
+    this.resizeBoard();
+    this.container.scrollLeft=Math.max(0,bounds.x*this.zoom-24);
+    this.container.scrollTop=Math.max(0,bounds.y*this.zoom-56);
+  }
 
   portPoint(nodeId, side, name) {
     const node = this.resolved.nodes.find(item => item.id === nodeId);
@@ -95,7 +121,8 @@ export class GraphEditor {
     if (!node || !position) return null;
     const index = this.layout[nodeId]?.collapsed ? 0 : Object.keys(node.manifest[side]).indexOf(name);
     if (index < 0) return null;
-    return [position.x + (side === 'outputs' ? NODE_WIDTH : 0), position.y + HEAD + index * ROW + ROW / 2];
+    const geometry = nodeGeometry(node.manifest, position.collapsed, this.coarse);
+    return [position.x + (side === 'outputs' ? NODE_WIDTH : 0), position.y + geometry.head + index * geometry.row + geometry.row / 2];
   }
 
   local(event) {
@@ -108,15 +135,17 @@ export class GraphEditor {
     this.resolved = resolveGraph(graph, modules, {allowUnknown:true});
     this.layout = layout;
     this.selection = selection;
+    this.missingInputs = missing;
+    this.language = currentLanguage();
     this.missing = new Set(missing.map(item => `${item.node}\u0000${item.port}`));
     const scroll = [this.container.scrollLeft, this.container.scrollTop];
     this.container.replaceChildren();
     const board = this.board = el('div', 'graph-board');
-    let width = Math.max(800, this.container.clientWidth), height = Math.max(460, this.container.clientHeight);
+    let width = this.container.clientWidth / this.zoom, height = this.container.clientHeight / this.zoom;
     for (const node of this.resolved.nodes) {
       const { x, y } = layout[node.id];
-      width = Math.max(width, x + NODE_WIDTH + 160);
-      height = Math.max(height, y + nodeHeight(node.manifest, layout[node.id]?.collapsed) + 160);
+      width = Math.max(width, x + NODE_WIDTH + 48);
+      height = Math.max(height, y + nodeHeight(node.manifest, layout[node.id]?.collapsed, this.coarse) + 48);
     }
     board.style.width = `${width}px`;
     board.style.height = `${height}px`;
@@ -131,7 +160,13 @@ export class GraphEditor {
       if (event.target === board || event.target === this.svg) this.callbacks.select(null);
     });
     this.width=width;this.height=height;this.wrapper=el('div','graph-wrapper');this.wrapper.append(board);
-    this.container.append(this.wrapper);this.applyZoom();
+    const toolbar = el('div', 'graph-toolbar'); toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Workflow');
+    for (const [label, action] of [['zoomOut', () => this.zoomBy(1/1.2)], ['actual', () => this.zoomBy(1/this.zoom)], ['zoomIn', () => this.zoomBy(1.2)], ['fit', () => this.fit()]]) {
+      const button = el('button', '', label === 'zoomOut' ? '−' : label === 'zoomIn' ? '+' : workflowText(this.language, label)); button.type='button';
+      button.setAttribute('aria-label', workflowText(this.language, label)); button.title=workflowText(this.language, label);
+      button.addEventListener('click', action); if(label==='actual')this.zoomLabel=button; toolbar.append(button);
+    }
+    this.container.append(toolbar,this.wrapper);this.applyZoom();
     [this.container.scrollLeft, this.container.scrollTop] = scroll;
   }
 
@@ -144,6 +179,14 @@ export class GraphEditor {
       const selected = this.selection?.kind === 'edge' && this.selection.id === edge.id;
       const d = curve(a, b);
       const hit = svgPath(d, 'edge-hit');
+      const definition = this.resolved.nodes.find(node => node.id === edge.from.node)?.manifest.outputs[edge.from.port];
+      const description = `${edge.from.node}.${edge.from.port} → ${edge.to.node}.${edge.to.port} · ${edge.timing}` +
+        (definition ? ` · ${definition.quantity} [${definition.unit}] · ${definition.shape}` : '');
+      hit.setAttribute('tabindex', '0'); hit.setAttribute('role', 'button');
+      hit.setAttribute('aria-label', description);
+      hit.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.callbacks.select({kind:'edge',id:edge.id}); }
+      });
       hit.addEventListener('pointerdown', event => {
         event.stopPropagation();
         this.callbacks.select({ kind: 'edge', id: edge.id });
@@ -153,7 +196,7 @@ export class GraphEditor {
         this.callbacks.context({ kind: 'edge', id: edge.id }, event.clientX, event.clientY);
       });
       const title = document.createElementNS(SVG, 'title');
-      title.textContent = `${edge.from.node}.${edge.from.port} → ${edge.to.node}.${edge.to.port} · ${edge.timing}`;
+      title.textContent = description;
       hit.append(title);
       this.svg.append(svgPath(d, `${edge.timing === 'previous_step' ? 'delayed' : ''}${selected ? ' selected' : ''}`), hit);
     }
@@ -161,62 +204,38 @@ export class GraphEditor {
   }
 
   port(node, side, name, definition, index) {
-    const row = el('div', `graph-port ${side === 'inputs' ? 'in' : 'out'}`);
-    row.style.top = `${HEAD + index * ROW}px`;
-    const dot = el('button', 'port-dot');
-    dot.type = 'button';
-    dot.disabled = Boolean(node.manifest.unavailable);
-    dot.dataset.node = node.id;
-    dot.dataset.port = name;
-    dot.dataset.side = side;
-    const species = definition.species_parameter ? node.parameters[definition.species_parameter]?.value : null;
-    const label = `${name} · ${definition.quantity} [${definition.unit}]${species ? ` · ${species}` : ''}`;
-    dot.setAttribute('aria-label', `${node.id} ${side === 'inputs' ? 'input' : 'output'} ${label}`);
-    dot.title = label;
+    const {row, dot} = createPortRow(node, side, name, definition, {index,
+      geometry:nodeGeometry(node.manifest, this.layout[node.id]?.collapsed, this.coarse),
+      missing:side==='inputs' && this.missing.has(`${node.id}\u0000${name}`), language:this.language});
     dot.addEventListener('click', event => {
       event.stopPropagation();
       if (this.skipClick) { this.skipClick = false; return; }
       if (side === 'outputs') { this.armed = {node:node.id,port:name}; this.callbacks.hint?.(); }
       else if (this.armed) { const from = this.armed; this.armed = null; this.callbacks.connect(from,{node:node.id,port:name}); }
     });
-    if (side === 'inputs' && this.missing.has(`${node.id}\u0000${name}`)) row.classList.add('missing');
     if (side === 'outputs') dot.addEventListener('pointerdown', event => this.startWire(event, node.id, name));
-    const text = el('span', 'port-name', name);
-    row.append(...(side === 'inputs' ? [dot, text] : [text, dot]));
     return row;
   }
 
   card(node) {
-    const { x, y } = this.layout[node.id];
+    const position = this.layout[node.id];
     const selected = this.selection?.kind === 'node' && this.selection.id === node.id;
-    const card = el('div', `graph-node${selected ? ' selected' : ''}`);
-    card.tabIndex = 0;
-    card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `${node.id} · ${node.module_id}`);
-    card.dataset.node = node.id;
-    card.classList.toggle('unavailable-module', Boolean(node.manifest.unavailable));
-    card.style.left = `${x}px`;
-    card.style.top = `${y}px`;
-    card.style.height = `${nodeHeight(node.manifest, this.layout[node.id]?.collapsed)}px`;
-    card.append(el('span', 'graph-scope', `${node.manifest.scope} · ${node.owner.id} · P${node.manifest.phase}`),
-      el('strong', '', node.id), el('span', 'graph-module-name', `${node.module_id}@${node.module_version}`));
-    if (node.manifest.declaration?.category === 'data') {
-      const toggle = el('button', 'data-node-toggle', this.layout[node.id]?.collapsed ? '+' : '−');
-      toggle.type = 'button'; toggle.setAttribute('aria-label', 'Expand or collapse data node ' + node.id);
-      toggle.addEventListener('pointerdown', event => event.stopPropagation());
-      toggle.addEventListener('click', event => { event.stopPropagation(); this.callbacks.toggle?.(node.id); });
-      card.append(toggle);
-    }
+    const geometry = nodeGeometry(node.manifest, position.collapsed, this.coarse);
+    const options = {position, geometry, selected, collapsed:position.collapsed, language:this.language};
+    const card = createNodeShell(node, options);
+    card.append(createNodeHeader(node, {...options, status:nodeStatus(node, this.missingInputs, this.language), onToggle:this.callbacks.toggle}));
     if (!this.layout[node.id]?.collapsed) {
       Object.entries(node.manifest.inputs).forEach(([name, def], i) => card.append(this.port(node, 'inputs', name, def, i)));
       Object.entries(node.manifest.outputs).forEach(([name, def], i) => card.append(this.port(node, 'outputs', name, def, i)));
-    } else card.append(el('span','data-node-summary',Object.keys(node.manifest.outputs).join(' · ') || 'Object initialization'));
+    }
+    card.append(createNodeFooter(node, options));
     card.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || event.target.closest('.port-dot')) return;
+      if (event.button !== 0 || this.pointers.size > 1 || event.target.closest('button,input,summary,.graph-identity-panel,.graph-mathematics')) return;
       event.stopPropagation();
       this.startDrag(event, card, node.id);
     });
     card.addEventListener('keydown', event => {
+      if (event.target !== card) return;
       if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); this.callbacks.select({ kind: 'node', id: node.id }); }
     });
     card.addEventListener('contextmenu', event => {
@@ -232,6 +251,7 @@ export class GraphEditor {
     let moved = false;
     card.setPointerCapture(event.pointerId);
     const move = e => {
+      if (e.pointerId !== event.pointerId) return;
       const dx = (e.clientX - start[0])/this.zoom, dy = (e.clientY - start[1])/this.zoom;
       if (!moved && Math.hypot(dx, dy) < 4) return;
       moved = true;
@@ -239,17 +259,20 @@ export class GraphEditor {
       this.layout[id] = { ...origin, x: snap(origin.x + dx), y: snap(origin.y + dy) };
       card.style.left = `${this.layout[id].x}px`;
       card.style.top = `${this.layout[id].y}px`;
-      this.drawEdges();
+      this.resizeBoard(); this.drawEdges();
     };
     const up = e => {
+      if (e.pointerId !== undefined && e.pointerId !== event.pointerId) return;
       card.removeEventListener('pointermove', move);
       card.removeEventListener('pointerup', up);
       card.removeEventListener('pointercancel', up);
       card.classList.remove('dragging');
+      this.cancelDrag = null;
       if (e.type === 'pointercancel') { this.layout[id] = origin; card.style.left = `${origin.x}px`; card.style.top = `${origin.y}px`; this.drawEdges(); }
       else if (moved) this.callbacks.move(id, this.layout[id], origin);
       else this.callbacks.select({ kind: 'node', id });
     };
+    this.cancelDrag = () => up({type:'pointercancel'});
     card.addEventListener('pointermove', move);
     card.addEventListener('pointerup', up);
     card.addEventListener('pointercancel', up);
@@ -262,7 +285,7 @@ export class GraphEditor {
   }
 
   startWire(event, nodeId, port) {
-    if (event.button !== 0) return;
+    if (event.button !== 0 || this.pointers.size > 1) return;
     event.preventDefault();
     event.stopPropagation();
     const from = { node: nodeId, port };
@@ -271,6 +294,7 @@ export class GraphEditor {
     this.wire = { from: start, to: start, valid: false };
     this.board.classList.add('wiring');
     const move = e => {
+      if (e.pointerId !== event.pointerId) return;
       const target = this.inputAt(e);
       const point = target ? this.portPoint(target.node, 'inputs', target.port) : null;
       this.wire = { from: start, to: point ?? this.local(e),
@@ -278,23 +302,28 @@ export class GraphEditor {
       this.drawEdges();
     };
     const up = e => {
+      if (e.pointerId !== event.pointerId) return;
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', cancel);
       const target = this.inputAt(e);
       this.wire = null;
+      this.cancelWire = null;
       this.board.classList.remove('wiring');
       this.drawEdges();
       if (target) { this.skipClick = true; this.armed = null; this.callbacks.connect(from, target); }
     };
-    const cancel = () => {
+    const cancel = e => {
+      if (e?.pointerId !== undefined && e.pointerId !== event.pointerId) return;
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', up);
       window.removeEventListener('pointercancel', cancel);
       this.wire = null;
+      this.cancelWire = null;
       this.board.classList.remove('wiring');
       this.drawEdges();
     };
+    this.cancelWire = () => cancel();
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', up);
     window.addEventListener('pointercancel', cancel);
