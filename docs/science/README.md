@@ -1,6 +1,8 @@
 # 科学模型审查与迁入
 
-日期：2026-09-29。两份来源模型已完成首轮代码/数学审查、确定缺陷修订、有限规模回归和独立复核。源码修订保存在相邻的 `friskoli-model-review` 仓库，CAD 主仓库只保存审查、迁入设计和 Wiki 草稿。原始目录与 ZIP 保留，模型尚未进入 CAD 执行库。
+更新：2026-09-30。两份来源模型已完成首轮代码/数学审查、确定缺陷修订、有限规模回归和独立复核。完整源码修订保存在相邻的 `friskoli-model-review` 仓库，原始目录与 ZIP 保留。CAD 已实现 M0–M3 最小 PTS 计算链；两套完整模型尚未全部迁入。
+
+新增实现入口：[科学方程与参数证据](pts-minimal.md)、[共享库存结算](settlement.md)、[执行协议](../protocol/pts-bulk-profile.md)、[中文 Wiki](../wiki/models/pts-minimal.md)与[实际验收](../verification-n3.md)。CAD 包内保存选定来源文件的提交和 SHA、证据与固定条件 fixtures，运行不依赖外部模型目录。
 
 ## 来源、修订与阅读入口
 
@@ -27,6 +29,6 @@ rebuilt-v2 来源为 `D:/Wu Shangru/Documents/iGEM/model-A-rebuilt-v2`；simplif
 
 ## 接下来的工程顺序
 
-主线仍按[路线图](../design/roadmap-and-acceptance.md)先完成 N2 异步任务与前端运行状态，再迁入 N3。科学预审提前并行进行，没有替代 N2，也没有把旧执行时序静默升级。
+主线按[路线图](../design/roadmap-and-acceptance.md)推进。N2 已完成，N3 使用独立 `conservative-pts-bulk-v1` 执行规则迁入第一段科学计算；旧 `legacy-explicit-v1` 保持原行为。
 
-[迁入计划](migration-plan.md)给出两模型差异、类型/单位/时序与 M0–M7 的验收。N3 首批限定 M0–M3：有限 bulk → PTS 请求 → 共享库存结算 → 胞内累计与接受通量驱动 EI/CheA/CheY。它只是完整趋化链的第一段；运动、增长、死亡、分裂和纤维等按后续依赖逐项接入。
+[迁入计划](migration-plan.md)给出两模型差异、类型/单位/时序与 M0–M7 的验收。M0–M3 已实现有限 bulk → PTS 请求 → 共享库存结算 → 胞内累计与接受通量驱动 EI/CheA/CheY，motor bias 仅为读数。下一步是 M4 随机流、可保存状态与失败回滚，再接 M5 运动及无趋化对照；纤维、增长、死亡和分裂按后续依赖逐项接入。M4 的状态准备不等于 N7 已支持通用暂停续算。

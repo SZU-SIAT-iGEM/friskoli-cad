@@ -4,6 +4,10 @@
 输入、任务状态和结果分开保存；编辑当前项目不会修改已经提交的输入。
 接口与严格数据定义见[任务合同](protocol/task-contract.md)、[OpenAPI](protocol/tasks-openapi.json)。
 
+2026-09-30 起同一服务还支持 N3 的 `conservative-pts-bulk-v1`，其 Task 0.2 能力在
+`capabilities.task_profiles` 单独公布，按项目精确选择版本和锁。详见[新 profile](protocol/pts-bulk-profile.md)
+与[混合版本 OpenAPI](protocol/tasks-openapi-v0.2.json)；以下任务生命周期同样适用。
+
 ## 启动与存放位置
 
 安装项目依赖后，从仓库根目录启动：
