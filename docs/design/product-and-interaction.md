@@ -2,7 +2,7 @@
 
 状态：目标设计，未实现部分按[开发与验收](roadmap-and-acceptance.md)推进。当前行为仍见 [1.0 交互规范](../interaction-specification.md)。
 
-2026-10-01 当前实现：六套科学模板可展开编辑、参数证据可查、群组复制带完整模型分支、观察区域可设、显式 seed 批次与完整结果比较可用。候选设计生成和 Design brief 仍按 N4 实施；验收见[完整 N3](../verification-n3-complete.md)。
+2026-10-01 当前实现：六套科学模板可展开编辑、参数证据可查、群组复制带完整模型分支、观察区域可设、显式 seed 批次与完整结果比较可用。N4 首轮新增 Design 工作区、参数候选生成和 DesignBrief，见[设计工作流](../design-workflow.md)；科学验收仍见[完整 N3](../verification-n3-complete.md)。
 
 ## 1. 用户任务先于工作区
 

@@ -1,10 +1,10 @@
 # 交付、整合包、标准与迁移
 
-状态：2026-09-29 目标交付设计，2026-10-01 更新当前能力。现有 Project/Workspace/Result JSON、任务冻结输入与结果块、统计 CSV，以及 M4 独立 checkpoint JSON 文件和 CLI；下文原生 ZIP 设计包、模型整合包、插件安装器和外部标准适配器仍是目标。
+状态：2026-09-29 目标交付设计，2026-10-01 更新当前能力。现有 Project/Workspace/Result JSON、任务冻结输入与结果块、统计 CSV，以及 M4 独立 checkpoint JSON 文件和 CLI；N4 首轮已提供原生 ZIP 设计包和 HTML/CSV 报告；模型整合包、插件安装器和外部标准适配器仍是目标。
 
 2026-10-01 实施注记：M4 文件外层为 `checkpoint_file_version: 0.1.0`，包含冻结 Project 0.4 和内部 `spatial-checkpoint/v2`。文件可在匹配代码/依赖环境的新进程恢复最新已提交状态，不包含此前整条轨迹，不携带可执行插件。它不经项目编辑器导入，也不续接任务服务的旧任务。具体命令、写入保护和兼容限制见[checkpoint 文件](../checkpoint-files.md)，验证见 [M4 验收](../verification-m4.md)。任务 pause/resume 与运行中环境迁移仍属 N7。
 
-完整 N3 增加科学 Project 0.5、Workspace 0.4、Task 0.4 与 checkpoint 文件 0.2。文件 0.2 包装动态科学状态，恢复入口和版本锁与旧文件一致；原生无损设计 ZIP 和标准导出仍属 N4/N5。见[科学合同](../protocol/chemotaxis-profile.md)。
+完整 N3 增加科学 Project 0.5、Workspace 0.4、Task 0.4 与 checkpoint 文件 0.2。文件 0.2 包装动态科学状态，恢复入口和版本锁与旧文件一致；N4 首轮原生无损 ZIP 已实现，标准导出仍属 N5。见[科学合同](../protocol/chemotaxis-profile.md)。
 
 ## 1. 三类包分开
 
@@ -20,7 +20,7 @@
 
 ## 2. 原生设计包结构
 
-建议 `.friskoli` 作为 ZIP 容器的目标扩展名；实现前保持现有 JSON 保存可用。不再同时维护 YAML 与 JSON 两份科学事实源：规范文档采用 JSON，YAML 可以作为未来的人类编辑适配格式。
+当前 `.friskoli` 已作为 ZIP 容器实现，完整 payload、拆分 brief/candidates、registry/locks、runs 和报告均保留；精确现有布局见[设计工作流](../design-workflow.md)。下图仍是未来更细的目录组织目标，现有 JSON 保存继续可用。不再同时维护 YAML 与 JSON 两份科学事实源：规范文档采用 JSON，YAML 可以作为未来的人类编辑适配格式。
 
 ```text
 project.friskoli

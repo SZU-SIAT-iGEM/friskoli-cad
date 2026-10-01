@@ -24,7 +24,7 @@ Workflow 节点现由名称/ID、端口、参数摘要、数学式和状态组�
 
 **完整 N3：** `chemotaxis-spatial-v1`（Project 0.5 / Catalog、Task 0.4）登记 25 类模块，六套普通可编辑图涵盖 PTS A、PTS B、reduced MCP、无趋化对照、有限来源/材料及营养生命周期。信号实际控制 run/tumble，支持可选生长、表达、死亡与分裂，记录受阻状态及死亡规则。结果提供方向位移、区域占用、到达/驻留和多 seed 比较；科学 checkpoint 保存完整动态状态。见[执行合同](docs/protocol/chemotaxis-profile.md)、[科学依据与来源差异](docs/science/n3-mechanisms.md)和[完整验收](docs/verification-n3-complete.md)。
 
-三池输运按本轮产品决定退出必需项，接触降解直接释放到可溶养分场。MCP 采用经典 MWC/甲基化适应框架及明确的线性反馈近似。所有示例参数保持探索性标记，不宣称实验标定或逐轨迹复现原 A 三池模型。下一主线是 N4 的目标、候选和原生设计包。
+三池输运按本轮产品决定退出必需项，接触降解直接释放到可溶养分场。MCP 采用经典 MWC/甲基化适应框架及明确的线性反馈近似。所有示例参数保持探索性标记，不宣称实验标定或逐轨迹复现原 A 三池模型。N4 已增加 Design 工作区：参数目标与约束、有限候选和固定对照、重复比较、原生 `.friskoli` 包与 HTML/CSV 报告。使用与后续边界见[设计工作流](docs/design-workflow.md)。
 
 启动窗口现采用紧凑命令列表，与工作区共用控件风格；关闭、恢复、导入错误与迟到请求处理已修正。浏览器交互、四尺寸与中英文检查见[启动界面验收](docs/verification-startup-ui.md)，其中明确列出实体设备等未测项。
 

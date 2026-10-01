@@ -1,6 +1,6 @@
 # Friskoli-CAD 工程设计总纲
 
-初稿：2026-09-29；当前状态更新：2026-10-01。**N0–N3 的实现已接入，当前交付重点是完整 N3 验收，下一主线为 N4 目标与候选设计。**总体目标仍为工程设计，完整候选比较、原生设计包和标准发布尚未完成。实际功能、验证与限制见 [PROGRESS](../../PROGRESS.md)，当前顺序见[开发安排](../development-order.md)。
+初稿：2026-09-29；当前状态更新：2026-10-01。**N0–N3 已实现，N4 首轮参数设计、候选比较与原生设计包已接入。**当前继续完善底盘/元件目录、结果约束和推荐；标准发布仍待 N5。实际功能、验证与限制见 [PROGRESS](../../PROGRESS.md)，当前顺序见[开发安排](../development-order.md)。
 
 ## 产品目标
 
@@ -35,7 +35,7 @@
 
 N0 规划时的基线分支为 `feat/protocol-replay-ui`、提交为 `d9c9713`；父提交 `25c5e58` 完成首版可编辑工作区。该阶段验收为 Python 91 项、JavaScript 14 项。随后在 `feat/registry-contracts` 实施 N1–N3；各阶段验收分别保存，不能把早期数量当作当前完整测试结果。最新检查见 [完整 N3 验收](../verification-n3-complete.md)，浏览器与实体设备的限制仍按对应阶段记录。
 
-工作区保存格式为 `0.3.0`，读取旧工作区 `0.1/0.2`；共享连接协议仍为 `0.1.0`。不同执行规则独立版本化：legacy 使用 Catalog/Task 0.1，固定 PTS 使用 Project 0.3 / Catalog/Task 0.2，空间无偏使用 Project 0.4 / Catalog/Task 0.3。详见[任务服务](../task-service.md)、[PTS profile](../protocol/pts-bulk-profile.md)与[空间 profile](../protocol/spatial-profile.md)。M4 [checkpoint 文件](../checkpoint-files.md)有独立格式，不替代设计文件或任务结果。
+工作区保存格式为 `0.5.0`，读取旧工作区 `0.1–0.4`；共享连接协议仍为 `0.1.0`。不同执行规则独立版本化：legacy 使用 Catalog/Task 0.1，固定 PTS 使用 Project 0.3 / Catalog/Task 0.2，空间无偏使用 Project 0.4 / Catalog/Task 0.3。详见[任务服务](../task-service.md)、[PTS profile](../protocol/pts-bulk-profile.md)与[空间 profile](../protocol/spatial-profile.md)。M4 [checkpoint 文件](../checkpoint-files.md)有独立格式，不替代设计文件或任务结果。
 
 本提案整合 `D:/Wu Shangru/Documents/WIKI/Friskoli-CAD.md`、`D:/Wu Shangru/Documents/WIKI/CAD.md` 和 2026-09-29 的用户描述。两份 WIKI 原文保持不变；其中的周期估计、功能设想与示例参数属于需求材料，不视为经过验证的技术事实。与旧路线冲突时，未来工作的优先级采用本设计集；旧文档保留已交付版本的行为说明。
 
@@ -43,4 +43,4 @@ N0 规划时的基线分支为 `feat/protocol-replay-ui`、提交为 `d9c9713`�
 
 [N1](roadmap-and-acceptance.md#n1-类型合同与注册目录纵向样例) 注册目录、启动窗口首轮统一与 [N2 异步任务](../task-service.md)均已实现。N3 已具备有限养分、信号驱动运动、A/B memory、reduced MCP、来源生理机制和动态生命周期的完整状态恢复。六套模板、参数证据和指标对应真实计算图。
 
-下一步按[开发安排的 N4 待办](../development-order.md#下一项n4)实现目标、约束、候选枚举和原生设计包；复用 N3 已有对照、重复和指标。任务级暂停续算和环境迁移继续留在 N7。界面、协议、数值与科学分别验收，目录随真实实现调整。
+N4 参数扫描、候选和原生包已可操作，见[使用说明](../design-workflow.md)；继续按[开发安排](../development-order.md#当前n4)完善底盘元件、结果约束和推荐。任务级暂停续算和环境迁移继续留在 N7。界面、协议、数值与科学分别验收，目录随真实实现调整。

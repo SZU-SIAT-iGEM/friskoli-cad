@@ -41,7 +41,7 @@ flowchart TD
 | RunSubmission / Run | 不可变输入、执行设置、任务状态、结果引用 | 不回写正在编辑的草稿 |
 | Result / Report | 已提交帧、指标、事件、日志、来源和完整性 | 不自行推算缺失的科学结果 |
 
-以上是领域职责目标，并非已逐项发布的数据类型。当前 Project、Workspace、CompiledPlan、任务 frozen input 和 Result 承担其中已实现的部分；DesignBrief/DesignCandidate、通用参数包依赖解析和报告体系仍需后续合同。第一版把 ExperimentSpec 嵌在单一项目文档中即可，不必为了名字拆成多个服务或数据库。稳定 ID 和明确引用先于文件拆分。
+以上是领域职责目标，并非已逐项发布的数据类型。当前 Project、Workspace、CompiledPlan、任务 frozen input 和 Result 承担其中已实现的部分；DesignBrief/DesignCandidate 0.1、参数候选与报告由 `design.py`、`design_delivery.py`、`web/design-panel.mjs` 实现，通用底盘/元件与参数包依赖解析仍待扩展。第一版把 ExperimentSpec 嵌在单一项目文档中即可，不必为了名字拆成多个服务或数据库。稳定 ID 和明确引用先于文件拆分。
 
 ## 3. 注册目录分工
 

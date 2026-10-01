@@ -13,7 +13,7 @@
 | 模块/图 | `protocol_version: 0.1.0` | 类型作用域、数学说明、读写集、实体对齐、求解语义，需要独立的新合同版本 |
 | Project | legacy `0.1.0/0.2.0`；固定 PTS `0.3.0`；空间 `0.4.0`；科学 `0.5.0` | 设计目标、候选与更完整的机制/观测合同 |
 | Catalog / Task | legacy `0.1.0`；固定 PTS `0.2.0`；空间 `0.3.0`；科学 `0.4.0` | 按 profile 精确协商，不把新版本应用到所有旧项目 |
-| Workspace | `workspace_format_version: 0.4.0`，兼容读取旧 `0.1–0.3` | 更完整的设计草稿与视图状态分离 |
+| Workspace | `workspace_format_version: 0.5.0`，兼容读取旧 `0.1–0.4` | 更完整的设计草稿与视图状态分离 |
 | Local API | 顶层 `api_version: 0.2.0`；已实现独立任务合同 | 更完整的诊断集合与能力扩展；同步 replay 保留受限兼容 |
 | Run metadata | 当前共享 `0.1.0` | 与已有独立 Task 合同继续分别版本化 |
 | Frame/Replay/Result | Frame `0.1.0/0.2.0`、Replay/Result `0.1.0`；任务已有完整帧分块，空间 Task 0.3 含场与库存 | 二进制数组、增量帧等另立合同 |
@@ -177,3 +177,5 @@ running（cancel_requested=true）→ cancelled
 ## 9. 环境替换
 
 运行开始前选环境与中途换环境分开。后者在合法边界 checkpoint，声明场、库存、累计量、内部状态、边界和菌体状态的 map；预演/检查后一次提交并记录事件。网格重划只解决空间分布转换，不自动迁移全部科学状态。无映射则拒绝，原运行保持可查。变更物理域范围还需解释新增/移除区域的物质量。此能力保留在路线中，排在首个完整 CAD 案例之后。
+
+2026-10-01 N4 首轮增加 DesignBrief/Design 0.1.0 和 Workspace 0.5.0，设计数据独立于科学 Project 与 Task。HTTP `/api/design/generate` 仅枚举和校验，`export/import/report` 只读写数据；计算仍提交已有任务服务。详见[设计工作流](../design-workflow.md)。
