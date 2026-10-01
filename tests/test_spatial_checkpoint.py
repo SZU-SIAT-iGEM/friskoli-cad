@@ -251,6 +251,25 @@ class SpatialCheckpointTests(unittest.TestCase):
             with self.subTest(name=name), self.assertRaises(SimulationError):
                 restore_checkpoint(project, reseal(broken))
 
+    def test_collision_owner_ids_need_not_equal_graph_node_ids(self):
+        project = deepcopy(self.project)
+        for node in project['graph']['nodes']:
+            if node['module_id'] in ('space.axis_aligned_obstacle', 'material.degradable_box'):
+                node['owner']['id'] = 'physical-' + node['id']
+            if node['module_id'] == 'motion.unbiased_run_tumble':
+                node['parameters']['speed_um_s']['value'] = 20.
+                node['parameters']['tumble_rate_s']['value'] = 0.
+        sim = simulation_from_project(project)
+        sim.step(1.)
+        targets = {c.target_id for c in sim.motion_contacts if c.kind == 'obstacle'}
+        self.assertTrue(targets)
+        self.assertTrue(all(target.startswith('physical-') for target in targets))
+        restored = restore_checkpoint(project, json.loads(json.dumps(sim.checkpoint())))
+        self.assertEqual(restored.checkpoint(), sim.checkpoint())
+        sim.step(.1)
+        restored.step(.1)
+        self.assertEqual(restored.checkpoint(), sim.checkpoint())
+
 
 if __name__ == "__main__":
     unittest.main()

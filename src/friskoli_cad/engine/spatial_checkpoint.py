@@ -306,7 +306,10 @@ def _restore_contacts(sim, payload, world, index):
     if type(payload) is not list or (index == 0 and payload):
         _reject('motion_contacts must be a list, empty at frame zero')
     ids = {cid for group in world.groups.values() for cid in group.ids}
-    obstacles = {node.id for node in sim._fixed_obstacle_nodes} | set(sim.materials)
+    # Collision targets identify physical owners, independently of graph node
+    # IDs. Include exhausted materials: the last interval still used their box.
+    obstacles = {node.owner_id for node in sim._fixed_obstacle_nodes}
+    obstacles.update(node.owner_id for node in sim._material_nodes.values())
     contacts = []
     for value in payload:
         _keys(value, ('cell_ids', 'kind', 'target_id', 'reason'), 'motion contact')
