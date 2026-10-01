@@ -4,6 +4,8 @@
 
 2026-10-01 实施注记：M4 文件外层为 `checkpoint_file_version: 0.1.0`，包含冻结 Project 0.4 和内部 `spatial-checkpoint/v2`。文件可在匹配代码/依赖环境的新进程恢复最新已提交状态，不包含此前整条轨迹，不携带可执行插件。它不经项目编辑器导入，也不续接任务服务的旧任务。具体命令、写入保护和兼容限制见[checkpoint 文件](../checkpoint-files.md)，验证见 [M4 验收](../verification-m4.md)。任务 pause/resume 与运行中环境迁移仍属 N7。
 
+完整 N3 增加科学 Project 0.5、Workspace 0.4、Task 0.4 与 checkpoint 文件 0.2。文件 0.2 包装动态科学状态，恢复入口和版本锁与旧文件一致；原生无损设计 ZIP 和标准导出仍属 N4/N5。见[科学合同](../protocol/chemotaxis-profile.md)。
+
 ## 1. 三类包分开
 
 | 包 | 目的 | 导入行为 |
@@ -96,7 +98,7 @@ Wiki 构建只装共享 viewer、冻结 registry、公开模型说明和预计�
 
 ## 6. 旧格式迁移
 
-当前合同并存：legacy Project 0.1/0.2 对应 Catalog/Task 0.1，固定 PTS Project 0.3 对应 Catalog/Task 0.2，空间 Project 0.4 对应 Catalog/Task 0.3。Workspace 当前保存为 0.3，并有旧 0.1/0.2 的读取适配。选择新 profile 必须显式使用匹配合同；不会将旧项目的生长、分裂或 controls 自动移入固定种群空间模型。以下是后续新增格式与包转换器仍需遵守的迁移要求。
+当前合同并存：legacy Project 0.1/0.2 对应 Catalog/Task 0.1，固定 PTS Project 0.3 对应 Catalog/Task 0.2，空间 Project 0.4 对应 Catalog/Task 0.3，科学 Project 0.5 对应 Catalog/Task 0.4。Workspace 当前保存为 0.4，兼容读取旧 0.1–0.3。选择新 profile 必须显式使用匹配合同；不会将旧项目的生长、分裂或 controls 自动移入另一种计算规则。以下是后续新增格式与包转换器仍需遵守的迁移要求。
 
 1. 建立现有 project、workspace、graph、frames 和 result 的 fixtures，记录数值与已知限制。
 2. 新 reader 先识别格式族/版本，再由纯转换函数生成目标文档；保留原件与 migration report。

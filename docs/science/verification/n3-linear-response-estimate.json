@@ -1,0 +1,37 @@
+{
+  "kind": "Post-study analytical linear-response order-of-magnitude estimate; not parameter fitting or a runtime result",
+  "assumptions": [
+    "Unbounded homogeneous 2D run-turn process, fixed run speed, weak local gradient",
+    "Uses local L=.72 uM and fully supplied initial uptake",
+    "B finite .1s dwell and boundaries omitted; voxelization/splitting and self-depletion omitted",
+    "Transport/EI/CheY local linearization; turn persistence enters velocity autocorrelation",
+    "No calibration or data fitting; estimates only contextualize power of the numerical comparison"
+  ],
+  "equation": "v_d approx -(lambda_max-lambda_min)*b_prime*Yprime_C*g*v^2/(2*lambda0) * tau_memory / product_j(1+kappa*tau_j), kappa=lambda0*(1-Ecos(theta))",
+  "B": {
+    "C_uM": 0.72,
+    "J_molecules_s": 167.4418604651163,
+    "dYsteady_dC": -0.2741107846147099,
+    "turn_Ecos": 0.3089944894669687,
+    "lambda0_s": 1.55,
+    "kappa_s": 1.0710585413261986,
+    "tau_EI_s": 0.3739130434782608,
+    "tau_CheY_s": 0.619205298013245,
+    "tau_memory_s": 3,
+    "memory_velocity_factor_s": 0.30569484212171916,
+    "estimated_drift_um_s": 0.008958648249854284,
+    "filter_factors": "memory, EI and CheY"
+  },
+  "MCP": {
+    "C_uM": 0.72,
+    "ligand_to_CheY_gain_before_adaptation": -3.8097788942867172,
+    "lambda0_s": 1.408955910189827,
+    "tau_adaptation_s": 0.6666666666666666,
+    "tau_CheY_s": 0.6666666666666666,
+    "memory_velocity_factor_s": 0.17726254541433756,
+    "estimated_drift_um_s": 0.041305685200314364,
+    "filter_factors": "adaptation and CheY; tau_memory in the generic equation denotes tau_adaptation for MCP"
+  },
+  "derivation": "For unbounded isotropic 2D motion, velocity covariance is (v^2/2)*exp(-kappa*t), kappa=lambda0*(1-Ecos(theta)). A weak-gradient sensory filter maps g*vx to delta lambda. First-order steady mean-velocity balance gives vd=-<delta lambda*vx>/lambda0. Each first-order sensory lag contributes 1/(1+kappa*tau); adaptation contributes tau. No finite-domain or dwell correction is made.",
+  "interpretation": "B predicted order 0.009 um/s is below the diagnostic directional-contrast SE 0.014 um/s. This is a plausible low-power explanation, not proof of absence or a validated quantitative prediction."
+}

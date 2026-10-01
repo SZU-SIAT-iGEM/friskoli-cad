@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-01",
+  "classification": "constructed numerical validation; not calibrated biology",
+  "open_loop_tests": "tests/test_chemotaxis_scientific_controls.py",
+  "open_loop_results": [
+    {
+      "model": "pts-b",
+      "initial_bias": [
+        0.5,
+        0.5
+      ],
+      "final_bias": [
+        0.4939965477468473,
+        0.5153330472424882
+      ],
+      "final_motor_CheY_uM": [
+        3.4895092075203906,
+        3.526944434115586
+      ],
+      "positions_um": [
+        [
+          75.0,
+          40.0,
+          1.0
+        ],
+        [
+          45.0,
+          60.0,
+          1.0
+        ]
+      ],
+      "dt_s": 0.05,
+      "duration_s": 2.9999999999999973,
+      "motion_assay": "Tumble hazard set to zero so two cells travel at unchanged speed in opposite directions; motor readout still computed. This isolates signal sign, not emergent taxis."
+    },
+    {
+      "model": "mcp",
+      "initial_bias": [
+        0.4513641069620093,
+        0.4513641069620093
+      ],
+      "final_bias": [
+        0.4213855008897999,
+        0.48840643901300096
+      ],
+      "final_motor_CheY_uM": [
+        3.2332598802812877,
+        3.4596496582674185
+      ],
+      "positions_um": [
+        [
+          75.0,
+          40.0,
+          1.0
+        ],
+        [
+          45.0,
+          60.0,
+          1.0
+        ]
+      ],
+      "dt_s": 0.05,
+      "duration_s": 2.9999999999999973,
+      "motion_assay": "Tumble hazard set to zero so two cells travel at unchanged speed in opposite directions; motor readout still computed. This isolates signal sign, not emergent taxis."
+    }
+  ],
+  "natural_field": {
+    "test": "tests/test_chemotaxis_delivery.py::test_material_builds_a_natural_gradient_in_the_same_field_used_for_uptake",
+    "duration_s": 2,
+    "dt_s": 0.1,
+    "initial_concentration_uM": 0,
+    "initial_gradient_uM_per_um": 0,
+    "independent_source_rate": 0,
+    "cell_speed_um_s": 0,
+    "released_molecules_both": 198.111351704654,
+    "D1": {
+      "diffusion_um2_s": 1,
+      "peak_uM": 0.001589178834,
+      "accepted_molecules": 0.612501743
+    },
+    "D100": {
+      "diffusion_um2_s": 100,
+      "peak_uM": 0.000325153374,
+      "accepted_molecules": 0.264677195
+    },
+    "accounting": "All released product enters the same field used for ordinary finite uptake. No reserved intake/gradient quota."
+  }
+}

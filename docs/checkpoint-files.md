@@ -1,8 +1,10 @@
-# M4：保存与恢复空间运行状态
+# 保存与恢复数值运行状态
 
 `spatial-unbiased-v1` 现在可以把已经提交的数值状态保存为自包含 JSON 文件，并在新的 Python 进程恢复。
 文件带有冻结的 Project 0.4 输入、实际执行 seed、完整 checkpoint 和两层 SHA-256，恢复不依赖原项目文件所在位置。
 这是 M4 的库与命令行入口；异步任务服务的 pause/resume 仍未开放，原任务记录不会因此改为续算中。
+
+2026-10-01 完整 N3 更新：`chemotaxis-spatial-v1` 使用文件 **0.2.0**、Project **0.5.0** 与内部 **chemotaxis-checkpoint/v1**，同一 Python/CLI 入口按 profile 严格分派。除场/物质/位姿，还保存感知记忆、变率 hazard/dwell、营养/表达/健康、动态 ID/分裂/死亡、死因与观察器。旧空间文件继续为 0.1.0；两种文件都需要原实现版本与依赖环境，不做隐式科学迁移。
 
 ## 直接使用
 
@@ -16,7 +18,7 @@ python -m friskoli_cad.checkpoint --resume "$m4CheckpointDir/step20.json" --step
 ```
 
 第二条计算命令从第 20 步的真实状态继续 30 步，不重新初始化位置、材料库存或随机数。
-`--project path.json` 可代替 `--example`，从自己的空间 Project 0.4 文件开始。
+`--project path.json` 可代替 `--example`，从自己的空间 Project 0.4 或科学 Project 0.5 文件开始，例如 `examples/runtime/chemotaxis_mcp.project.json`。
 `--steps 0` 仅检查和另存当前状态；每次最多 10000 步，`--dt` 必须为正有限值。
 要和连续运行严格比较，必须使用相同的数值步长序列；改变 `dt` 是新的数值离散实验。
 
@@ -63,7 +65,7 @@ save_checkpoint(restored, "step21.friskoli-checkpoint.json")
 这项结构兼容不取消源码锁：上个安装包生成的状态若代码摘要不同，仍会拒绝恢复。
 要继续旧运行，应使用产生该文件的同一安装包和相匹配的依赖环境。
 
-## M4 状态逐项对应
+## 历史 M4 空间状态逐项对应
 
 | 原计划要求 | 本 profile 的实际状态 |
 | --- | --- |
@@ -75,8 +77,6 @@ save_checkpoint(restored, "step21.friskoli-checkpoint.json")
 | 扩散累计时间 | 每个数值步完整推进扩散子步，没有独立延迟队列或待补余时段 |
 | 失败与恢复 | 候选步失败整体回滚，恢复接续既有 RNG 与时钟，不重新 seed |
 
-生长、分裂、死亡、可变实体 ID、外部日程以及运行中更换环境都需要后续机制自己的状态映射和验收。
-不能将它们尚未存在的状态以空占位符宣称已经支持。
+旧空间 profile 保持固定种群；新增科学 profile 已具备生长、分裂、死亡和可变实体 ID 的完整状态映射。外部日程及运行中更换环境仍需后续机制与验收。
 
-实际验证见 [M4 验收](verification-m4.md)。下一阶段 M5 连接信号与运动，保留 PTS 有限养分、
-MCP 均匀持续补给背景与独立引诱物、无趋化对照各自的科学假设。
+历史空间验证见 [M4 验收](verification-m4.md)，新增科学 profile、动态生命周期与独立续算见[完整 N3 验收](verification-n3-complete.md)。PTS 使用有限养分，MCP 案例使用均匀营养背景与独立引诱物；二者的完整动态状态均已进入文件保存。服务 pause/resume 仍属 N7。

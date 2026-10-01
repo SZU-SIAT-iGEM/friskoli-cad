@@ -1,6 +1,6 @@
 # 注册目录与工作区 0.3
 
-本页保留 2026-09-29 N1 注册目录与 Workspace 0.3 的合同说明。**当前实施更新（2026-10-01）：** N2 [异步任务服务](task-service.md)、N3 [保守 PTS 链](protocol/pts-bulk-profile.md)及[空间 profile](protocol/spatial-profile.md)均已交付；M4 提供独立的 [checkpoint 文件与 CLI](checkpoint-files.md)。插件安装、完整趋化反馈及任务暂停/续算仍未开放。
+本页保留 2026-09-29 N1 注册目录与 Workspace 0.3 的合同说明。**当前实施更新（2026-10-01）：** N2 [异步任务服务](task-service.md)、N3 [保守 PTS 链](protocol/pts-bulk-profile.md)及[空间 profile](protocol/spatial-profile.md)均已交付；M4 提供独立的 [checkpoint 文件与 CLI](checkpoint-files.md)。完整趋化反馈现由[科学 profile](protocol/chemotaxis-profile.md)的 Catalog 0.4 登记 25 模块与六套模板，Workspace 0.4 保存 Project 0.1–0.5。插件安装及任务暂停/续算仍未开放。
 
 当前按 execution profile 分别提供 Catalog 0.1/0.2/0.3、Project 0.1–0.4 与 Task 0.1/0.2/0.3；具体支持组合由 capabilities 公布。下方 N1 版本表记录原阶段合同，不代表当前服务只有这些版本。
 

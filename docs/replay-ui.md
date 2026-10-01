@@ -1,6 +1,6 @@
 # 运行服务与协议回放 · 阶段 4b
 
-**当前实施更新（2026-10-01）：** 默认本地启动启用[异步任务服务](task-service.md)，前端按项目 profile 精确选择 Task 0.1/0.2/0.3 后使用 `/api/runs`，支持排队、取消、恢复查询和 partial 结果。[空间 Task 0.3](protocol/spatial-profile.md)可传输真实浓度场，并始终传输有限源与材料库存；Task 0.1/0.2 仍不传场数组。M4 已提供 [checkpoint 文件与 CLI](checkpoint-files.md)，仅恢复独立空间运行；任务 pause/resume/checkpoint 能力仍为 false，项目编辑器不导入 checkpoint。
+**当前实施更新（2026-10-01）：** 默认本地启动启用[异步任务服务](task-service.md)，前端按项目 profile 精确选择 Task 0.1–0.4 后使用 `/api/runs`，支持排队、取消、恢复查询和 partial 结果。[空间 Task 0.3](protocol/spatial-profile.md)可传输真实浓度场，并始终传输有限源与材料库存；[科学 Task 0.4](protocol/chemotaxis-profile.md)进一步提供逐步指标、稀疏帧生命周期记录与死亡规则。Task 0.1/0.2 仍不传场数组。[Checkpoint 文件与 CLI](checkpoint-files.md)分别支持独立空间和科学运行的完整状态恢复；任务 pause/resume/checkpoint 能力仍为 false，项目编辑器不导入 checkpoint。
 
 本页其余同步请求、旧示例和限额说明记录阶段 4b 的 `/api/replay` 兼容路径。可用 `--sync-only` 启动旧模式；当前任务限制以 capabilities 为准，不能用旧同步限额推定异步能力。
 
@@ -29,7 +29,7 @@ python -m friskoli_cad.replay_service --port 8765
 
 Space 工作区可放置菌群体积块，设置数量、胶囊尺寸、随机种子和欧拉旋转后散布。散布用固定种子，结果可复现；薄层场地只在 XY 平面内取向。对象支持平移、旋转、缩放、网格吸附、测量、隐藏、锁定、复制和删除；批量菌体使用实例化渲染。散布写入项目的 `groups`，并为新菌群登记 `population.static` 节点。Workflow 工作区可拖动节点、连接端口、编辑参数、删除节点，`previous_step` 连接用虚线标出；右侧 Evidence 页显示模块登记的成熟度、科学角色和适用范围。
 
-运行前点击 Check 会调用后端校验，错误带有稳定的 `code` 和 `path`，缺少菌群或行为图时 Run 保持禁用。点击 Run 时提交项目的不可变副本，并以请求 ID 关联运行记录；编辑项目不会改变已完成的 Results。Results 保留多个运行，可回看实际事件、选择单菌体，并按输出内容查看浓度和数量历史、导出 JSON 或 CSV。4b 原保存格式为 Workspace `0.2.0`；当前 Save 使用 [Workspace `0.3.0`](registry-contract.md)，继续读取旧工作区。浏览器草稿恢复与任务状态查询分别保存和处理。
+运行前点击 Check 会调用后端校验，错误带有稳定的 `code` 和 `path`，缺少菌群或行为图时 Run 保持禁用。点击 Run 时提交项目的不可变副本，并以请求 ID 关联运行记录；编辑项目不会改变已完成的 Results。Results 保留多个运行，可回看实际事件、选择单菌体，并按输出内容查看浓度和数量历史、导出 JSON 或 CSV。4b 原保存格式为 Workspace `0.2.0`；当前 Save 使用 [Workspace `0.4.0`](registry-contract.md)，兼容读取 0.1–0.3。浏览器草稿恢复与任务状态查询分别保存和处理。
 
 ## 阶段 4b 原范围与当前边界
 

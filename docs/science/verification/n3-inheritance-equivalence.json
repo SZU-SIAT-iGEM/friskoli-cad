@@ -1,0 +1,481 @@
+{
+  "verification_version": "n3-inheritance-dtype-equivalence-v1",
+  "checked_on": "2026-10-01",
+  "complete": true,
+  "comparison_pairs": 43,
+  "simulations_in_separate_old_new_process_pools": 86,
+  "old_study_code_sha256": "2c193acdc620f574f8f705685e7cf3a0365532938b8a6b38241587a03f7a4e2b",
+  "final_code_sha256": "4571953a5d35eb3a19c41c132e5f3863706b3b607bf23db6dc6b79801178061c",
+  "old_wheel_sha256": "bd4332a253161a78bf061f26d52c344e0cee442dd84ffcd5854fea47c555c665",
+  "changed_files": [
+    {
+      "path": "engine/chemotaxis_runtime.py",
+      "old_sha256": "c2686aa1f2ec7cbebaaec713feae5774a78d8b32bc19d50c2b28b27cea58dc09",
+      "final_sha256": "a9e2d1ad9e0df83d5f139bcf320857b4f5db684108cea72c6f68ebe62b43e4c8"
+    }
+  ],
+  "change": "Replace in-place extensive-array multiplication with out-of-place multiplication so integer JSON input can promote to floating-point shares. Formula, weights and float64 calculation are unchanged.",
+  "excluded_checkpoint_fields": [
+    "implementation_lock",
+    "payload_sha256"
+  ],
+  "exclusion_reason": "Implementation lock reflects source bytes; payload_sha256 includes that lock. No physical state, RNG, field, metric or validation history is excluded.",
+  "comparison": "All checkpoint components were SHA-256 compared at every committed step including initial state. Final full JSON checkpoints and traces were also exactly equal.",
+  "scope": [
+    "All 28 primary cases at seed 0 and original 10 s duration, including dt/grid/source/material controls.",
+    "All 9 transient diagnostic cases at seed 0 and original 30 s duration.",
+    "Six 2 s real-division cases: expressed copies and static surface enzyme, seeds 0/7/17, fractional volume shares.",
+    "All 37 study inputs and final trajectory/field/walk hashes match their original study seed 0 records."
+  ],
+  "limits": [
+    "Representative seed 0 for each study condition; the other 331 original runs were not repeated.",
+    "Equality supports retaining the original study conclusions across this dtype-only correction; it does not establish arbitrary parameter or platform equivalence.",
+    "Integer canonical-JSON and real-worker regression tests are recorded separately in the final delivery verification."
+  ],
+  "compared_committed_boundaries": 5813,
+  "raw_artifacts": {
+    "probe.py": "170a147fbf02c05a842e555feb00bbdb552bd4bce6a8cec52c4ec076a795318b",
+    "compare.py": "415910b27a60952e4fd2136223ecfdb65f43a404df998bdee7fa6481446041d8",
+    "old.json": "9857c9f2e1ce51fbe869500ca9bc966fdbcb635d63b0a8869b8be20a8234cff9",
+    "new.json": "20de4843f8cd6fcbe90a7a9e3502d15fa080915b69127e52cd2ea4ae6ea9452e"
+  },
+  "cases": [
+    {
+      "case": "diagnostic/b-adapted-frozen",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "8c1a4b3083d6a146a12471dbdd6b2e841b8f8e600f62df15a5844bbe3a3a822e"
+    },
+    {
+      "case": "diagnostic/b-adapted-negative",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "783f8f43fbfcbf643fc66ffe153ce76a21e4ebc6d5373d5a42c16374852704b8"
+    },
+    {
+      "case": "diagnostic/b-adapted-positive",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "32e82f76fd80aded485082d5ea185df8895d3c85d704270cdb72beae34fb3183"
+    },
+    {
+      "case": "diagnostic/b-adapted-zero",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "6f9c95ff68993753c2041e7a5b8cc66355df9f8c0fa1dce5a5f1cbb81b57f1d5"
+    },
+    {
+      "case": "diagnostic/b-original-negative",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "b7a312c5422d0ca6875010cfaf988768d94e0a004f98db9abf5ce82fed1972c6"
+    },
+    {
+      "case": "diagnostic/b-original-positive",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "ddb416de712c89b44be6119b95a7ba109f2a8869741863508b3f2b4e0cfd4209"
+    },
+    {
+      "case": "diagnostic/mcp-negative",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "fa88e0f279812d586bf0edf2dfebcee9bcf69afbe60f97cc00006a01be3db4f7"
+    },
+    {
+      "case": "diagnostic/mcp-positive",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "4fcb4b60ab6f7d1ef13ca3ff8e3098feaee367deb3fb4a208eea0d76bed7ad48"
+    },
+    {
+      "case": "diagnostic/mcp-zero",
+      "seed": 0,
+      "duration_s": 30.000000000000156,
+      "compared_committed_boundaries": 301,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "646a95e834a03eb45f35b7ebac80b4c16780c46949a819eb18225f686a42b6f7"
+    },
+    {
+      "case": "division-expression/0",
+      "seed": 0,
+      "duration_s": 2.0000000000000004,
+      "compared_committed_boundaries": 21,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": null,
+      "division_events": 8,
+      "final_checkpoint_sha256": "96f6c1b7f663c175cf459cd7fc51f63ee617ad7f60984fe8b1a1ca8be516f306"
+    },
+    {
+      "case": "division-expression/17",
+      "seed": 17,
+      "duration_s": 2.0000000000000004,
+      "compared_committed_boundaries": 21,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": null,
+      "division_events": 8,
+      "final_checkpoint_sha256": "751564cb40bebd27f0c423fe7aca07817729ba047faf1fa956f143845639d4bd"
+    },
+    {
+      "case": "division-expression/7",
+      "seed": 7,
+      "duration_s": 2.0000000000000004,
+      "compared_committed_boundaries": 21,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": null,
+      "division_events": 8,
+      "final_checkpoint_sha256": "7d916fc4823ac6fbcd1399c4488eb10609b27b13f6e5d185fb6eeb0c7f5267f1"
+    },
+    {
+      "case": "division-static/0",
+      "seed": 0,
+      "duration_s": 2.0000000000000004,
+      "compared_committed_boundaries": 21,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": null,
+      "division_events": 8,
+      "final_checkpoint_sha256": "3c807b1d5ac885a80d5e530c3434673722e7fd4f73b045c3b196cc1285c5d4f0"
+    },
+    {
+      "case": "division-static/17",
+      "seed": 17,
+      "duration_s": 2.0000000000000004,
+      "compared_committed_boundaries": 21,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": null,
+      "division_events": 8,
+      "final_checkpoint_sha256": "c8093d3e4c61dfb47aaede9a3f8d3eb08f6055e7d621a2779d0e2e7d7b311e5e"
+    },
+    {
+      "case": "division-static/7",
+      "seed": 7,
+      "duration_s": 2.0000000000000004,
+      "compared_committed_boundaries": 21,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": null,
+      "division_events": 8,
+      "final_checkpoint_sha256": "a1bcc1f7432149783748936111bb1465d25b6503c6a5741eb3d2290876433042"
+    },
+    {
+      "case": "primary/materials-dx-0.25",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "fca034a4ca5ef58a2811e2cb62e2e4796afe0fcd1d692880bb355581b5e37d89"
+    },
+    {
+      "case": "primary/materials-dx-0.5",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "006050194aed2c8b129e0d3ee65271235829b557f051fb76e09d4c1d6bb30892"
+    },
+    {
+      "case": "primary/materials-dx-1",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "a05e41d6f840005a210234fa52cafb6e8dbd0999dd072043a32e356de58ece2a"
+    },
+    {
+      "case": "primary/mcp-dt-0.5",
+      "seed": 0,
+      "duration_s": 10.000000000000007,
+      "compared_committed_boundaries": 201,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "fc51683a9461c37a2dbc3c577a68bb0be0a9cc369777defab96b9b69761e2d66"
+    },
+    {
+      "case": "primary/mcp-dt-2",
+      "seed": 0,
+      "duration_s": 9.999999999999996,
+      "compared_committed_boundaries": 51,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "7eb9d316e13e87c8bc748c39a41dadc8bbdcdc581dba383d83b528189fc01e12"
+    },
+    {
+      "case": "primary/mcp-dwell",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "a4cf4bd87a471c34a40c92d8611f08db4e9d7c9ad00b6e5553d31324d747a6bf"
+    },
+    {
+      "case": "primary/mcp-dwell-off",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "a6007347bb24c2a125cd42b87b9957aa06faf166c9984c65aa5e34922e178321"
+    },
+    {
+      "case": "primary/mcp-dx-0.25",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "00f7ad6372cde44ada0a95f37055d1b7126cf394ed7d68149f3bd05e7422a46a"
+    },
+    {
+      "case": "primary/mcp-dx-0.5",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "75dfbbe3c5e5e867d29c284e826b09ec0cc7c69ce1409e4774231b70878a2200"
+    },
+    {
+      "case": "primary/mcp-gradient",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "80d398597f7d16c9f2e3ed41973da84f5b335555c3b0f6cf2b897f0f62d0d07d"
+    },
+    {
+      "case": "primary/mcp-signal-off",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "cc0f468c0ca995fed3314e3cc59dddaf8436c61c815ebe50155c290ecc435433"
+    },
+    {
+      "case": "primary/mcp-slow",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "e94062d38e09349b85680b4fcc261b6c2fbe08b552d97a583e39c9e64da2b0f4"
+    },
+    {
+      "case": "primary/mcp-slow-off",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "5789fc7c9b3abe3a005ae35c6117b76819db1c2c4d7b02e80e856c837462102c"
+    },
+    {
+      "case": "primary/mcp-zero",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "5821c2f2ca6f791c4020de593e415818fb1ffb177e3ac2a59a5547ccdda63d0d"
+    },
+    {
+      "case": "primary/pts-a-dt-0.5",
+      "seed": 0,
+      "duration_s": 10.000000000000007,
+      "compared_committed_boundaries": 201,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "5bbcd5b413cea26fe603fad4ea622d3585093c9b4eea2df233d644a23c871207"
+    },
+    {
+      "case": "primary/pts-a-dt-2",
+      "seed": 0,
+      "duration_s": 9.999999999999996,
+      "compared_committed_boundaries": 51,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "1a8aff07c49c873bacb1679b175512dcd034de62e1b2b01a197c4535204e571c"
+    },
+    {
+      "case": "primary/pts-a-dx-0.25",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "be375bb96d10e22cd46688938f0d3c853dac3c6cb075899239828ef317a1ff8c"
+    },
+    {
+      "case": "primary/pts-a-dx-0.5",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "591c42a1fbbb497392bb97f5c6916589ecdd41ba9f5489c7fe59efa0e55d3553"
+    },
+    {
+      "case": "primary/pts-a-gradient",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "51f71cbb6a097e726ba1a1b1f88c1f2fae917bcf48d23285ece654893a46862c"
+    },
+    {
+      "case": "primary/pts-a-signal-off",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "e51aef89d8fa3ab4d19c66b5ad45c1037f947858a8c0729adf0b2931cf5b3541"
+    },
+    {
+      "case": "primary/pts-a-zero",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "11fc6dd70d3d705bc690549fe5d93b7a3402b80ddac05e1432c7395134352ccf"
+    },
+    {
+      "case": "primary/pts-b-dt-0.5",
+      "seed": 0,
+      "duration_s": 10.000000000000007,
+      "compared_committed_boundaries": 201,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "86c579aed2e3e08e348eff78ae650408724c15f637764d43be27ad0fa90d50ce"
+    },
+    {
+      "case": "primary/pts-b-dt-2",
+      "seed": 0,
+      "duration_s": 9.999999999999996,
+      "compared_committed_boundaries": 51,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "2fbe5b092d384f1ac9d71ae6415a73919ee87ce15a6f6fc4996c196aec2793b9"
+    },
+    {
+      "case": "primary/pts-b-dx-0.25",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "47f949946accf94a6cff46599db7cd196b5318e6793ecabcc102772aabac9fec"
+    },
+    {
+      "case": "primary/pts-b-dx-0.5",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "b6974d8392d18801ebac7b37d0ffb8cd62cd304ae1a6a111cfe03e9900c638e6"
+    },
+    {
+      "case": "primary/pts-b-gradient",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "0e5345fff26269570cb1ba4a78449eaaebed3a12effeedef5de29e1ed558487e"
+    },
+    {
+      "case": "primary/pts-b-signal-off",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "3243fc1c6831efe2270fbe7b98de13b3afa5a137361fbc4c61a898dd76055aa5"
+    },
+    {
+      "case": "primary/pts-b-zero",
+      "seed": 0,
+      "duration_s": 9.99999999999998,
+      "compared_committed_boundaries": 101,
+      "all_checkpoint_components_exactly_equal": true,
+      "input_and_final_observation_match_original_study": true,
+      "division_events": 0,
+      "final_checkpoint_sha256": "68574b26d32502f791ac4eedd246c548f057873afc2971628c0751c3b8045058"
+    }
+  ],
+  "reproduction": {
+    "script": "probe.py (saved with external acceptance evidence; SHA-256 in raw_artifacts)",
+    "command": "python -B probe.py --package-root <old-wheel-extraction-or-final-src> --helpers <repository>/examples/runtime --reports <science-report-directory> --output <old-or-new>.json; then python -B compare.py",
+    "dependencies": "Same Python 3.11 interpreter and dependency environment for both process pools; package_root is prepended before imports.",
+    "raw_evidence_directory": "C:\\Users\\Wu Shangru\\AppData\\Local\\Temp\\friskoli-n3-complete-20261001\\science\\equivalence"
+  },
+  "source_lock_note": "The 17-file reviewed A/B model source lock is unchanged. The changed scientific implementation digest refers to CAD engine/science/project files, not to altered biological source models."
+}

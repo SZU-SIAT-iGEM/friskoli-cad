@@ -1,8 +1,8 @@
 # 工作区与服务协议 · 0.2.0
 
-本页保留 0.2 格式与兼容接口记录。新保存格式为 Workspace 0.3，新增对象关联和数据节点折叠；API 仍是同步 0.2，详见[注册目录与工作区 0.3](registry-contract.md)。
+本页是历史 Workspace 0.2 / 同步 API 0.2 的兼容记录，下方“当前”均指该历史版本。2026-10-01 新保存格式为 Workspace 0.4，兼容读取 0.1/0.2/0.3，支持 Project 0.5 的 chemotaxis-spatial-v1；注册目录见[当前合同](registry-contract.md)，异步 Task 0.4 见[任务服务](task-service.md)。本页原生结果仅成功导出的限制不适用于当前显式 partial 导出。
 
-状态：2026-09-29 已实现。适用于当前本地服务；交互规则见 [Interaction Specification](interaction-specification.md)，机器接口见 [OpenAPI](openapi.json)，工作区格式见 [JSON Schema](../src/friskoli_cad/protocol/schemas/workspace-v0.2.schema.json)。
+状态：2026-09-29 已实现。适用于历史同步兼容接口；交互规则见 [Interaction Specification](interaction-specification.md)，机器接口见 [OpenAPI](openapi.json)，工作区格式见 [JSON Schema](../src/friskoli_cad/protocol/schemas/workspace-v0.2.schema.json)。
 
 ## 版本与对象关系
 

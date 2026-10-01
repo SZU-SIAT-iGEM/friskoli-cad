@@ -2,7 +2,7 @@
 
 状态：2026-09-29 首版迁移验收记录。以下清单与数字描述当日结果，保留作为历史证据；旧版 `friskoli-cad-webui` 只作为交互参考，实现使用独立模块和后端协议。
 
-**当前实施更新（2026-10-01）：** 默认服务已支持[异步任务](task-service.md)的排队、取消、恢复查询与 partial 结果；[空间 profile](protocol/spatial-profile.md)已注册障碍物、有限局部源和材料盒，并可传输真实场和库存。M4 的[保存恢复文件与 CLI](checkpoint-files.md)用于独立空间运行，任务 pause/resume/checkpoint 与 UI checkpoint 导入仍未开放。最新验收见 [N2](verification-n2.md)、[空间记录](verification-spatial.md)、[M4](verification-m4.md)及 [PROGRESS](../PROGRESS.md)，不以本页旧测试数量代表当前测试规模。
+**当前实施更新（2026-10-01）：** 默认服务已支持[异步任务](task-service.md)的排队、取消、恢复查询与 partial 结果；[空间 profile](protocol/spatial-profile.md)已注册障碍物、有限局部源和材料盒，并可传输真实场和库存。完整 N3 另有六套可编辑科学模板、参数证据、信号驱动运动、生理事件、逐步指标与多 seed 比较。[保存恢复文件与 CLI](checkpoint-files.md)支持独立空间和科学运行；任务 pause/resume/checkpoint 与 UI checkpoint 导入仍未开放。最新验收见[完整 N3](verification-n3-complete.md)及 [PROGRESS](../PROGRESS.md)，不以本页旧测试数量代表当前测试规模。
 
 ## 已迁移并重新实现
 

@@ -1,0 +1,4737 @@
+{
+  "study_version": "n3-chemotaxis-comparison-v1",
+  "execution_profile": "chemotaxis-spatial-v1",
+  "parameter_kind": "constructed template values; no refitting during comparisons",
+  "experimental_calibration": "unknown",
+  "seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "duration_s": 10.0,
+  "cases": [
+    {
+      "model": "pts-a",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "pts-a-gradient"
+    },
+    {
+      "model": "pts-a",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": false,
+      "id": "pts-a-zero",
+      "reference": "pts-a-gradient"
+    },
+    {
+      "model": "pts-a",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "pts-a-signal-off",
+      "signal_off": true,
+      "reference": "pts-a-gradient"
+    },
+    {
+      "model": "pts-a",
+      "dt_s": 0.2,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "pts-a-dt-2",
+      "reference": "pts-a-gradient"
+    },
+    {
+      "model": "pts-a",
+      "dt_s": 0.05,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "pts-a-dt-0.5",
+      "reference": "pts-a-gradient"
+    },
+    {
+      "model": "pts-a",
+      "dt_s": 0.1,
+      "dx_um": 5.0,
+      "gradient": true,
+      "id": "pts-a-dx-0.5",
+      "reference": "pts-a-gradient"
+    },
+    {
+      "model": "pts-a",
+      "dt_s": 0.1,
+      "dx_um": 2.5,
+      "gradient": true,
+      "id": "pts-a-dx-0.25",
+      "reference": "pts-a-gradient"
+    },
+    {
+      "model": "pts-b",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "pts-b-gradient"
+    },
+    {
+      "model": "pts-b",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": false,
+      "id": "pts-b-zero",
+      "reference": "pts-b-gradient"
+    },
+    {
+      "model": "pts-b",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "pts-b-signal-off",
+      "signal_off": true,
+      "reference": "pts-b-gradient"
+    },
+    {
+      "model": "pts-b",
+      "dt_s": 0.2,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "pts-b-dt-2",
+      "reference": "pts-b-gradient"
+    },
+    {
+      "model": "pts-b",
+      "dt_s": 0.05,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "pts-b-dt-0.5",
+      "reference": "pts-b-gradient"
+    },
+    {
+      "model": "pts-b",
+      "dt_s": 0.1,
+      "dx_um": 5.0,
+      "gradient": true,
+      "id": "pts-b-dx-0.5",
+      "reference": "pts-b-gradient"
+    },
+    {
+      "model": "pts-b",
+      "dt_s": 0.1,
+      "dx_um": 2.5,
+      "gradient": true,
+      "id": "pts-b-dx-0.25",
+      "reference": "pts-b-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": false,
+      "id": "mcp-zero",
+      "reference": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "mcp-signal-off",
+      "signal_off": true,
+      "reference": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.2,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "mcp-dt-2",
+      "reference": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.05,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "mcp-dt-0.5",
+      "reference": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 5.0,
+      "gradient": true,
+      "id": "mcp-dx-0.5",
+      "reference": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 2.5,
+      "gradient": true,
+      "id": "mcp-dx-0.25",
+      "reference": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "mcp-dwell",
+      "mode": "dwell",
+      "reference": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "mcp-slow",
+      "speed_um_s": 2.5,
+      "reference": "mcp-gradient"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "mcp-dwell-off",
+      "mode": "dwell",
+      "signal_off": true,
+      "reference": "mcp-dwell"
+    },
+    {
+      "model": "mcp",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true,
+      "id": "mcp-slow-off",
+      "speed_um_s": 2.5,
+      "signal_off": true,
+      "reference": "mcp-slow"
+    },
+    {
+      "id": "materials-dx-1",
+      "model": "materials",
+      "dt_s": 0.1,
+      "dx_um": 10.0,
+      "gradient": true
+    },
+    {
+      "id": "materials-dx-0.5",
+      "model": "materials",
+      "dt_s": 0.1,
+      "dx_um": 5.0,
+      "gradient": true,
+      "reference": "materials-dx-1"
+    },
+    {
+      "id": "materials-dx-0.25",
+      "model": "materials",
+      "dt_s": 0.1,
+      "dx_um": 2.5,
+      "gradient": true,
+      "reference": "materials-dx-1"
+    }
+  ],
+  "summary": {
+    "pts-a-gradient": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.7709825553714835,
+          "sd_between_seeds": 0.23226985853996662,
+          "se_between_seeds": 0.08211979601942526,
+          "minimum": 0.3830895233398122,
+          "maximum": 1.074868660838516
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 7.709825553714834,
+          "sd_between_seeds": 2.3226985853996664,
+          "se_between_seeds": 0.8211979601942526,
+          "minimum": 3.830895233398122,
+          "maximum": 10.74868660838516
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.46875,
+          "sd_between_seeds": 0.08838834764831845,
+          "se_between_seeds": 0.03125,
+          "minimum": 0.375,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.59375,
+          "sd_between_seeds": 0.08838834764831845,
+          "se_between_seeds": 0.03125,
+          "minimum": 0.375,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 3.1437499999999914,
+          "sd_between_seeds": 0.5445755227697983,
+          "se_between_seeds": 0.19253652250936673,
+          "minimum": 2.1624999999999934,
+          "maximum": 3.7374999999999896
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.4526706937921325,
+          "sd_between_seeds": 0.5076577735062797,
+          "se_between_seeds": 0.1794841270841774,
+          "minimum": 3.6976752606322343,
+          "maximum": 4.89783469061443
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.09859375000000001,
+          "sd_between_seeds": 0.11362618359433833,
+          "se_between_seeds": 0.04017292246995213,
+          "minimum": 0.0,
+          "maximum": 0.27499999999999974
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 13144.746151324252,
+          "sd_between_seeds": 145.96783331704353,
+          "se_between_seeds": 51.60742238679457,
+          "minimum": 12833.979068670502,
+          "maximum": 13314.141189880778
+        }
+      }
+    },
+    "pts-a-zero": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.07079937557589369,
+          "sd_between_seeds": 0.681534920546985,
+          "se_between_seeds": 0.24095898196710394,
+          "minimum": -1.1273770057365167,
+          "maximum": 0.7021425893927506
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.7079937557589371,
+          "sd_between_seeds": 6.8153492054698495,
+          "se_between_seeds": 2.4095898196710395,
+          "minimum": -11.273770057365166,
+          "maximum": 7.021425893927507
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.421875,
+          "sd_between_seeds": 0.13258252147247765,
+          "se_between_seeds": 0.04687499999999999,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.515625,
+          "sd_between_seeds": 0.1407489533074504,
+          "se_between_seeds": 0.049762269664303464,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 3.367187499999992,
+          "sd_between_seeds": 0.6781322004226,
+          "se_between_seeds": 0.2397559387298877,
+          "minimum": 2.162499999999995,
+          "maximum": 4.099999999999991
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.415029830143063,
+          "sd_between_seeds": 0.3981497030375061,
+          "se_between_seeds": 0.14076717747261533,
+          "minimum": 3.7638830212194465,
+          "maximum": 4.885243419216484
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.11593750000000003,
+          "sd_between_seeds": 0.08235308889167427,
+          "se_between_seeds": 0.029116213803480704,
+          "minimum": 0.015,
+          "maximum": 0.2425000000000003
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 15965.899324019289,
+          "sd_between_seeds": 9.824406544089795,
+          "se_between_seeds": 3.473452244229694,
+          "minimum": 15943.31982941383,
+          "maximum": 15972.754520149187
+        }
+      },
+      "paired_to": "pts-a-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.7001831797955899,
+          "sd_between_seeds": 0.6975479625900574,
+          "se_between_seeds": 0.24662044727514484,
+          "minimum": -2.202245666575033,
+          "maximum": 0.04913058475958154
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -7.001831797955898,
+          "sd_between_seeds": 6.975479625900572,
+          "se_between_seeds": 2.466204472751448,
+          "minimum": -22.022456665750326,
+          "maximum": 0.4913058475958154
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": -0.046875,
+          "sd_between_seeds": 0.18824257716346443,
+          "se_between_seeds": 0.0665538014101588,
+          "minimum": -0.25,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.078125,
+          "sd_between_seeds": 0.18824257716346443,
+          "se_between_seeds": 0.0665538014101588,
+          "minimum": -0.375,
+          "maximum": 0.25
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.22343750000000068,
+          "sd_between_seeds": 0.5448393234641337,
+          "se_between_seeds": 0.19262979013928985,
+          "minimum": -0.7499999999999951,
+          "maximum": 0.8499999999999979
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.03764086364906971,
+          "sd_between_seeds": 0.7192965349568404,
+          "se_between_seeds": 0.2543097287759842,
+          "minimum": -0.8355703608754865,
+          "maximum": 1.0261392411467112
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.01734375000000002,
+          "sd_between_seeds": 0.15809049948300405,
+          "se_between_seeds": 0.05589343211280027,
+          "minimum": -0.21999999999999972,
+          "maximum": 0.1937499999999997
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 2821.1531726950357,
+          "sd_between_seeds": 138.04871736849952,
+          "se_between_seeds": 48.80759209268557,
+          "minimum": 2657.758301435122,
+          "maximum": 3109.3407607433273
+        }
+      }
+    },
+    "pts-a-signal-off": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.08800434416440482,
+          "sd_between_seeds": 0.46795816389875533,
+          "se_between_seeds": 0.16544819550220785,
+          "minimum": -0.6154304958518358,
+          "maximum": 0.8293494587731655
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.8800434416440481,
+          "sd_between_seeds": 4.679581638987553,
+          "se_between_seeds": 1.6544819550220786,
+          "minimum": -6.154304958518359,
+          "maximum": 8.293494587731654
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.4375,
+          "sd_between_seeds": 0.1336306209562122,
+          "se_between_seeds": 0.0472455591261534,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.578125,
+          "sd_between_seeds": 0.1484668673956776,
+          "se_between_seeds": 0.05249096435850378,
+          "minimum": 0.25,
+          "maximum": 0.75
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 3.071874999999992,
+          "sd_between_seeds": 1.3705895173245672,
+          "se_between_seeds": 0.48457657096169926,
+          "minimum": 0.47499999999999887,
+          "maximum": 4.474999999999988
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.561664609835144,
+          "sd_between_seeds": 0.3293454454664199,
+          "se_between_seeds": 0.1164411989211049,
+          "minimum": 4.018074344747639,
+          "maximum": 4.944978773964843
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.08171875,
+          "sd_between_seeds": 0.07026714807229825,
+          "se_between_seeds": 0.024843188448280665,
+          "minimum": 0.0,
+          "maximum": 0.19875000000000018
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 12863.323195549488,
+          "sd_between_seeds": 292.62555338851195,
+          "se_between_seeds": 103.45875657474144,
+          "minimum": 12411.89807608187,
+          "maximum": 13152.967794901515
+        }
+      },
+      "paired_to": "pts-a-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.6829782112070787,
+          "sd_between_seeds": 0.4107812297266432,
+          "se_between_seeds": 0.1452330965619292,
+          "minimum": -1.3973326307754195,
+          "maximum": -0.2097997004964518
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -6.829782112070786,
+          "sd_between_seeds": 4.107812297266431,
+          "se_between_seeds": 1.4523309656192915,
+          "minimum": -13.973326307754192,
+          "maximum": -2.097997004964518
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": -0.03125,
+          "sd_between_seeds": 0.19764235376052372,
+          "se_between_seeds": 0.06987712429686843,
+          "minimum": -0.25,
+          "maximum": 0.25
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.18221724671391565,
+          "se_between_seeds": 0.06442352540027595,
+          "minimum": -0.375,
+          "maximum": 0.25
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.07187499999999947,
+          "sd_between_seeds": 0.9904172551433599,
+          "se_between_seeds": 0.3501653786580184,
+          "minimum": -1.9999999999999925,
+          "maximum": 1.2999999999999958
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.10899391604301112,
+          "sd_between_seeds": 0.39431596376339534,
+          "se_between_seeds": 0.1394117459536029,
+          "minimum": -0.5606236872850499,
+          "maximum": 0.6199891444066248
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.016874999999999994,
+          "sd_between_seeds": 0.08935533000330766,
+          "se_between_seeds": 0.0315918798902503,
+          "minimum": -0.12750000000000028,
+          "maximum": 0.1312500000000002
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -281.4229557747642,
+          "sd_between_seeds": 189.26242519521537,
+          "se_between_seeds": 66.91437213967423,
+          "minimum": -693.539962310726,
+          "maximum": -118.47423621811868
+        }
+      }
+    },
+    "pts-a-dt-2": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.6542733747679611,
+          "sd_between_seeds": 0.4296639564595497,
+          "se_between_seeds": 0.15190914862199453,
+          "minimum": -0.10741832448468784,
+          "maximum": 1.402722861468841
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 6.542733747679611,
+          "sd_between_seeds": 4.2966395645954965,
+          "se_between_seeds": 1.5190914862199452,
+          "minimum": -1.0741832448468784,
+          "maximum": 14.02722861468841
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.453125,
+          "sd_between_seeds": 0.13258252147247765,
+          "se_between_seeds": 0.04687499999999999,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.53125,
+          "sd_between_seeds": 0.08838834764831845,
+          "se_between_seeds": 0.03125,
+          "minimum": 0.375,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.9531249999999982,
+          "sd_between_seeds": 0.962644933429321,
+          "se_between_seeds": 0.34034638015137275,
+          "minimum": 1.324999999999999,
+          "maximum": 4.374999999999997
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.551112714523851,
+          "sd_between_seeds": 0.2672533302410794,
+          "se_between_seeds": 0.09448832105407752,
+          "minimum": 4.1659343275859815,
+          "maximum": 4.802165065853412
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.05656249999999999,
+          "sd_between_seeds": 0.06440576587986066,
+          "se_between_seeds": 0.02277087690058132,
+          "minimum": 0.0,
+          "maximum": 0.15499999999999997
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 13074.746784906953,
+          "sd_between_seeds": 195.6844465170594,
+          "se_between_seeds": 69.18489955247449,
+          "minimum": 12642.364727049377,
+          "maximum": 13259.91547657283
+        }
+      },
+      "paired_to": "pts-a-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.11670918060352237,
+          "sd_between_seeds": 0.23345234665140008,
+          "se_between_seeds": 0.08253786870055879,
+          "minimum": -0.4905078478245001,
+          "maximum": 0.3388962174942025
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -1.1670918060352236,
+          "sd_between_seeds": 2.3345234665140007,
+          "se_between_seeds": 0.8253786870055879,
+          "minimum": -4.9050784782450005,
+          "maximum": 3.3889621749420247
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.2052600702245116,
+          "se_between_seeds": 0.07257039378128954,
+          "minimum": -0.375,
+          "maximum": 0.25
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.0625,
+          "sd_between_seeds": 0.11572751247156893,
+          "se_between_seeds": 0.04091585441924857,
+          "minimum": -0.25,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.19062499999999352,
+          "sd_between_seeds": 0.683470333246857,
+          "se_between_seeds": 0.241643253689341,
+          "minimum": -1.0624999999999902,
+          "maximum": 1.037500000000005
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.09844202073171826,
+          "sd_between_seeds": 0.3502780587987052,
+          "se_between_seeds": 0.12384199533871233,
+          "minimum": -0.136559314363204,
+          "maximum": 0.8451654806075544
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.04203125000000002,
+          "sd_between_seeds": 0.07341460509375106,
+          "se_between_seeds": 0.025955982549961912,
+          "minimum": -0.20499999999999974,
+          "maximum": 0.010000000000000064
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -69.99936641730005,
+          "sd_between_seeds": 72.45724280347642,
+          "se_between_seeds": 25.61750386620917,
+          "minimum": -191.61434162112528,
+          "maximum": 65.95118203613129
+        }
+      }
+    },
+    "pts-a-dt-0.5": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.9353451135662428,
+          "sd_between_seeds": 0.3252363195767252,
+          "se_between_seeds": 0.11498840353042873,
+          "minimum": 0.4007368445240358,
+          "maximum": 1.4699381518589405
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 9.353451135662429,
+          "sd_between_seeds": 3.252363195767252,
+          "se_between_seeds": 1.1498840353042874,
+          "minimum": 4.007368445240358,
+          "maximum": 14.699381518589405
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.53125,
+          "sd_between_seeds": 0.12938729237669142,
+          "se_between_seeds": 0.04574531591946249,
+          "minimum": 0.375,
+          "maximum": 0.75
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.671875,
+          "sd_between_seeds": 0.06469364618834571,
+          "se_between_seeds": 0.022872657959731243,
+          "minimum": 0.625,
+          "maximum": 0.75
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 3.5476562500000064,
+          "sd_between_seeds": 0.7846528570181762,
+          "se_between_seeds": 0.27741667803747544,
+          "minimum": 2.068750000000005,
+          "maximum": 4.306250000000011
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.727059990268095,
+          "sd_between_seeds": 0.22547516198284243,
+          "se_between_seeds": 0.07971750801360156,
+          "minimum": 4.346997030633662,
+          "maximum": 4.952827695364
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.047656249999999956,
+          "sd_between_seeds": 0.04597134928797649,
+          "se_between_seeds": 0.01625332641091177,
+          "minimum": 0.0,
+          "maximum": 0.12312499999999973
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 13206.140533815053,
+          "sd_between_seeds": 160.00589829832796,
+          "se_between_seeds": 56.57062785829638,
+          "minimum": 12868.205046318975,
+          "maximum": 13398.110512221227
+        }
+      },
+      "paired_to": "pts-a-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.1643625581947594,
+          "sd_between_seeds": 0.14414367076786255,
+          "se_between_seeds": 0.050962483532538363,
+          "minimum": 0.00696247402183392,
+          "maximum": 0.40611150788430206
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 1.6436255819475942,
+          "sd_between_seeds": 1.4414367076786254,
+          "se_between_seeds": 0.5096248353253836,
+          "minimum": 0.0696247402183392,
+          "maximum": 4.06111507884302
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0625,
+          "sd_between_seeds": 0.11572751247156893,
+          "se_between_seeds": 0.04091585441924857,
+          "minimum": -0.125,
+          "maximum": 0.25
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.078125,
+          "sd_between_seeds": 0.09300297614285562,
+          "se_between_seeds": 0.03288151755057195,
+          "minimum": 0.0,
+          "maximum": 0.25
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.4039062500000149,
+          "sd_between_seeds": 0.33340668370785903,
+          "se_between_seeds": 0.11787706347137276,
+          "minimum": -0.09374999999998845,
+          "maximum": 0.8312500000000123
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.2743892964759618,
+          "sd_between_seeds": 0.4291172918220637,
+          "se_between_seeds": 0.1517158734858939,
+          "minimum": -0.07621476808508643,
+          "maximum": 1.066962936744969
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.050937500000000045,
+          "sd_between_seeds": 0.09588928232229978,
+          "se_between_seeds": 0.03390198088660475,
+          "minimum": -0.22874999999999973,
+          "maximum": 0.025625000000000064
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 61.39438249080035,
+          "sd_between_seeds": 63.210476634872364,
+          "se_between_seeds": 22.34827833527603,
+          "minimum": -4.287175290321102,
+          "maximum": 204.14621768452707
+        }
+      }
+    },
+    "pts-a-dx-0.5": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.758295875587774,
+          "sd_between_seeds": 0.39311193074230505,
+          "se_between_seeds": 0.13898605599661015,
+          "minimum": 0.1828815408101568,
+          "maximum": 1.4320426605651304
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 7.5829587558777405,
+          "sd_between_seeds": 3.931119307423051,
+          "se_between_seeds": 1.3898605599661016,
+          "minimum": 1.8288154081015682,
+          "maximum": 14.320426605651305
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.46875,
+          "sd_between_seeds": 0.12938729237669142,
+          "se_between_seeds": 0.04574531591946249,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.578125,
+          "sd_between_seeds": 0.13258252147247765,
+          "se_between_seeds": 0.04687499999999999,
+          "minimum": 0.375,
+          "maximum": 0.75
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 3.0562499999999915,
+          "sd_between_seeds": 0.8335327142435879,
+          "se_between_seeds": 0.29469831729123486,
+          "minimum": 1.224999999999996,
+          "maximum": 3.862499999999991
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.574930492979206,
+          "sd_between_seeds": 0.21636461936121779,
+          "se_between_seeds": 0.07649644477958163,
+          "minimum": 4.359166658735912,
+          "maximum": 4.89382263873147
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.07093749999999999,
+          "sd_between_seeds": 0.047494125576598566,
+          "se_between_seeds": 0.016791709130869144,
+          "minimum": 0.0,
+          "maximum": 0.11749999999999998
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 13099.80314834695,
+          "sd_between_seeds": 194.54974911900482,
+          "se_between_seeds": 68.78372344009492,
+          "minimum": 12723.98630308729,
+          "maximum": 13393.643363407815
+        }
+      },
+      "paired_to": "pts-a-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.012686679783709475,
+          "sd_between_seeds": 0.2250386604082208,
+          "se_between_seeds": 0.07956318140189478,
+          "minimum": -0.38595770681393005,
+          "maximum": 0.36821601659049197
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.12686679783709476,
+          "sd_between_seeds": 2.250386604082208,
+          "se_between_seeds": 0.7956318140189478,
+          "minimum": -3.8595770681393002,
+          "maximum": 3.6821601659049197
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.1494035761667992,
+          "se_between_seeds": 0.05282214092053228,
+          "minimum": -0.25,
+          "maximum": 0.25
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.1407489533074504,
+          "se_between_seeds": 0.049762269664303464,
+          "minimum": -0.25,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.08749999999999986,
+          "sd_between_seeds": 0.44816092454130035,
+          "se_between_seeds": 0.15844881440299305,
+          "minimum": -0.9374999999999973,
+          "maximum": 0.612499999999998
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.12225979918707364,
+          "sd_between_seeds": 0.4907821994175374,
+          "se_between_seeds": 0.17351771064689459,
+          "minimum": -0.5255151518795449,
+          "maximum": 0.8471775888171198
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.027656250000000014,
+          "sd_between_seeds": 0.10884629870175386,
+          "se_between_seeds": 0.03848297795953332,
+          "minimum": -0.18999999999999972,
+          "maximum": 0.11249999999999999
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -44.943002977304104,
+          "sd_between_seeds": 120.6468893698143,
+          "se_between_seeds": 42.65511680122944,
+          "minimum": -230.36068040636928,
+          "maximum": 199.6790688711153
+        }
+      }
+    },
+    "pts-a-dx-0.25": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.8660136506990274,
+          "sd_between_seeds": 0.4000331877853379,
+          "se_between_seeds": 0.14143308989134198,
+          "minimum": 0.48402126730451556,
+          "maximum": 1.702525130048859
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 8.660136506990273,
+          "sd_between_seeds": 4.000331877853379,
+          "se_between_seeds": 1.41433089891342,
+          "minimum": 4.840212673045156,
+          "maximum": 17.02525130048859
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.5,
+          "sd_between_seeds": 0.11572751247156893,
+          "se_between_seeds": 0.04091585441924857,
+          "minimum": 0.375,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.59375,
+          "sd_between_seeds": 0.057863756235784464,
+          "se_between_seeds": 0.020457927209624284,
+          "minimum": 0.5,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 3.2687499999999905,
+          "sd_between_seeds": 0.6483151239944961,
+          "se_between_seeds": 0.22921401026115276,
+          "minimum": 2.287499999999992,
+          "maximum": 4.462499999999989
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.473672161410937,
+          "sd_between_seeds": 0.32123800964604143,
+          "se_between_seeds": 0.11357478749779272,
+          "minimum": 3.9853062391295224,
+          "maximum": 4.894956323081622
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.09218749999999996,
+          "sd_between_seeds": 0.07006613584933263,
+          "se_between_seeds": 0.024772119895300482,
+          "minimum": 0.0,
+          "maximum": 0.19999999999999973
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 13086.546960813273,
+          "sd_between_seeds": 158.85470083662463,
+          "se_between_seeds": 56.163618092468795,
+          "minimum": 12890.009286465598,
+          "maximum": 13420.250951802876
+        }
+      },
+      "paired_to": "pts-a-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.09503109532754386,
+          "sd_between_seeds": 0.3081734197833037,
+          "se_between_seeds": 0.10895575745511128,
+          "minimum": -0.3320211056219712,
+          "maximum": 0.6386984860742206
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.9503109532754386,
+          "sd_between_seeds": 3.081734197833037,
+          "se_between_seeds": 1.0895575745511128,
+          "minimum": -3.320211056219711,
+          "maximum": 6.386984860742206
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.03125,
+          "sd_between_seeds": 0.1456205931276794,
+          "se_between_seeds": 0.051484654440494625,
+          "minimum": -0.125,
+          "maximum": 0.25
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.11572751247156893,
+          "se_between_seeds": 0.04091585441924857,
+          "minimum": -0.125,
+          "maximum": 0.25
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.12499999999999911,
+          "sd_between_seeds": 0.5103832593537624,
+          "se_between_seeds": 0.1804477318465689,
+          "minimum": -0.5749999999999988,
+          "maximum": 1.212499999999996
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.02100146761880367,
+          "sd_between_seeds": 0.47851338873064364,
+          "se_between_seeds": 0.1691800310299963,
+          "minimum": -0.6190549233913458,
+          "maximum": 0.8273690504861149
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.006406250000000037,
+          "sd_between_seeds": 0.10336619521149078,
+          "se_between_seeds": 0.03654546878974878,
+          "minimum": -0.17750000000000027,
+          "maximum": 0.13125000000000012
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -58.19919051097986,
+          "sd_between_seeds": 146.23069349483242,
+          "se_between_seeds": 51.70035749390378,
+          "minimum": -245.74851224704435,
+          "maximum": 226.28665726617692
+        }
+      }
+    },
+    "pts-b-gradient": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.10633653987807627,
+          "sd_between_seeds": 0.2532423056951348,
+          "se_between_seeds": 0.08953467582017322,
+          "minimum": -0.43968973275712314,
+          "maximum": 0.41905135340445127
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 1.0633653987807627,
+          "sd_between_seeds": 2.532423056951348,
+          "se_between_seeds": 0.8953467582017323,
+          "minimum": -4.3968973275712315,
+          "maximum": 4.190513534044513
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.359375,
+          "sd_between_seeds": 0.10431537004953502,
+          "se_between_seeds": 0.036881052772005145,
+          "minimum": 0.125,
+          "maximum": 0.5
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.484375,
+          "sd_between_seeds": 0.12387890112063936,
+          "se_between_seeds": 0.043797805514170944,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.421874999999994,
+          "sd_between_seeds": 1.17130402756927,
+          "se_between_seeds": 0.41411851036267283,
+          "minimum": 0.3624999999999992,
+          "maximum": 3.5124999999999917
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.1196874999999999,
+          "sd_between_seeds": 0.003519714882933389,
+          "se_between_seeds": 0.0012444071307827073,
+          "minimum": 0.11624999999999992,
+          "maximum": 0.1274999999999999
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 3.9823545574714583,
+          "sd_between_seeds": 0.461625696834871,
+          "se_between_seeds": 0.1632093303009513,
+          "minimum": 3.1852241129015044,
+          "maximum": 4.415044997396593
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.09953124999999995,
+          "sd_between_seeds": 0.10809622346218066,
+          "se_between_seeds": 0.03821778631538216,
+          "minimum": 0.0,
+          "maximum": 0.2849999999999997
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 12906.791535710578,
+          "sd_between_seeds": 205.09331320219263,
+          "se_between_seeds": 72.51143627064344,
+          "minimum": 12537.766104261851,
+          "maximum": 13122.938315319892
+        }
+      }
+    },
+    "pts-b-zero": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.16957434166055202,
+          "sd_between_seeds": 0.4591802980312506,
+          "se_between_seeds": 0.16234475126257858,
+          "minimum": -0.48375872843325834,
+          "maximum": 0.7758973176130488
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 1.6957434166055203,
+          "sd_between_seeds": 4.591802980312506,
+          "se_between_seeds": 1.623447512625786,
+          "minimum": -4.837587284332583,
+          "maximum": 7.758973176130488
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.390625,
+          "sd_between_seeds": 0.18221724671391565,
+          "se_between_seeds": 0.06442352540027595,
+          "minimum": 0.125,
+          "maximum": 0.75
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.515625,
+          "sd_between_seeds": 0.19408093856503714,
+          "se_between_seeds": 0.06861797387919374,
+          "minimum": 0.25,
+          "maximum": 0.75
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.692187499999993,
+          "sd_between_seeds": 1.433105666961987,
+          "se_between_seeds": 0.5066793676328455,
+          "minimum": 0.4749999999999989,
+          "maximum": 4.399999999999989
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.11781249999999992,
+          "sd_between_seeds": 0.0031868871959954766,
+          "se_between_seeds": 0.0011267347735824916,
+          "minimum": 0.11374999999999995,
+          "maximum": 0.12374999999999987
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.132011040597837,
+          "sd_between_seeds": 0.2755216662114287,
+          "se_between_seeds": 0.09741161927095884,
+          "minimum": 3.5416391133613616,
+          "maximum": 4.431250000000001
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.06812499999999995,
+          "sd_between_seeds": 0.061164298643664836,
+          "se_between_seeds": 0.021624845168727275,
+          "minimum": 0.0,
+          "maximum": 0.19499999999999978
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 15966.496773554625,
+          "sd_between_seeds": 8.847477068509257,
+          "se_between_seeds": 3.1280555157676857,
+          "minimum": 15945.861378523105,
+          "maximum": 15975.74504213863
+        }
+      },
+      "paired_to": "pts-b-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.06323780178247576,
+          "sd_between_seeds": 0.3066217923148464,
+          "se_between_seeds": 0.10840717430270054,
+          "minimum": -0.43297772952286334,
+          "maximum": 0.6286382323216555
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.6323780178247576,
+          "sd_between_seeds": 3.066217923148464,
+          "se_between_seeds": 1.0840717430270055,
+          "minimum": -4.3297772952286335,
+          "maximum": 6.2863823232165545
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.03125,
+          "sd_between_seeds": 0.16021748611541395,
+          "se_between_seeds": 0.05664543544843536,
+          "minimum": -0.125,
+          "maximum": 0.375
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.03125,
+          "sd_between_seeds": 0.12938729237669142,
+          "se_between_seeds": 0.04574531591946249,
+          "minimum": -0.125,
+          "maximum": 0.25
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.2703124999999991,
+          "sd_between_seeds": 0.7390551853307589,
+          "se_between_seeds": 0.2612954666092301,
+          "minimum": -0.37499999999999867,
+          "maximum": 2.0499999999999936
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": -0.0018749999999999947,
+          "sd_between_seeds": 0.0011572751247156947,
+          "se_between_seeds": 0.0004091585441924876,
+          "minimum": -0.003750000000000017,
+          "maximum": 2.7755575615628914e-17
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.1496564831263792,
+          "sd_between_seeds": 0.42239285880960464,
+          "se_between_seeds": 0.1493384273945217,
+          "minimum": -0.33088207740941566,
+          "maximum": 1.0595706186986686
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.03140625,
+          "sd_between_seeds": 0.10055079895079326,
+          "se_between_seeds": 0.03555007589591555,
+          "minimum": -0.2449999999999997,
+          "maximum": 0.09000000000000005
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 3059.7052378440485,
+          "sd_between_seeds": 205.43145959723708,
+          "se_between_seeds": 72.6309890751283,
+          "minimum": 2848.3597188851745,
+          "maximum": 3429.4973307040473
+        }
+      }
+    },
+    "pts-b-signal-off": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.20396060236456098,
+          "sd_between_seeds": 0.2092019244878419,
+          "se_between_seeds": 0.07396404972131453,
+          "minimum": -0.11141648711374223,
+          "maximum": 0.5974145012548371
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.03960602364561,
+          "sd_between_seeds": 2.092019244878419,
+          "se_between_seeds": 0.7396404972131453,
+          "minimum": -1.1141648711374224,
+          "maximum": 5.974145012548371
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.40625,
+          "sd_between_seeds": 0.12938729237669142,
+          "se_between_seeds": 0.04574531591946249,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.5,
+          "sd_between_seeds": 0.1336306209562122,
+          "se_between_seeds": 0.0472455591261534,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.5453124999999934,
+          "sd_between_seeds": 0.9041555230276622,
+          "se_between_seeds": 0.31966725079006475,
+          "minimum": 1.1124999999999963,
+          "maximum": 3.6499999999999915
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.1259374999999999,
+          "sd_between_seeds": 0.0031160586368955343,
+          "se_between_seeds": 0.001101693096361871,
+          "minimum": 0.12124999999999997,
+          "maximum": 0.13124999999999984
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.104240306724662,
+          "sd_between_seeds": 0.30381028307741625,
+          "se_between_seeds": 0.10741315567912281,
+          "minimum": 3.5448808421333275,
+          "maximum": 4.387011657835142
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.06468749999999998,
+          "sd_between_seeds": 0.0726437921347329,
+          "se_between_seeds": 0.02568345901478781,
+          "minimum": 0.0,
+          "maximum": 0.1924999999999999
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 12936.457206722305,
+          "sd_between_seeds": 179.2943524996355,
+          "se_between_seeds": 63.39012624047173,
+          "minimum": 12644.746760050459,
+          "maximum": 13172.728507471851
+        }
+      },
+      "paired_to": "pts-b-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.0976240624864847,
+          "sd_between_seeds": 0.11799106398766299,
+          "se_between_seeds": 0.04171614073254617,
+          "minimum": -0.03195501750797927,
+          "maximum": 0.3282732456433809
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.976240624864847,
+          "sd_between_seeds": 1.17991063987663,
+          "se_between_seeds": 0.4171614073254617,
+          "minimum": -0.3195501750797929,
+          "maximum": 3.282732456433809
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.046875,
+          "sd_between_seeds": 0.09300297614285562,
+          "se_between_seeds": 0.03288151755057195,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.015625,
+          "sd_between_seeds": 0.10431537004953502,
+          "se_between_seeds": 0.036881052772005145,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.1234374999999994,
+          "sd_between_seeds": 0.45249494373654764,
+          "se_between_seeds": 0.15998112158436906,
+          "minimum": -0.6624999999999979,
+          "maximum": 0.7499999999999971
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.00624999999999999,
+          "sd_between_seeds": 0.001889822365046143,
+          "se_between_seeds": 0.0006681531047810634,
+          "minimum": 0.003749999999999948,
+          "maximum": 0.008750000000000008
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.12188574925320317,
+          "sd_between_seeds": 0.3212425559036627,
+          "se_between_seeds": 0.11357639484258923,
+          "minimum": -0.03585760820525774,
+          "maximum": 0.9020346198353892
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.03484374999999997,
+          "sd_between_seeds": 0.07514996168376545,
+          "se_between_seeds": 0.02656952375624988,
+          "minimum": -0.21749999999999972,
+          "maximum": 0.005000000000000008
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 29.665671011728364,
+          "sd_between_seeds": 42.02522111348252,
+          "se_between_seeds": 14.858159415103781,
+          "minimum": -20.857006534013635,
+          "maximum": 106.98065578860769
+        }
+      }
+    },
+    "pts-b-dt-2": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.1333310590334219,
+          "sd_between_seeds": 0.19402234275191824,
+          "se_between_seeds": 0.06859725713079098,
+          "minimum": -0.19798737755137616,
+          "maximum": 0.377837768255174
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 1.3333105903342188,
+          "sd_between_seeds": 1.9402234275191823,
+          "se_between_seeds": 0.6859725713079098,
+          "minimum": -1.9798737755137616,
+          "maximum": 3.7783776825517403
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.359375,
+          "sd_between_seeds": 0.08010874305770697,
+          "se_between_seeds": 0.02832271772421768,
+          "minimum": 0.25,
+          "maximum": 0.5
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.484375,
+          "sd_between_seeds": 0.12387890112063936,
+          "se_between_seeds": 0.043797805514170944,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.4843749999999982,
+          "sd_between_seeds": 1.004004259737691,
+          "se_between_seeds": 0.35496911020035055,
+          "minimum": 1.0249999999999972,
+          "maximum": 3.499999999999998
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.11625000000000002,
+          "sd_between_seeds": 0.006408699444616542,
+          "se_between_seeds": 0.002265817417937409,
+          "minimum": 0.10500000000000005,
+          "maximum": 0.12250000000000001
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 3.9154009399408394,
+          "sd_between_seeds": 0.564537056188775,
+          "se_between_seeds": 0.1995939903310869,
+          "minimum": 2.740121119884629,
+          "maximum": 4.358108417902676
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.1128125,
+          "sd_between_seeds": 0.13692045070561437,
+          "se_between_seeds": 0.04840868958852916,
+          "minimum": 0.0,
+          "maximum": 0.3925000000000001
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 12897.610964911628,
+          "sd_between_seeds": 209.2407763097148,
+          "se_between_seeds": 73.97778591466842,
+          "minimum": 12554.212515508829,
+          "maximum": 13105.491902126743
+        }
+      },
+      "paired_to": "pts-b-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.02699451915534562,
+          "sd_between_seeds": 0.10759517822757543,
+          "se_between_seeds": 0.03804064007384688,
+          "minimum": -0.10639202451993741,
+          "maximum": 0.24170235520574698
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.2699451915534562,
+          "sd_between_seeds": 1.0759517822757543,
+          "se_between_seeds": 0.38040640073846876,
+          "minimum": -1.0639202451993741,
+          "maximum": 2.41702355205747
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0668153104781061,
+          "se_between_seeds": 0.0236227795630767,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.06250000000000458,
+          "sd_between_seeds": 0.27434988088726425,
+          "se_between_seeds": 0.09699733059655306,
+          "minimum": -0.09999999999999609,
+          "maximum": 0.7374999999999996
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": -0.003437499999999892,
+          "sd_between_seeds": 0.005815235531404919,
+          "se_between_seeds": 0.002055996239226687,
+          "minimum": -0.012499999999999886,
+          "maximum": 0.005000000000000143
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.06695361753061879,
+          "sd_between_seeds": 0.1783794809943148,
+          "se_between_seeds": 0.06306667031780844,
+          "minimum": -0.4451029930168753,
+          "maximum": 0.20766317265834866
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.013281250000000046,
+          "sd_between_seeds": 0.0419658529342609,
+          "se_between_seeds": 0.014837169594046627,
+          "minimum": -0.03750000000000023,
+          "maximum": 0.10750000000000043
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -9.180570798949702,
+          "sd_between_seeds": 24.23186669317337,
+          "se_between_seeds": 8.567258629775665,
+          "minimum": -56.920032117348455,
+          "maximum": 16.446411246977732
+        }
+      }
+    },
+    "pts-b-dt-0.5": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.08272150605287967,
+          "sd_between_seeds": 0.18902314096920608,
+          "se_between_seeds": 0.06682977239025316,
+          "minimum": -0.29224640154368065,
+          "maximum": 0.291703183668795
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.8272150605287967,
+          "sd_between_seeds": 1.890231409692061,
+          "se_between_seeds": 0.6682977239025316,
+          "minimum": -2.9224640154368067,
+          "maximum": 2.9170318366879497
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.359375,
+          "sd_between_seeds": 0.08010874305770697,
+          "se_between_seeds": 0.02832271772421768,
+          "minimum": 0.25,
+          "maximum": 0.5
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.5,
+          "sd_between_seeds": 0.1336306209562122,
+          "se_between_seeds": 0.0472455591261534,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.5335937500000036,
+          "sd_between_seeds": 1.015757202934095,
+          "se_between_seeds": 0.35912440311688937,
+          "minimum": 1.0062500000000034,
+          "maximum": 3.500000000000005
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.119921875,
+          "sd_between_seeds": 0.0032807184943676572,
+          "se_between_seeds": 0.0011599091472657452,
+          "minimum": 0.11687500000000002,
+          "maximum": 0.12687500000000007
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.0315903670476025,
+          "sd_between_seeds": 0.42079270254478685,
+          "se_between_seeds": 0.14877268672161628,
+          "minimum": 3.377411572322756,
+          "maximum": 4.415362143491555
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.08148437500000007,
+          "sd_between_seeds": 0.08931968661728913,
+          "se_between_seeds": 0.03157927805027123,
+          "minimum": 0.0,
+          "maximum": 0.2200000000000002
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 12892.062804726704,
+          "sd_between_seeds": 195.5301168035062,
+          "se_between_seeds": 69.13033575897846,
+          "minimum": 12539.985357703878,
+          "maximum": 13071.55379099552
+        }
+      },
+      "paired_to": "pts-b-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.0236150338251966,
+          "sd_between_seeds": 0.10234711470018837,
+          "se_between_seeds": 0.036185169419690286,
+          "minimum": -0.18080480360187823,
+          "maximum": 0.1474433312134425
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.23615033825196602,
+          "sd_between_seeds": 1.0234711470018836,
+          "se_between_seeds": 0.36185169419690283,
+          "minimum": -1.808048036018782,
+          "maximum": 1.4744333121344249
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0668153104781061,
+          "se_between_seeds": 0.0236227795630767,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": 0.0,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.11171875000000969,
+          "sd_between_seeds": 0.23037812231431634,
+          "se_between_seeds": 0.08145096626273848,
+          "minimum": -0.012499999999986855,
+          "maximum": 0.6437500000000043
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.00023437500000008174,
+          "sd_between_seeds": 0.0004650148807142715,
+          "se_between_seeds": 0.00016440758775285744,
+          "minimum": -0.0006249999999998201,
+          "maximum": 0.0006250000000001671
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.04923580957614476,
+          "sd_between_seeds": 0.14898477935743404,
+          "se_between_seeds": 0.05267407388861158,
+          "minimum": -0.14304480791735008,
+          "maximum": 0.3425874965888398
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.018046874999999886,
+          "sd_between_seeds": 0.0378826275617485,
+          "se_between_seeds": 0.013393531419038384,
+          "minimum": -0.09000000000000019,
+          "maximum": 0.01750000000000071
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -14.728730983873447,
+          "sd_between_seeds": 24.4771874006805,
+          "se_between_seeds": 8.65399259769755,
+          "minimum": -56.986017348803216,
+          "maximum": 2.2192534420264565
+        }
+      }
+    },
+    "pts-b-dx-0.5": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.12205197800199039,
+          "sd_between_seeds": 0.19007823705749544,
+          "se_between_seeds": 0.06720280518966956,
+          "minimum": -0.21210911163997884,
+          "maximum": 0.36376672816754774
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 1.220519780019904,
+          "sd_between_seeds": 1.9007823705749542,
+          "se_between_seeds": 0.6720280518966956,
+          "minimum": -2.1210911163997883,
+          "maximum": 3.637667281675477
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.359375,
+          "sd_between_seeds": 0.08010874305770697,
+          "se_between_seeds": 0.02832271772421768,
+          "minimum": 0.25,
+          "maximum": 0.5
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.484375,
+          "sd_between_seeds": 0.12387890112063936,
+          "se_between_seeds": 0.043797805514170944,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.5015624999999932,
+          "sd_between_seeds": 1.0059518746476586,
+          "se_between_seeds": 0.3556576960553396,
+          "minimum": 1.0499999999999963,
+          "maximum": 3.5124999999999917
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.11999999999999991,
+          "sd_between_seeds": 0.0035981145856446082,
+          "se_between_seeds": 0.0012721256114977635,
+          "minimum": 0.11624999999999992,
+          "maximum": 0.1274999999999999
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.019851265799417,
+          "sd_between_seeds": 0.4683170111906603,
+          "se_between_seeds": 0.16557506717896608,
+          "minimum": 3.124713246412504,
+          "maximum": 4.414543267667954
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.09156249999999995,
+          "sd_between_seeds": 0.10771935676297255,
+          "se_between_seeds": 0.038084543816075435,
+          "minimum": 0.0,
+          "maximum": 0.29749999999999976
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 12867.122901622497,
+          "sd_between_seeds": 202.59290634571514,
+          "se_between_seeds": 71.62740894867315,
+          "minimum": 12544.389418524735,
+          "maximum": 13082.541352628983
+        }
+      },
+      "paired_to": "pts-b-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.015715438123914117,
+          "sd_between_seeds": 0.09949860262071543,
+          "se_between_seeds": 0.03517806831584673,
+          "minimum": -0.10766306745109233,
+          "maximum": 0.2275806211171443
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.1571543812391411,
+          "sd_between_seeds": 0.9949860262071544,
+          "se_between_seeds": 0.35178068315846733,
+          "minimum": -1.0766306745109233,
+          "maximum": 2.275806211171443
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0668153104781061,
+          "se_between_seeds": 0.0236227795630767,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.07968749999999966,
+          "sd_between_seeds": 0.26808992860871905,
+          "se_between_seeds": 0.09478410324352132,
+          "minimum": -0.10000000000000009,
+          "maximum": 0.7374999999999974
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.00031250000000000895,
+          "sd_between_seeds": 0.0005786375623578398,
+          "se_between_seeds": 0.0002045792720962411,
+          "minimum": 0.0,
+          "maximum": 0.0012500000000000011
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.03749670832795893,
+          "sd_between_seeds": 0.15830595928901411,
+          "se_between_seeds": 0.0559696086577517,
+          "minimum": -0.06051086648900039,
+          "maximum": 0.42355203355463544
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.007968749999999995,
+          "sd_between_seeds": 0.036215731955483645,
+          "se_between_seeds": 0.012804194825678414,
+          "minimum": -0.09625000000000032,
+          "maximum": 0.016250000000000292
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -39.66863408807967,
+          "sd_between_seeds": 30.34422365205648,
+          "se_between_seeds": 10.72830315710518,
+          "minimum": -83.5372249209413,
+          "maximum": 6.623314262884378
+        }
+      }
+    },
+    "pts-b-dx-0.25": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.09682196047938149,
+          "sd_between_seeds": 0.20212119022308134,
+          "se_between_seeds": 0.07146063211411846,
+          "minimum": -0.20952851307725306,
+          "maximum": 0.4087318840998673
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.968219604793815,
+          "sd_between_seeds": 2.0212119022308133,
+          "se_between_seeds": 0.7146063211411845,
+          "minimum": -2.0952851307725306,
+          "maximum": 4.087318840998673
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.359375,
+          "sd_between_seeds": 0.08010874305770697,
+          "se_between_seeds": 0.02832271772421768,
+          "minimum": 0.25,
+          "maximum": 0.5
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.5,
+          "sd_between_seeds": 0.1336306209562122,
+          "se_between_seeds": 0.0472455591261534,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.5312499999999933,
+          "sd_between_seeds": 0.991323970398028,
+          "se_between_seeds": 0.3504859509106089,
+          "minimum": 1.0499999999999963,
+          "maximum": 3.462499999999992
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.11999999999999991,
+          "sd_between_seeds": 0.0035981145856446048,
+          "se_between_seeds": 0.0012721256114977622,
+          "minimum": 0.11624999999999992,
+          "maximum": 0.1274999999999999
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 3.995670186573208,
+          "sd_between_seeds": 0.428614232573357,
+          "se_between_seeds": 0.15153801518284438,
+          "minimum": 3.3757674444269528,
+          "maximum": 4.414480900962795
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.09562500000000002,
+          "sd_between_seeds": 0.09837292382997036,
+          "se_between_seeds": 0.03478008076265988,
+          "minimum": 0.0,
+          "maximum": 0.23500000000000004
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 12817.260533361754,
+          "sd_between_seeds": 205.42030536112267,
+          "se_between_seeds": 72.62704545713056,
+          "minimum": 12463.023803369912,
+          "maximum": 13011.372502741127
+        }
+      },
+      "paired_to": "pts-b-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.009514579398694777,
+          "sd_between_seeds": 0.11755645672989627,
+          "se_between_seeds": 0.0415624838629863,
+          "minimum": -0.18146222545269738,
+          "maximum": 0.23016121967987008
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.09514579398694784,
+          "sd_between_seeds": 1.1755645672989627,
+          "se_between_seeds": 0.415624838629863,
+          "minimum": -1.8146222545269737,
+          "maximum": 2.301612196798701
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0668153104781061,
+          "se_between_seeds": 0.0236227795630767,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": 0.0,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.10937499999999958,
+          "sd_between_seeds": 0.2663199941531123,
+          "se_between_seeds": 0.09415833691561369,
+          "minimum": -0.04999999999999982,
+          "maximum": 0.7374999999999974
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0003125000000000072,
+          "sd_between_seeds": 0.0005786375623578323,
+          "se_between_seeds": 0.00020457927209623848,
+          "minimum": 0.0,
+          "maximum": 0.0012500000000000011
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.013315629101749882,
+          "sd_between_seeds": 0.07445015892375574,
+          "se_between_seeds": 0.02632210611770192,
+          "minimum": -0.05983796704866018,
+          "maximum": 0.19054333152544833
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.003906249999999932,
+          "sd_between_seeds": 0.01890339042719198,
+          "se_between_seeds": 0.006683357779242158,
+          "minimum": -0.049999999999999656,
+          "maximum": 0.010000000000000175
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -89.53100234882322,
+          "sd_between_seeds": 30.348100924130065,
+          "se_between_seeds": 10.729673979793048,
+          "minimum": -126.37182821416718,
+          "maximum": -47.60487568351891
+        }
+      }
+    },
+    "mcp-gradient": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.2578005890731037,
+          "sd_between_seeds": 0.35666807806271117,
+          "se_between_seeds": 0.12610120831545796,
+          "minimum": -0.4063627364275299,
+          "maximum": 0.6424477046740961
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.578005890731037,
+          "sd_between_seeds": 3.5666807806271117,
+          "se_between_seeds": 1.2610120831545797,
+          "minimum": -4.063627364275299,
+          "maximum": 6.424477046740961
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.453125,
+          "sd_between_seeds": 0.13258252147247765,
+          "se_between_seeds": 0.04687499999999999,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.65625,
+          "sd_between_seeds": 0.1735912687073534,
+          "se_between_seeds": 0.06137378162887285,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.906249999999993,
+          "sd_between_seeds": 1.0945277846763715,
+          "se_between_seeds": 0.3869740093708758,
+          "minimum": 0.8999999999999987,
+          "maximum": 4.337499999999991
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.515903144361298,
+          "sd_between_seeds": 0.30815240377555464,
+          "se_between_seeds": 0.10894832717431487,
+          "minimum": 3.9485887905422317,
+          "maximum": 4.8534467464369415
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.07343750000000003,
+          "sd_between_seeds": 0.06373336617726792,
+          "se_between_seeds": 0.022533147705895748,
+          "minimum": 0.0,
+          "maximum": 0.18875000000000014
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      }
+    },
+    "mcp-zero": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.2108298428736351,
+          "sd_between_seeds": 0.4191903322669079,
+          "se_between_seeds": 0.1482061632768863,
+          "minimum": -0.4154412894235359,
+          "maximum": 0.634861725102952
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.108298428736351,
+          "sd_between_seeds": 4.191903322669079,
+          "se_between_seeds": 1.482061632768863,
+          "minimum": -4.154412894235359,
+          "maximum": 6.34861725102952
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.421875,
+          "sd_between_seeds": 0.1484668673956776,
+          "se_between_seeds": 0.05249096435850378,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.640625,
+          "sd_between_seeds": 0.18221724671391565,
+          "se_between_seeds": 0.06442352540027595,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.842187499999993,
+          "sd_between_seeds": 1.1243636593170603,
+          "se_between_seeds": 0.39752258401140717,
+          "minimum": 0.8999999999999987,
+          "maximum": 4.337499999999991
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.373674512258092,
+          "sd_between_seeds": 0.31358845921725975,
+          "se_between_seeds": 0.11087026300718272,
+          "minimum": 3.9598271660750823,
+          "maximum": 4.870199688397877
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.10437500000000001,
+          "sd_between_seeds": 0.06583257986307824,
+          "se_between_seeds": 0.023275331822093785,
+          "minimum": 0.0,
+          "maximum": 0.18375000000000014
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.04697074619946858,
+          "sd_between_seeds": 0.11981272478952718,
+          "se_between_seeds": 0.042360195085556114,
+          "minimum": -0.2513267490167713,
+          "maximum": 0.0658536443818627
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.46970746199468616,
+          "sd_between_seeds": 1.1981272478952716,
+          "se_between_seeds": 0.42360195085556107,
+          "minimum": -2.5132674901677134,
+          "maximum": 0.6585364438186261
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": -0.03125,
+          "sd_between_seeds": 0.11080065755348979,
+          "se_between_seeds": 0.03917394815800054,
+          "minimum": -0.25,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": -0.125,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.06406249999999974,
+          "sd_between_seeds": 0.23796359828163302,
+          "se_between_seeds": 0.08413283701024708,
+          "minimum": -0.6374999999999975,
+          "maximum": 0.12499999999999956
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.14222863210320613,
+          "sd_between_seeds": 0.19795183225221938,
+          "se_between_seeds": 0.06998654146692312,
+          "minimum": -0.516121035886087,
+          "maximum": 0.016752941960935352
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.030937499999999986,
+          "sd_between_seeds": 0.04202332473077983,
+          "se_between_seeds": 0.014857488942569382,
+          "minimum": -0.0050000000000000044,
+          "maximum": 0.10750000000000004
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-signal-off": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.2108298428736351,
+          "sd_between_seeds": 0.4191903322669079,
+          "se_between_seeds": 0.1482061632768863,
+          "minimum": -0.4154412894235359,
+          "maximum": 0.634861725102952
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.108298428736351,
+          "sd_between_seeds": 4.191903322669079,
+          "se_between_seeds": 1.482061632768863,
+          "minimum": -4.154412894235359,
+          "maximum": 6.34861725102952
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.421875,
+          "sd_between_seeds": 0.1484668673956776,
+          "se_between_seeds": 0.05249096435850378,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.640625,
+          "sd_between_seeds": 0.18221724671391565,
+          "se_between_seeds": 0.06442352540027595,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.842187499999993,
+          "sd_between_seeds": 1.1243636593170603,
+          "se_between_seeds": 0.39752258401140717,
+          "minimum": 0.8999999999999987,
+          "maximum": 4.337499999999991
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.373674512258092,
+          "sd_between_seeds": 0.31358845921725975,
+          "se_between_seeds": 0.11087026300718272,
+          "minimum": 3.9598271660750823,
+          "maximum": 4.870199688397877
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.10437500000000001,
+          "sd_between_seeds": 0.06583257986307824,
+          "se_between_seeds": 0.023275331822093785,
+          "minimum": 0.0,
+          "maximum": 0.18375000000000014
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.04697074619946858,
+          "sd_between_seeds": 0.11981272478952718,
+          "se_between_seeds": 0.042360195085556114,
+          "minimum": -0.2513267490167713,
+          "maximum": 0.0658536443818627
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.46970746199468616,
+          "sd_between_seeds": 1.1981272478952716,
+          "se_between_seeds": 0.42360195085556107,
+          "minimum": -2.5132674901677134,
+          "maximum": 0.6585364438186261
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": -0.03125,
+          "sd_between_seeds": 0.11080065755348979,
+          "se_between_seeds": 0.03917394815800054,
+          "minimum": -0.25,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": -0.125,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.06406249999999974,
+          "sd_between_seeds": 0.23796359828163302,
+          "se_between_seeds": 0.08413283701024708,
+          "minimum": -0.6374999999999975,
+          "maximum": 0.12499999999999956
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.14222863210320613,
+          "sd_between_seeds": 0.19795183225221938,
+          "se_between_seeds": 0.06998654146692312,
+          "minimum": -0.516121035886087,
+          "maximum": 0.016752941960935352
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.030937499999999986,
+          "sd_between_seeds": 0.04202332473077983,
+          "se_between_seeds": 0.014857488942569382,
+          "minimum": -0.0050000000000000044,
+          "maximum": 0.10750000000000004
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-dt-2": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.2603701537865045,
+          "sd_between_seeds": 0.3759984299383129,
+          "se_between_seeds": 0.132935519762438,
+          "minimum": -0.4071609518461486,
+          "maximum": 0.6372463572775893
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.603701537865045,
+          "sd_between_seeds": 3.7599842993831287,
+          "se_between_seeds": 1.32935519762438,
+          "minimum": -4.071609518461486,
+          "maximum": 6.372463572775892
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.453125,
+          "sd_between_seeds": 0.13258252147247765,
+          "se_between_seeds": 0.04687499999999999,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.625,
+          "sd_between_seeds": 0.2004459314343183,
+          "se_between_seeds": 0.0708683386892301,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.906249999999998,
+          "sd_between_seeds": 1.0920778033507628,
+          "se_between_seeds": 0.3861078101663166,
+          "minimum": 0.8999999999999992,
+          "maximum": 4.299999999999997
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.364123449699926,
+          "sd_between_seeds": 0.297437537155877,
+          "se_between_seeds": 0.10516004975117316,
+          "minimum": 3.794462473906416,
+          "maximum": 4.7006141403170325
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.07968750000000001,
+          "sd_between_seeds": 0.0665802080737426,
+          "se_between_seeds": 0.023539658310877353,
+          "minimum": 0.0,
+          "maximum": 0.195
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.0025695647134008157,
+          "sd_between_seeds": 0.05592621952029826,
+          "se_between_seeds": 0.01977290453446518,
+          "minimum": -0.08035194177347876,
+          "maximum": 0.12400806664456399
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.02569564713400796,
+          "sd_between_seeds": 0.5592621952029827,
+          "se_between_seeds": 0.19772904534465185,
+          "minimum": -0.8035194177347877,
+          "maximum": 1.2400806664456399
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0668153104781061,
+          "se_between_seeds": 0.0236227795630767,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.03125,
+          "sd_between_seeds": 0.057863756235784464,
+          "se_between_seeds": 0.020457927209624284,
+          "minimum": -0.125,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 5.009881398621019e-15,
+          "sd_between_seeds": 0.10815002806947609,
+          "se_between_seeds": 0.038236809116721,
+          "minimum": -0.07499999999999485,
+          "maximum": 0.2625000000000042
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.1517796946613718,
+          "sd_between_seeds": 0.178979218081619,
+          "se_between_seeds": 0.06327870939848937,
+          "minimum": -0.4796689665435343,
+          "maximum": 0.18887008782637338
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.00624999999999999,
+          "sd_between_seeds": 0.04295450250805248,
+          "se_between_seeds": 0.015186710002969235,
+          "minimum": -0.07000000000000002,
+          "maximum": 0.09000000000000002
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-dt-0.5": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.2758810026865362,
+          "sd_between_seeds": 0.3624870883639478,
+          "se_between_seeds": 0.12815853913735736,
+          "minimum": -0.40443794573855296,
+          "maximum": 0.6452457765868286
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.758810026865362,
+          "sd_between_seeds": 3.6248708836394776,
+          "se_between_seeds": 1.2815853913735735,
+          "minimum": -4.04437945738553,
+          "maximum": 6.452457765868286
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.46875,
+          "sd_between_seeds": 0.12938729237669142,
+          "se_between_seeds": 0.04574531591946249,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.65625,
+          "sd_between_seeds": 0.1735912687073534,
+          "se_between_seeds": 0.06137378162887285,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.951562500000006,
+          "sd_between_seeds": 1.1110582049656228,
+          "se_between_seeds": 0.3928183955120724,
+          "minimum": 0.9125000000000024,
+          "maximum": 4.412500000000008
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.547475060773786,
+          "sd_between_seeds": 0.32492639826341346,
+          "se_between_seeds": 0.11487882979929025,
+          "minimum": 4.019529862391584,
+          "maximum": 4.919620625688097
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.0786718749999999,
+          "sd_between_seeds": 0.06648999446412425,
+          "se_between_seeds": 0.02350776298331913,
+          "minimum": 0.0,
+          "maximum": 0.1843749999999999
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.018080413613432506,
+          "sd_between_seeds": 0.026411963560557746,
+          "se_between_seeds": 0.009338039269061186,
+          "minimum": 0.0016527250155572645,
+          "maximum": 0.06977300522823104
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.1808041361343249,
+          "sd_between_seeds": 0.2641196356055774,
+          "se_between_seeds": 0.09338039269061182,
+          "minimum": 0.01652725015557266,
+          "maximum": 0.69773005228231
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": 0.0,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.045312500000013245,
+          "sd_between_seeds": 0.052050584942508554,
+          "se_between_seeds": 0.0184026607887871,
+          "minimum": 0.006250000000012523,
+          "maximum": 0.1625000000000143
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.03157191641248824,
+          "sd_between_seeds": 0.06713404249858362,
+          "se_between_seeds": 0.023735468349607176,
+          "minimum": -0.12870455334176523,
+          "maximum": 0.07256466635748549
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.005234374999999879,
+          "sd_between_seeds": 0.014208812265004443,
+          "se_between_seeds": 0.005023573752595614,
+          "minimum": -0.00437500000000024,
+          "maximum": 0.03937499999999966
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-dx-0.5": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.24622740855248632,
+          "sd_between_seeds": 0.3394150834391644,
+          "se_between_seeds": 0.12000135356841549,
+          "minimum": -0.38962407918685243,
+          "maximum": 0.6465213235358551
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.462274085524863,
+          "sd_between_seeds": 3.3941508343916436,
+          "se_between_seeds": 1.2000135356841548,
+          "minimum": -3.8962407918685242,
+          "maximum": 6.465213235358551
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.4375,
+          "sd_between_seeds": 0.1494035761667992,
+          "se_between_seeds": 0.05282214092053228,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.640625,
+          "sd_between_seeds": 0.15580293184477811,
+          "se_between_seeds": 0.05508465481809404,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.8859374999999927,
+          "sd_between_seeds": 1.1535550156395387,
+          "se_between_seeds": 0.4078432870152358,
+          "minimum": 0.8999999999999987,
+          "maximum": 4.58749999999999
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.434246720515155,
+          "sd_between_seeds": 0.3088870135914173,
+          "se_between_seeds": 0.10920805096547621,
+          "minimum": 3.9528152914106984,
+          "maximum": 4.84830502403831
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.09140625000000001,
+          "sd_between_seeds": 0.06463992815976821,
+          "se_between_seeds": 0.022853665768591686,
+          "minimum": 0.0,
+          "maximum": 0.18999999999999992
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.011573180520617383,
+          "sd_between_seeds": 0.033249608461782765,
+          "se_between_seeds": 0.011755511807562102,
+          "minimum": -0.06162549813993062,
+          "maximum": 0.032483229292216365
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.11573180520617399,
+          "sd_between_seeds": 0.33249608461782776,
+          "se_between_seeds": 0.11755511807562105,
+          "minimum": -0.6162549813993063,
+          "maximum": 0.32483229292216365
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": -0.125,
+          "maximum": 0.0
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": -0.125,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.020312499999999956,
+          "sd_between_seeds": 0.14924475044608487,
+          "se_between_seeds": 0.05276598754846031,
+          "minimum": -0.2624999999999993,
+          "maximum": 0.2499999999999991
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.0816564238461428,
+          "sd_between_seeds": 0.20008821169764274,
+          "se_between_seeds": 0.07074186566344633,
+          "minimum": -0.44076729165949224,
+          "maximum": 0.12775317158597854
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.017968749999999978,
+          "sd_between_seeds": 0.04130644136468656,
+          "se_between_seeds": 0.014604032397827186,
+          "minimum": -0.026250000000000218,
+          "maximum": 0.09250000000000007
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-dx-0.25": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.26259434163558654,
+          "sd_between_seeds": 0.35787960114519246,
+          "se_between_seeds": 0.12652954640905126,
+          "minimum": -0.4077866536106397,
+          "maximum": 0.6478550447727576
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.6259434163558657,
+          "sd_between_seeds": 3.578796011451925,
+          "se_between_seeds": 1.2652954640905125,
+          "minimum": -4.077866536106397,
+          "maximum": 6.478550447727576
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.46875,
+          "sd_between_seeds": 0.12938729237669142,
+          "se_between_seeds": 0.04574531591946249,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.640625,
+          "sd_between_seeds": 0.15580293184477811,
+          "se_between_seeds": 0.05508465481809404,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.9328124999999927,
+          "sd_between_seeds": 1.115234150222016,
+          "se_between_seeds": 0.39429481511640213,
+          "minimum": 0.9124999999999986,
+          "maximum": 4.46249999999999
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.479827805275996,
+          "sd_between_seeds": 0.30733517345284905,
+          "se_between_seeds": 0.10865939262282667,
+          "minimum": 3.954298354061451,
+          "maximum": 4.856269537107892
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.08125000000000002,
+          "sd_between_seeds": 0.06461078525624475,
+          "se_between_seeds": 0.022843362196239232,
+          "minimum": 0.0,
+          "maximum": 0.18500000000000016
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.004793752562482841,
+          "sd_between_seeds": 0.01505947386505513,
+          "se_between_seeds": 0.005324328045541034,
+          "minimum": -0.009106984521825012,
+          "maximum": 0.031150176868901536
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.04793752562482845,
+          "sd_between_seeds": 0.1505947386505513,
+          "se_between_seeds": 0.053243280455410345,
+          "minimum": -0.09106984521825012,
+          "maximum": 0.31150176868901536
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": 0.0,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.04419417382415922,
+          "se_between_seeds": 0.015625,
+          "minimum": -0.125,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.02656249999999974,
+          "sd_between_seeds": 0.06247767458403475,
+          "se_between_seeds": 0.02208919368556869,
+          "minimum": -0.025000000000000355,
+          "maximum": 0.12499999999999956
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.03607533908530136,
+          "sd_between_seeds": 0.050341897355774365,
+          "se_between_seeds": 0.017798548499032587,
+          "minimum": -0.13402448529205646,
+          "maximum": 0.006319471292690615
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.0078124999999999965,
+          "sd_between_seeds": 0.014122392300375803,
+          "se_between_seeds": 0.004993019681086208,
+          "minimum": -0.0037499999999999756,
+          "maximum": 0.03874999999999995
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-dwell": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.25483058204824627,
+          "sd_between_seeds": 0.41791045436799795,
+          "se_between_seeds": 0.14775365810618127,
+          "minimum": -0.3814427676027544,
+          "maximum": 0.7623373936930632
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.5483058204824625,
+          "sd_between_seeds": 4.17910454367998,
+          "se_between_seeds": 1.4775365810618128,
+          "minimum": -3.8144276760275444,
+          "maximum": 7.623373936930632
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.46875,
+          "sd_between_seeds": 0.1735912687073534,
+          "se_between_seeds": 0.06137378162887285,
+          "minimum": 0.25,
+          "maximum": 0.75
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.65625,
+          "sd_between_seeds": 0.1735912687073534,
+          "se_between_seeds": 0.06137378162887285,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.6578124999999932,
+          "sd_between_seeds": 1.0695655305343088,
+          "se_between_seeds": 0.3781485197820985,
+          "minimum": 0.8749999999999984,
+          "maximum": 4.36249999999999
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.11624999999999994,
+          "sd_between_seeds": 0.0035981145856446143,
+          "se_between_seeds": 0.0012721256114977657,
+          "minimum": 0.11249999999999998,
+          "maximum": 0.12374999999999992
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.132987340981033,
+          "sd_between_seeds": 0.18937825199236683,
+          "se_between_seeds": 0.06695532309652868,
+          "minimum": 3.8193536146404177,
+          "maximum": 4.400086726583522
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.06578125000000001,
+          "sd_between_seeds": 0.04278234730670383,
+          "se_between_seeds": 0.01512584394782415,
+          "minimum": 0.0,
+          "maximum": 0.13874999999999996
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.002970007024857427,
+          "sd_between_seeds": 0.1179270201360544,
+          "se_between_seeds": 0.041693497811663295,
+          "minimum": -0.22342203864542293,
+          "maximum": 0.13570266960767852
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.02970007024857446,
+          "sd_between_seeds": 1.1792702013605438,
+          "se_between_seeds": 0.41693497811663294,
+          "minimum": -2.234220386454229,
+          "maximum": 1.357026696076785
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.015625,
+          "sd_between_seeds": 0.12387890112063936,
+          "se_between_seeds": 0.043797805514170944,
+          "minimum": -0.25,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0668153104781061,
+          "se_between_seeds": 0.0236227795630767,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.24843749999999937,
+          "sd_between_seeds": 0.273162489254498,
+          "se_between_seeds": 0.09657752425882647,
+          "minimum": -0.7624999999999975,
+          "maximum": 0.024999999999999467
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.11624999999999994,
+          "sd_between_seeds": 0.0035981145856446143,
+          "se_between_seeds": 0.0012721256114977657,
+          "minimum": 0.11249999999999998,
+          "maximum": 0.12374999999999992
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.38291580338026526,
+          "sd_between_seeds": 0.21918511697049506,
+          "se_between_seeds": 0.07749364127250183,
+          "minimum": -0.6665642415754087,
+          "maximum": 0.0227531041697695
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.007656250000000011,
+          "sd_between_seeds": 0.04930063341740291,
+          "se_between_seeds": 0.017430406103118853,
+          "minimum": -0.10125000000000009,
+          "maximum": 0.05875000000000003
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-slow": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.14222241114667014,
+          "sd_between_seeds": 0.167297221372254,
+          "se_between_seeds": 0.059148499852993905,
+          "minimum": -0.09022587634022221,
+          "maximum": 0.33138248538218684
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 1.4222241114667016,
+          "sd_between_seeds": 1.67297221372254,
+          "se_between_seeds": 0.591484998529939,
+          "minimum": -0.9022587634022221,
+          "maximum": 3.3138248538218686
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.328125,
+          "sd_between_seeds": 0.09300297614285562,
+          "se_between_seeds": 0.03288151755057195,
+          "minimum": 0.25,
+          "maximum": 0.5
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.40625,
+          "sd_between_seeds": 0.16021748611541395,
+          "se_between_seeds": 0.05664543544843536,
+          "minimum": 0.25,
+          "maximum": 0.75
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 1.4078124999999955,
+          "sd_between_seeds": 0.6167287512987935,
+          "se_between_seeds": 0.2180465410980443,
+          "minimum": 0.287499999999999,
+          "maximum": 2.3249999999999926
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 2.3735777307494224,
+          "sd_between_seeds": 0.08412047981783176,
+          "se_between_seeds": 0.02974108085792747,
+          "minimum": 2.2444551586842643,
+          "maximum": 2.4437717711142724
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.02562500000000001,
+          "sd_between_seeds": 0.03627769877722992,
+          "se_between_seeds": 0.0128261034056111,
+          "minimum": 0.0,
+          "maximum": 0.07875000000000003
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-gradient",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.11557817792643355,
+          "sd_between_seeds": 0.21727588952272298,
+          "se_between_seeds": 0.07681862743492827,
+          "minimum": -0.3235447579844992,
+          "maximum": 0.3541284719539604
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -1.1557817792643355,
+          "sd_between_seeds": 2.1727588952272296,
+          "se_between_seeds": 0.7681862743492827,
+          "minimum": -3.235447579844992,
+          "maximum": 3.541284719539604
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": -0.125,
+          "sd_between_seeds": 0.09449111825230681,
+          "se_between_seeds": 0.03340765523905305,
+          "minimum": -0.25,
+          "maximum": 0.0
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.25,
+          "sd_between_seeds": 0.18898223650461363,
+          "se_between_seeds": 0.0668153104781061,
+          "minimum": -0.625,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -1.4984374999999974,
+          "sd_between_seeds": 0.6882443211067655,
+          "se_between_seeds": 0.24333111328386275,
+          "minimum": -2.8374999999999955,
+          "maximum": -0.6124999999999997
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -2.142325413611876,
+          "sd_between_seeds": 0.33515792527571464,
+          "se_between_seeds": 0.11849622086543599,
+          "minimum": -2.597479773281055,
+          "maximum": -1.528270616439599
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.047812500000000015,
+          "sd_between_seeds": 0.08152494688305979,
+          "se_between_seeds": 0.028823421388442332,
+          "minimum": -0.18875000000000014,
+          "maximum": 0.07875000000000003
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-dwell-off": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.2607166790939969,
+          "sd_between_seeds": 0.41648817889098316,
+          "se_between_seeds": 0.14725080778892505,
+          "minimum": -0.31740421300221355,
+          "maximum": 0.7343475081760471
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 2.607166790939969,
+          "sd_between_seeds": 4.164881788909832,
+          "se_between_seeds": 1.4725080778892505,
+          "minimum": -3.1740421300221353,
+          "maximum": 7.343475081760471
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.46875,
+          "sd_between_seeds": 0.19764235376052372,
+          "se_between_seeds": 0.06987712429686843,
+          "minimum": 0.25,
+          "maximum": 0.75
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.640625,
+          "sd_between_seeds": 0.15580293184477811,
+          "se_between_seeds": 0.05508465481809404,
+          "minimum": 0.375,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 2.6468749999999934,
+          "sd_between_seeds": 1.0936045821698313,
+          "se_between_seeds": 0.3866476079944843,
+          "minimum": 0.8499999999999985,
+          "maximum": 4.28749999999999
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.11578124999999992,
+          "sd_between_seeds": 0.0031999930245459494,
+          "se_between_seeds": 0.0011313683837030455,
+          "minimum": 0.11249999999999996,
+          "maximum": 0.12124999999999989
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.22657060561546,
+          "sd_between_seeds": 0.11878278889525869,
+          "se_between_seeds": 0.04199605775804377,
+          "minimum": 4.059742921462381,
+          "maximum": 4.399999999999999
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.04593750000000001,
+          "sd_between_seeds": 0.03038260486810552,
+          "se_between_seeds": 0.01074187296617441,
+          "minimum": 0.0,
+          "maximum": 0.08625000000000002
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-dwell",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.005886097045750599,
+          "sd_between_seeds": 0.06412838163366096,
+          "se_between_seeds": 0.022672806759840253,
+          "minimum": -0.051524417706485165,
+          "maximum": 0.13669780785115504
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.058860970457506046,
+          "sd_between_seeds": 0.6412838163366095,
+          "se_between_seeds": 0.2267280675984025,
+          "minimum": -0.5152441770648517,
+          "maximum": 1.3669780785115497
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0668153104781061,
+          "se_between_seeds": 0.0236227795630767,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.08010874305770697,
+          "se_between_seeds": 0.02832271772421768,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.010937499999999989,
+          "sd_between_seeds": 0.19369959021639596,
+          "se_between_seeds": 0.06848314687753451,
+          "minimum": -0.3624999999999985,
+          "maximum": 0.34999999999999876
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": -0.00046875000000001776,
+          "sd_between_seeds": 0.0014846686739567827,
+          "se_between_seeds": 0.0005249096435850401,
+          "minimum": -0.00250000000000003,
+          "maximum": 0.0012500000000000289
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.09358326463442707,
+          "sd_between_seeds": 0.1608769840232435,
+          "se_between_seeds": 0.056878603169837665,
+          "minimum": -0.03124153750738934,
+          "maximum": 0.38374906676900444
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.01984375,
+          "sd_between_seeds": 0.03515550594450727,
+          "se_between_seeds": 0.012429348324702535,
+          "minimum": -0.07750000000000005,
+          "maximum": 0.006249999999999992
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "mcp-slow-off": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.13000934282515353,
+          "sd_between_seeds": 0.16450669411581043,
+          "se_between_seeds": 0.05816189947993533,
+          "minimum": -0.09620976941733295,
+          "maximum": 0.31133240555051894
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 1.3000934282515353,
+          "sd_between_seeds": 1.6450669411581043,
+          "se_between_seeds": 0.5816189947993533,
+          "minimum": -0.9620976941733295,
+          "maximum": 3.1133240555051893
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.328125,
+          "sd_between_seeds": 0.09300297614285562,
+          "se_between_seeds": 0.03288151755057195,
+          "minimum": 0.25,
+          "maximum": 0.5
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.40625,
+          "sd_between_seeds": 0.16021748611541395,
+          "se_between_seeds": 0.05664543544843536,
+          "minimum": 0.25,
+          "maximum": 0.75
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 1.3828124999999956,
+          "sd_between_seeds": 0.6010384428815069,
+          "se_between_seeds": 0.21249917935765844,
+          "minimum": 0.274999999999999,
+          "maximum": 2.312499999999993
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 2.3753349112227613,
+          "sd_between_seeds": 0.07851041550021062,
+          "se_between_seeds": 0.027757623596986178,
+          "minimum": 2.238637605775615,
+          "maximum": 2.438056249093855
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.02562500000000001,
+          "sd_between_seeds": 0.03654742515847439,
+          "se_between_seeds": 0.012921466082232535,
+          "minimum": 0.0,
+          "maximum": 0.08875000000000004
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 16000.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 16000.0,
+          "maximum": 16000.0
+        }
+      },
+      "paired_to": "mcp-slow",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.01221306832151663,
+          "sd_between_seeds": 0.005143494990022358,
+          "se_between_seeds": 0.0018185000932219213,
+          "minimum": -0.0200500798316679,
+          "maximum": -0.0056424436799206446
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.12213068321516629,
+          "sd_between_seeds": 0.051434949900223646,
+          "se_between_seeds": 0.018185000932219236,
+          "minimum": -0.20050079831667933,
+          "maximum": -0.05642443679920639
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.02499999999999991,
+          "sd_between_seeds": 0.040642166702646434,
+          "se_between_seeds": 0.0143691758387777,
+          "minimum": -0.12499999999999956,
+          "maximum": 0.0
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.001757180473339004,
+          "sd_between_seeds": 0.02036359346453533,
+          "se_between_seeds": 0.007199617514049496,
+          "minimum": -0.017329367380271243,
+          "maximum": 0.049784352486025085
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -8.673617379884035e-19,
+          "sd_between_seeds": 0.006123724356957951,
+          "se_between_seeds": 0.0021650635094610984,
+          "minimum": -0.012500000000000011,
+          "maximum": 0.010000000000000009
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        }
+      }
+    },
+    "materials-dx-1": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.6730576122198713,
+          "sd_between_seeds": 0.2819278109217485,
+          "se_between_seeds": 0.09967653345392358,
+          "minimum": 0.23804327285026927,
+          "maximum": 1.1186832745147823
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 6.730576122198713,
+          "sd_between_seeds": 2.819278109217485,
+          "se_between_seeds": 0.9967653345392358,
+          "minimum": 2.3804327285026927,
+          "maximum": 11.186832745147823
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.578125,
+          "sd_between_seeds": 0.06469364618834571,
+          "se_between_seeds": 0.022872657959731243,
+          "minimum": 0.5,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.71875,
+          "sd_between_seeds": 0.08838834764831845,
+          "se_between_seeds": 0.03125,
+          "minimum": 0.625,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 4.245312499999989,
+          "sd_between_seeds": 0.7411362385601858,
+          "se_between_seeds": 0.2620312300344991,
+          "minimum": 2.6749999999999936,
+          "maximum": 5.049999999999988
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.361793468899816,
+          "sd_between_seeds": 0.4979461422211838,
+          "se_between_seeds": 0.17605054691514002,
+          "minimum": 3.4398965571642983,
+          "maximum": 4.902760572161329
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.12062500000000007,
+          "sd_between_seeds": 0.11178742581985057,
+          "se_between_seeds": 0.039522823424302245,
+          "minimum": 0.0,
+          "maximum": 0.3325000000000003
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 13309.5440791405,
+          "sd_between_seeds": 145.2015039343998,
+          "se_between_seeds": 51.336484035249626,
+          "minimum": 12995.980724944384,
+          "maximum": 13454.636371316403
+        }
+      }
+    },
+    "materials-dx-0.5": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.6704697223497045,
+          "sd_between_seeds": 0.32909958479059764,
+          "se_between_seeds": 0.11635427404555437,
+          "minimum": 0.253561027282143,
+          "maximum": 1.0825242696436768
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 6.704697223497044,
+          "sd_between_seeds": 3.290995847905976,
+          "se_between_seeds": 1.1635427404555436,
+          "minimum": 2.5356102728214305,
+          "maximum": 10.825242696436767
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.5625,
+          "sd_between_seeds": 0.1336306209562122,
+          "se_between_seeds": 0.0472455591261534,
+          "minimum": 0.25,
+          "maximum": 0.625
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.71875,
+          "sd_between_seeds": 0.12938729237669142,
+          "se_between_seeds": 0.04574531591946249,
+          "minimum": 0.5,
+          "maximum": 0.875
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 4.12812499999999,
+          "sd_between_seeds": 0.9071085834357722,
+          "se_between_seeds": 0.3207113153099788,
+          "minimum": 2.162499999999995,
+          "maximum": 5.112499999999988
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.454259282572014,
+          "sd_between_seeds": 0.35118663630180147,
+          "se_between_seeds": 0.12416322599554878,
+          "minimum": 3.8514609253870504,
+          "maximum": 4.847765402331002
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.09812499999999995,
+          "sd_between_seeds": 0.07501487947638877,
+          "se_between_seeds": 0.026521764983823033,
+          "minimum": 0.013749999999999998,
+          "maximum": 0.22374999999999984
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 13268.887919451092,
+          "sd_between_seeds": 165.57163671104553,
+          "se_between_seeds": 58.5384135452679,
+          "minimum": 12948.09858948808,
+          "maximum": 13483.781488400062
+        }
+      },
+      "paired_to": "materials-dx-1",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": -0.0025878898701668165,
+          "sd_between_seeds": 0.17888309458565368,
+          "se_between_seeds": 0.06324472461057515,
+          "minimum": -0.3728751205436892,
+          "maximum": 0.20341441242659863
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": -0.02587889870166804,
+          "sd_between_seeds": 1.7888309458565366,
+          "se_between_seeds": 0.6324472461057514,
+          "minimum": -3.7287512054368914,
+          "maximum": 2.0341441242659863
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": -0.015625,
+          "sd_between_seeds": 0.10431537004953502,
+          "se_between_seeds": 0.036881052772005145,
+          "minimum": -0.25,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.11572751247156893,
+          "se_between_seeds": 0.04091585441924857,
+          "minimum": -0.25,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": -0.11718749999999961,
+          "sd_between_seeds": 0.3174913876784682,
+          "se_between_seeds": 0.11225015659788595,
+          "minimum": -0.6749999999999976,
+          "maximum": 0.1999999999999993
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 0.0924658136721978,
+          "sd_between_seeds": 0.335120744316332,
+          "se_between_seeds": 0.11848307541118075,
+          "minimum": -0.15143413659509886,
+          "maximum": 0.8953151556486918
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.022500000000000117,
+          "sd_between_seeds": 0.07739912790206373,
+          "se_between_seeds": 0.027364724098737088,
+          "minimum": -0.20750000000000046,
+          "maximum": 0.03749999999999995
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -40.65615968940779,
+          "sd_between_seeds": 46.909286391485935,
+          "se_between_seeds": 16.58493725402077,
+          "minimum": -135.57973736103486,
+          "maximum": 29.145117083658988
+        }
+      }
+    },
+    "materials-dx-0.25": {
+      "complete_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "metrics": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.7341607805387916,
+          "sd_between_seeds": 0.3515006992545623,
+          "se_between_seeds": 0.1242742640173571,
+          "minimum": 0.3597238529186354,
+          "maximum": 1.3681113476091376
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 7.341607805387917,
+          "sd_between_seeds": 3.515006992545623,
+          "se_between_seeds": 1.242742640173571,
+          "minimum": 3.5972385291863542,
+          "maximum": 13.681113476091376
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.578125,
+          "sd_between_seeds": 0.11451567266411304,
+          "se_between_seeds": 0.04048740434646664,
+          "minimum": 0.375,
+          "maximum": 0.75
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.71875,
+          "sd_between_seeds": 0.057863756235784464,
+          "se_between_seeds": 0.020457927209624284,
+          "minimum": 0.625,
+          "maximum": 0.75
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 4.274999999999989,
+          "sd_between_seeds": 0.8252434705674946,
+          "se_between_seeds": 0.2917676270840982,
+          "minimum": 2.874999999999992,
+          "maximum": 5.712499999999986
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": 4.355449715635344,
+          "sd_between_seeds": 0.4101574032933978,
+          "se_between_seeds": 0.14501254061131358,
+          "minimum": 3.7325483744020422,
+          "maximum": 4.798335386444734
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": 0.11890624999999999,
+          "sd_between_seeds": 0.08693038445256883,
+          "se_between_seeds": 0.030734532168782518,
+          "minimum": 0.022500000000000006,
+          "maximum": 0.25124999999999986
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": 13256.218890547721,
+          "sd_between_seeds": 140.12406368899164,
+          "se_between_seeds": 49.54133782095083,
+          "minimum": 13062.01165885061,
+          "maximum": 13515.315403265367
+        }
+      },
+      "paired_to": "materials-dx-1",
+      "paired_seeds": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "paired_difference": {
+        "drift_um_s": {
+          "n": 8,
+          "mean": 0.06110316831892043,
+          "sd_between_seeds": 0.22782030085777644,
+          "se_between_seeds": 0.08054663981424656,
+          "minimum": -0.38730508417507026,
+          "maximum": 0.32610127354033325
+        },
+        "mean_displacement_um": {
+          "n": 8,
+          "mean": 0.6110316831892045,
+          "sd_between_seeds": 2.2782030085777643,
+          "se_between_seeds": 0.8054663981424657,
+          "minimum": -3.873050841750702,
+          "maximum": 3.261012735403333
+        },
+        "region_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.09449111825230681,
+          "se_between_seeds": 0.03340765523905305,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "ever_arrived_fraction": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0668153104781061,
+          "se_between_seeds": 0.0236227795630767,
+          "minimum": -0.125,
+          "maximum": 0.125
+        },
+        "mean_residence_s": {
+          "n": 8,
+          "mean": 0.029687499999999645,
+          "sd_between_seeds": 0.38648701119368517,
+          "se_between_seeds": 0.13664379322778794,
+          "minimum": -0.5249999999999986,
+          "maximum": 0.6624999999999979
+        },
+        "tumble_duty_left": {
+          "n": 8,
+          "mean": 0.0,
+          "sd_between_seeds": 0.0,
+          "se_between_seeds": 0.0,
+          "minimum": 0.0,
+          "maximum": 0.0
+        },
+        "step_chord_speed_um_s": {
+          "n": 8,
+          "mean": -0.006343753264472007,
+          "sd_between_seeds": 0.22184205122748785,
+          "se_between_seeds": 0.07843300938764505,
+          "minimum": -0.437483675604331,
+          "maximum": 0.2926518172377439
+        },
+        "blocked_duty_right": {
+          "n": 8,
+          "mean": -0.00171875000000007,
+          "sd_between_seeds": 0.05243591965096888,
+          "se_between_seeds": 0.01853889718147652,
+          "minimum": -0.08125000000000043,
+          "maximum": 0.09625
+        },
+        "uptake_molecules": {
+          "n": 8,
+          "mean": -53.32518859277866,
+          "sd_between_seeds": 80.63055714476508,
+          "se_between_seeds": 28.507206863956405,
+          "minimum": -158.5709416178015,
+          "maximum": 66.03093390622598
+        }
+      }
+    }
+  },
+  "definitions": {
+    "drift_um_s": "Signed X displacement of the fixed initial cohort / requested duration.",
+    "region_fraction": "Terminal live center fraction in x >= 65 um, physical closed box.",
+    "ever_arrived_fraction": "Fraction seen in target at a committed step boundary.",
+    "mean_residence_s": "Initial-cohort mean, left-endpoint numerical-step region integral.",
+    "tumble_duty_left": "Left-endpoint tumble indicator integral / total cell-time; dt-sensitive approximation.",
+    "step_chord_speed_um_s": "Sum of committed-step displacement norms / cell-time; underestimates curved/event paths.",
+    "blocked_duty_right": "Fraction of cell-steps flagged blocked, weighted by dt.",
+    "paired_difference": "Case minus stated reference for common complete seeds; SE treats seed, not cell, as replicate."
+  },
+  "limits": [
+    "Small constructed cohort and finite observation time; no positive drift is assumed.",
+    "No-flux finite domain and geometric blocking; boundaries may affect residence.",
+    "Nearest-voxel sampling changes as mesh changes. dx results are sensitivity, not a claimed convergence order.",
+    "Initial linear field evolves by diffusion; gradient is not clamped.",
+    "Frozen-motor controls match initialized mean bias, not time-varying mean tumble rate.",
+    "MCP has an explicitly supplied nutrient reservoir; its finite ligand remains separate.",
+    "Partial/failed runs never enter means. Code changes during a study invalidate acceptance completeness."
+  ],
+  "complete": true,
+  "failed_run_count": 0,
+  "code_sha256_at_start": "2c193acdc620f574f8f705685e7cf3a0365532938b8a6b38241587a03f7a4e2b",
+  "code_sha256_at_end": "2c193acdc620f574f8f705685e7cf3a0365532938b8a6b38241587a03f7a4e2b",
+  "catalog_sha256": "35437bcf28f13e1e295ca512403c7566aef58802cefba8cc30f7f6949f59dabc",
+  "checked_on": "2026-10-01",
+  "runs_completed": 224,
+  "source_report_sha256": "f9a0ead67a18b2a8c1f3fc2bc09956e5d7aa4e4797ca6529feb3104daecef0b7",
+  "initial_inventory_checks_passed": true,
+  "max_absolute_global_nutrient_equivalent_residual_molecules": 3.725290298461914e-09,
+  "max_step_residual_bound_ratio": 0.0018128752708435059,
+  "final_implementation_verification": {
+    "old_study_code_sha256": "2c193acdc620f574f8f705685e7cf3a0365532938b8a6b38241587a03f7a4e2b",
+    "final_code_sha256": "4571953a5d35eb3a19c41c132e5f3863706b3b607bf23db6dc6b79801178061c",
+    "verification": "n3-inheritance-equivalence.json",
+    "comparison_pairs": 43,
+    "compared_committed_boundaries": 5813,
+    "exactly_equal": true,
+    "scope": "All 37 study cases at original durations, representative seed 0; six real-division cases. Original study run hashes are retained, not relabeled as final-source reruns."
+  }
+}

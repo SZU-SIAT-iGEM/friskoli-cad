@@ -1,10 +1,12 @@
 # 架构、状态与文件结构
 
-状态：2026-09-29 目标结构，2026-10-01 补充实施状态。本次只更新文档，不移动源码。架构继续使用 Python/NumPy、ES modules 与 Three.js；下文分层及目标目录不等于当前物理文件布局。
+状态：2026-09-29 目标结构，2026-10-01 补充实施状态。本文记录现有实现与目标结构，不要求为配合目录图搬移源码。架构继续使用 Python/NumPy、ES modules 与 Three.js；下文分层及目标目录不等于当前物理文件布局。
 
 2026-10-01 实施注记：注册目录、异步任务 worker/SQLite 存储、固定 PTS 和空间执行器已分别落在 `registry.py`、`tasks/` 与 `engine/`。M4 增加 `engine/checkpoint_io.py` 和 `checkpoint.py` 的独立文件/CLI 入口，外层文件 0.1.0 包装冻结 Project 0.4 与内部 `spatial-checkpoint/v2`。当前没有通用 `application/`、`server/` 或 `plugin_api/` 层；图中的职责划分仍是演进目标。
 
 执行合同按 profile 分开：legacy 为 Project 0.1/0.2、Catalog/Task 0.1；固定 PTS 为 Project 0.3、Catalog/Task 0.2；空间为 Project 0.4、Catalog/Task 0.3。M4 不改变任务状态机，任务 pause/resume 和运行中环境迁移仍在 N7；空间 profile 不支持生长、分裂、死亡或外部 controls。实际状态见[空间合同](../protocol/spatial-profile.md)和[checkpoint 文件](../checkpoint-files.md)。
+
+科学执行器现由 `engine/chemotaxis_*`、`hazard_walk.py`、`observations.py` 与 `science/chemotaxis.py`、`physiology.py`、`materials.py` 组成，前端模板和指标使用 `templates.mjs`、`metrics.mjs`、`metric-results.mjs`。它们共同实现[科学 profile](../protocol/chemotaxis-profile.md)，不改旧 profile 的科学含义。
 
 ## 1. 四类职责及依赖
 

@@ -1,12 +1,14 @@
 # 科学模型审查与迁入
 
-更新：2026-10-01。两份来源模型已完成首轮代码/数学审查、确定缺陷修订、有限规模回归和独立复核。完整源码修订保存在相邻的 `friskoli-model-review` 仓库，原始目录与 ZIP 保留。CAD 已实现 M0–M3 最小 PTS 计算链、M4 状态恢复与空间无偏基线；两套完整模型尚未全部迁入。
+更新：2026-10-01。两份来源模型已完成首轮代码/数学审查、确定缺陷修订、有限规模回归和独立复核。完整来源修订保存在相邻的 `friskoli-model-review` 仓库，原始目录与 ZIP 保留。CAD 的 `chemotaxis-spatial-v1` 现已注册 A 浓度记忆、B CheY-P 记忆、MCP 受体适应、信号驱动运动，以及 direct-bulk 水解、营养生长、总 copy 表达、health/death 和面积 adder。实现范围与实际通过的检查分开说明。
 
-新增实现入口：[科学方程与参数证据](pts-minimal.md)、[共享库存结算](settlement.md)、[执行协议](../protocol/pts-bulk-profile.md)、[中文 Wiki](../wiki/models/pts-minimal.md)与[实际验收](../verification-n3.md)。CAD 包内保存选定来源文件的提交和 SHA、证据与固定条件 fixtures，运行不依赖外部模型目录。
+当前入口：[N3 机制、单位与来源差异](n3-mechanisms.md)、[N3 中文 Wiki](../wiki/models/n3-chemotaxis.md)、[完整 N3 验收](../verification-n3-complete.md)。最小 PTS 链的历史入口仍可查阅：[PTS 方程与参数证据](pts-minimal.md)、[共享库存结算](settlement.md)、[bulk 执行协议](../protocol/pts-bulk-profile.md)及[早期验收](../verification-n3.md)。运行所需选定来源文件锁、证据和 fixtures 在包内，运行不依赖相邻模型目录。
 
-后续空间基线见[底物、养分场、接触降解与运动](spatial-baseline.md)：采用独立执行规则，包含注册实体、表面酶限速释放、局部守恒场及无偏随机运动。它没有完成完整 A/B 模型重现或 MCP 受体链。
+[多 seed、时间步和网格比较](n3-comparison.md)记录完整图构造研究，包括没有显示明确群体增益的结果，不把单次轨迹或只读信号响应当作工程菌趋化验证。
 
-M4 的 [checkpoint 文件入口](../checkpoint-files.md) 和 [验收](../verification-m4.md) 已补齐；下一步按迁入计划完成 M5 信号—运动及 PTS/MCP/无趋化对照。数值复现不代替科学标定。
+本轮按明确选择使用 direct-bulk：接触水解产物进入同一个可溶场，不迁入 A 的 contact/surface/bulk 三池。因此 A 的传质假设已替换，当前组合不能称为原 A 的完整复刻。B 的活跃直接释放路径也经过 CAD 的接触、材料几何、事件定位与数值分拆适配。MCP 使用经典 MWC 结构和显式简化的 activity 反馈，参数没有本构建体实验标定。
+
+已有[空间无偏基线](spatial-baseline.md)保留独立执行语义；[checkpoint 文件入口](../checkpoint-files.md)及[M4 历史验收](../verification-m4.md)继续描述相应版本。新增趋化/生理状态的恢复与回滚检查见完整 N3 验收。支持数值状态恢复不等于服务级通用暂停续算。
 
 ## 来源、修订与阅读入口
 
@@ -19,7 +21,7 @@ M4 的 [checkpoint 文件入口](../checkpoint-files.md) 和 [验收](../verific
 
 rebuilt-v2 来源为 `D:/Wu Shangru/Documents/iGEM/model-A-rebuilt-v2`；simplified-v4 来源为 `D:/Wu Shangru/Documents/工作区/model.v4_simplified_v1_3(1).zip`。二者在水解空间、感知适应、运动时间和分裂机制上有实质差异，不能将其中一份称作另一份的纯加速版本。
 
-## 本轮处理的确定问题
+## 2026-09-29 来源修订处理的确定问题
 
 - rebuilt-v2：死亡后仍更新代谢、反射未翻转朝向、FFT 截零增质、分段 run 重置 RNG、非法参数与零纤维、实际增长率和总蛋白 copies 的含义。
 - simplified-v4：PTS 信号未读接受摄取、FD 未推进完整时长、FFT 数值策略、持续源与全死场路径、算力上限伪装死亡、copies 政策、死亡残余账、运行时域、分裂记忆与数组同步。
@@ -29,10 +31,10 @@ rebuilt-v2 来源为 `D:/Wu Shangru/Documents/iGEM/model-A-rebuilt-v2`；simplif
 
 两份 Wiki 草稿包含原始论文/官方来源、DOI 或原文链接，并在相关论述处引用。来源支持机制、量纲或特定实验条件时，不将其扩展为本构建体所有默认参数的依据。摘要核查与全文核查分别标明；情景值、未标定参数和待验证假设保留标识。
 
-本轮没有完成实验复现、构建体参数标定、长期/多种子/网格全面收敛，也没有补成完整 MCP、真实固体接触、完整碳能量账或微重力模型。代码/数值回归通过不等同于这些科学验收通过。Wiki 当前是可审阅的模型说明草稿，未发布为已验证科学成果。
+当前没有完成本构建体实验复现或参数标定。多 seed、dt 和网格比较是有限的构造数值研究，不代表长期或全范围收敛；MCP 是降阶模型，固体接触是几何近似，物质账是 cellobiose-equivalent，均没有扩展为完整分子通路、接触力学、碳能量账或微重力预测。具体已执行数量、结果和不足以验收记录为准。Wiki 是可审阅的科学说明，未发布为已验证的工程成果。
 
 ## 接下来的工程顺序
 
-主线按[路线图](../design/roadmap-and-acceptance.md)推进。N2 已完成，N3 使用独立 `conservative-pts-bulk-v1` 执行规则迁入第一段科学计算；旧 `legacy-explicit-v1` 保持原行为。
+主线按[路线图](../design/roadmap-and-acceptance.md)推进。[迁入计划](migration-plan.md)保留历史来源审查与 M0–M7 依赖关系，并在顶部标明当前状态。早期“仅 M0–M3、暂不启动 M5–M7”的阶段限制已结束，不能作为缩减完整 N3 的依据。
 
-[迁入计划](migration-plan.md)给出两模型差异、类型/单位/时序与 M0–M7 的验收。M0–M3 已实现有限 bulk → PTS 请求 → 共享库存结算 → 胞内累计与接受通量驱动 EI/CheA/CheY，motor bias 仅为读数。下一步是 M4 随机流、可保存状态与失败回滚，再接 M5 运动及无趋化对照；纤维、增长、死亡和分裂按后续依赖逐项接入。M4 的状态准备不等于 N7 已支持通用暂停续算。
+当前执行配置为 Project 0.5 / Catalog、Task、Plan 0.4 的 `chemotaxis-spatial-v1`；旧 `conservative-pts-bulk-v1`、空间基线和 `legacy-explicit-v1` 仍有各自的运行语义。N3 的对照、来源、物质账与生命周期检查完成后，后续设计搜索、发布、通用服务续算和实验拟合按各自验收开展。

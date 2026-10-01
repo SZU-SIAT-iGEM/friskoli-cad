@@ -4,7 +4,7 @@ Friskoli-CAD 是面向趋化工程菌设计的模块化仿真与可视化工具�
 
 **2026-09-29 工程规划：** 面向完整 CAD 的目标、候选设计、前后端结构、数值模块、插件与标准导出已整合到[工程设计总纲](docs/design/README.md)。采用保留已验证核心的增量重构，先贯通真实趋化案例与设计比较；规划中的能力须逐项实现和验收，当前实施状态以下文和 PROGRESS 为准。开发顺序见[新版路线及验收](docs/design/roadmap-and-acceptance.md)，原 4c–5 事项均有对应关系。
 
-**当前状态：交付仓库、0.1.0 连接协议、数值核心、可编辑工作区和本地结果回放已建立。** 前端现在可以从欢迎页新建、打开或恢复项目，在 Space 中创建菌群体积块、固定种子散布、移动/旋转/缩放、隐藏/锁定/复制和删除；在 Workflow 中拖动节点、连接端口、编辑参数并检查单位和时间语义；运行前通过后端校验，运行后保留不可变的结果记录、时间轴、单菌体检查、浓度数据和 JSON/CSV 导出。工作区保存格式为 `0.3.0`（可读 0.1/0.2），协议、OpenAPI 与交互约定分别见[工作区协议](docs/workspace-protocol-0.2.md)、[OpenAPI](docs/openapi.json)和[交互规范](docs/interaction-specification.md)。旧版 `friskoli-cad-webui` 提供布局和功能迁移参考，未声明的旧对象类型不会直接进入当前协议。
+**当前状态：交付仓库、0.1.0 连接协议、数值核心、可编辑工作区和本地结果回放已建立。** 前端现在可以从欢迎页新建、打开或恢复项目，在 Space 中创建菌群体积块、固定种子散布、移动/旋转/缩放、隐藏/锁定/复制和删除；在 Workflow 中拖动节点、连接端口、编辑参数并检查单位和时间语义；运行前通过后端校验，运行后保留不可变的结果记录、时间轴、单菌体检查、浓度数据和 JSON/CSV 导出。工作区保存格式为 `0.4.0`（可读 0.1–0.3，并保留原计算规则），协议、OpenAPI 与交互约定分别见[工作区协议](docs/workspace-protocol-0.2.md)、[OpenAPI](docs/openapi.json)和[交互规范](docs/interaction-specification.md)。旧版 `friskoli-cad-webui` 提供布局和功能迁移参考，未声明的旧对象类型不会直接进入当前协议。
 
 开发状态和每阶段验收见 [PROGRESS.md](PROGRESS.md)，后续顺序见[开发安排](docs/development-order.md)，协议新增点和迁移规则见[协议扩展计划](docs/protocol-expansion-plan.md)。系统边界见 [架构约定](docs/architecture.md)，已实现的连接规则见 [协议 0.1.0](docs/protocol-0.1.md)，执行顺序见 [图编译器](docs/engine-compiler.md)，第一个数值例子见 [无扩散摄取循环](docs/engine-runtime.md)，基础输运见[无通量扩散](docs/no-flux-diffusion.md)，移动与摄取时序见[移动菌体](docs/moving-cells.md)，项目格式与外部输入见[物种目录和输入日程](docs/project-schedule.md)，初始形状与容纳检查见[胶囊尺寸](docs/capsule-geometry.md)，逐帧几何与演示性生长见[生长帧](docs/growth-frames.md)，分裂与状态继承见[长度 adder 分裂](docs/adder-division.md)，本地服务与界面见[结果回放](docs/replay-ui.md)，工作区和交互说明见[前端用户历程](docs/frontend-user-journey.md)，两种环境的实际替换见 [环境模块对照](docs/environment-swap.md)，薄层与 3D 的选择见 [空间尺度](docs/spatial-resolution.md)，当前格距的局限见 [格点细化诊断](docs/grid-refinement.md)与[固定作用范围格距对照](docs/fixed-support-refinement.md)，换格时的物质量守恒见 [浓度场重划](docs/conservative-regrid.md)，跨格采样与沉积见 [固定物理作用范围](docs/box-support.md)，状态归属与扩展规则见[状态归属说明](docs/state-ownership.md)，Git 与代码迁入规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
@@ -12,19 +12,23 @@ Friskoli-CAD 是面向趋化工程菌设计的模块化仿真与可视化工具�
 
 对象库和属性面板由后端注册声明生成；菌群散布自动加入可折叠的胶囊读取节点，保存、重开和撤销操作保留关联。欢迎页新增“几何与浓度采样”，模块面板提供离线 LaTeX、符号和证据说明。旧项目缺少指定模块时仍可阅读和保存，运行禁用。详情见[注册目录与工作区 0.3](docs/registry-contract.md)。
 
-N2 已增加[本地异步任务服务](docs/task-service.md)：SQLite 持久队列、独立计算进程、取消、事件游标与分块结果；前端运行记录独立于正在编辑的草稿，支持刷新后查询。稳定[任务合同 0.1.0](docs/protocol/task-contract.md)与旧同步接口并存。旧 Task 0.1/0.2 只传单菌体帧；新空间 Task 0.3 可传真实浓度场和对象库存。重启恢复查询，不从中断处续算。
+N2 已增加[本地异步任务服务](docs/task-service.md)：SQLite 持久队列、独立计算进程、取消、事件游标与分块结果；前端运行记录独立于正在编辑的草稿，支持刷新后查询。稳定[任务合同 0.1.0](docs/protocol/task-contract.md)与旧同步接口并存。旧 Task 0.1/0.2 只传单菌体帧；空间 Task 0.3 可传真实浓度场和对象库存；科学 Task 0.4 进一步提供逐步指标和死亡规则详情。重启恢复查询，不从中断处续算。
 
-**N3 首批 M0–M3：** 欢迎页的“共享底物与 PTS 信号”可运行有限均匀底物、两种来源的 PTS 容量、摄取请求、跨菌群共享结算和 EI/CheA/CheY 信号，共 8 类模块。新执行规则、Project 0.3 / Catalog 0.2 / Task 0.2 独立版本化，保留旧图与任务行为。参数来源、构造例和数值限制见[科学说明](docs/science/pts-minimal.md)，连接与执行顺序见[新 profile](docs/protocol/pts-bulk-profile.md)。这一步是固定菌体的信号链，motor bias 尚未驱动运动；完整趋化、标定、插件安装、候选比较和标准导出继续分阶段实施。
+**N3 首批 M0–M3：** 欢迎页的“共享底物与 PTS 信号”可运行有限均匀底物、两种来源的 PTS 容量、摄取请求、跨菌群共享结算和 EI/CheA/CheY 信号，共 8 类模块。新执行规则、Project 0.3 / Catalog 0.2 / Task 0.2 独立版本化，保留旧图与任务行为。参数来源、构造例和数值限制见[科学说明](docs/science/pts-minimal.md)，连接与执行顺序见[新 profile](docs/protocol/pts-bulk-profile.md)。这一步是固定菌体的信号链，motor bias 尚未驱动运动；完整趋化反馈已由下述科学 profile 单独实现；标定、插件安装、候选设计流程和标准导出继续分阶段实施。
 
-Workflow 节点现由名称/ID、端口、参数摘要、数学式和状态组件组合；完整 ID 可复制，图内提供独立缩放和适合图形。实际浏览器与设备限制见[组件验收](docs/verification-workflow-components.md)，N3 整体验证见[验收记录](docs/verification-n3.md)。
+Workflow 节点现由名称/ID、端口、参数摘要、数学式和状态组件组合；完整 ID 可复制，图内提供独立缩放和适合图形。实际浏览器与设备限制见[组件验收](docs/verification-workflow-components.md)，早期固定 PTS 验证见[阶段记录](docs/verification-n3.md)，完整 N3 见[本轮验收](docs/verification-n3-complete.md)。
 
-**N3 空间基线：** `spatial-unbiased-v1` 使用 Project 0.4 / Catalog 0.3 / Task 0.3，注册障碍物、可降解底物和引诱物源。底物放置自动生成有删除约束的全局降解机制；显式表面酶与接触范围限制降解，产物和直接来源进入同一养分场，供 PTS 感知与摄取。胶囊检查胞体、器壁和实体碰撞，无偏 run/tumble 保存独立 RNG 和事件时钟；失败步骤整体回滚。浓度热图与耗尽材料显示由真实结果驱动。见[科学语义与限制](docs/science/spatial-baseline.md)、[版本化协议](docs/protocol/spatial-profile.md)和[本阶段验收](docs/verification-spatial.md)。Python checkpoint 仅面向本执行规则；任务暂停续算、信号驱动运动、MCP 独立引诱物对照与实验标定仍待后续。
+**N3 空间基线：** `spatial-unbiased-v1` 使用 Project 0.4 / Catalog 0.3 / Task 0.3，注册障碍物、可降解底物和引诱物源。底物放置自动生成有删除约束的全局降解机制；显式表面酶与接触范围限制降解，产物和直接来源进入同一养分场，供 PTS 感知与摄取。胶囊检查胞体、器壁和实体碰撞，无偏 run/tumble 保存独立 RNG 和事件时钟；失败步骤整体回滚。浓度热图与耗尽材料显示由真实结果驱动。见[科学语义与限制](docs/science/spatial-baseline.md)、[版本化协议](docs/protocol/spatial-profile.md)和[本阶段验收](docs/verification-spatial.md)。这一旧 profile 的 Python checkpoint 保留原合同；新科学 profile 的信号驱动运动、MCP 对照与动态状态另行版本化。任务暂停续算和实验标定仍待后续。
 
-**M4 状态保存与恢复：** 空间运行可保存为包含冻结项目和完整状态的 JSON 文件，在新进程继续计算。新增 `python -m friskoli_cad.checkpoint` 入口、原子文件保存、严格恢复校验；失败重试保持原有 RNG 与时钟，保存帧间隔不改变计算。使用方法及状态范围见 [checkpoint 文件](docs/checkpoint-files.md)，验证结果见 [M4 验收](docs/verification-m4.md)。下一步是 M5 信号—运动与 PTS/MCP 对照；任务服务的暂停/续算继续属于 N7。
+**M4 状态保存与恢复：** 空间运行可保存为包含冻结项目和完整状态的 JSON 文件，在新进程继续计算。新增 `python -m friskoli_cad.checkpoint` 入口、原子文件保存、严格恢复校验；失败重试保持原有 RNG 与时钟，保存帧间隔不改变计算。使用方法及状态范围见 [checkpoint 文件](docs/checkpoint-files.md)，验证结果见 [M4 验收](docs/verification-m4.md)。任务服务的暂停/续算继续属于 N7。
+
+**完整 N3：** `chemotaxis-spatial-v1`（Project 0.5 / Catalog、Task 0.4）登记 25 类模块，六套普通可编辑图涵盖 PTS A、PTS B、reduced MCP、无趋化对照、有限来源/材料及营养生命周期。信号实际控制 run/tumble，支持可选生长、表达、死亡与分裂，记录受阻状态及死亡规则。结果提供方向位移、区域占用、到达/驻留和多 seed 比较；科学 checkpoint 保存完整动态状态。见[执行合同](docs/protocol/chemotaxis-profile.md)、[科学依据与来源差异](docs/science/n3-mechanisms.md)和[完整验收](docs/verification-n3-complete.md)。
+
+三池输运按本轮产品决定退出必需项，接触降解直接释放到可溶养分场。MCP 采用经典 MWC/甲基化适应框架及明确的线性反馈近似。所有示例参数保持探索性标记，不宣称实验标定或逐轨迹复现原 A 三池模型。下一主线是 N4 的目标、候选和原生设计包。
 
 启动窗口现采用紧凑命令列表，与工作区共用控件风格；关闭、恢复、导入错误与迟到请求处理已修正。浏览器交互、四尺寸与中英文检查见[启动界面验收](docs/verification-startup-ui.md)，其中明确列出实体设备等未测项。
 
-两份真实科学模型的首轮审查、确定缺陷修订与有出处的 Wiki 草稿已完成，阅读入口和独立源码仓库提交见[科学模型审查总览](docs/science/README.md)。N3 只迁入上述最小计算链，并保存来源提交和文件指纹；两套完整 ABM、参数标定与实验验证尚未交付。
+两份真实科学模型的首轮审查、确定缺陷修订与有出处的 Wiki 草稿已完成，阅读入口和独立源码仓库提交见[科学模型审查总览](docs/science/README.md)。N3 已迁入上述来源机制，并保存来源提交和文件指纹；源代码与迁入方程的差异有明确记录，参数标定与实验验证尚未交付。
 
 ## 交付原则
 
