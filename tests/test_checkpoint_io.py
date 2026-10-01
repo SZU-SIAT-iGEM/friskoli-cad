@@ -141,7 +141,8 @@ def test_bad_json_or_envelope_is_rejected_before_simulation(tmp_path, monkeypatc
     def never_restore(*args):
         pytest.fail("Malformed file reached numerical restoration")
 
-    monkeypatch.setattr(checkpoint_io, "restore_checkpoint", never_restore)
+    monkeypatch.setattr("friskoli_cad.engine.spatial_checkpoint.restore_checkpoint", never_restore)
+    monkeypatch.setattr("friskoli_cad.engine.chemotaxis_checkpoint.restore_checkpoint", never_restore)
     with pytest.raises(CheckpointFileError):
         load_checkpoint(source)
 

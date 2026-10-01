@@ -35,7 +35,7 @@ def _port_contract(port, semantics="legacy-explicit-v1"):
 
 
 def validate_catalog(catalog):
-    _check_schema({"0.2.0": "catalog-v0.2", "0.3.0": "catalog-v0.3"}.get(catalog.get("catalog_version"), "catalog"), catalog)
+    _check_schema({"0.2.0": "catalog-v0.2", "0.3.0": "catalog-v0.3", "0.4.0": "catalog-v0.4"}.get(catalog.get("catalog_version"), "catalog"), catalog)
     manifests = {}
     for index, manifest in enumerate(catalog["modules"]):
         validate_manifest(manifest)
@@ -73,7 +73,7 @@ def validate_catalog(catalog):
             raise ProtocolError("catalog.duplicate", f"/objects/{index}/id", item["id"])
         ids.add(item["id"])
         initializer = item["initializer"]
-        if initializer["adapter"] == "environment.node@1" and catalog["catalog_version"] != "0.3.0":
+        if initializer["adapter"] == "environment.node@1" and catalog["catalog_version"] not in ("0.3.0", "0.4.0"):
             raise ProtocolError("catalog.initializer", f"/objects/{index}/initializer/adapter", "environment adapter requires catalog 0.3.0")
         requirements = initializer.get("requirements", [])
         roles = [requirement["role"] for requirement in requirements]
@@ -130,11 +130,17 @@ def validate_catalog(catalog):
         if initializer["adapter"] == "population.block@1" and set(paths) != set(_BLOCK_FIELDS):
             raise ProtocolError("catalog.property_set", f"/objects/{index}/properties",
                                 "block adapter requires all declared placement fields")
+    templates = catalog.get('templates', [])
+    if len({item['id'] for item in templates}) != len(templates):
+        raise ProtocolError('catalog.duplicate', '/templates', 'Template IDs must be unique')
+    for index, item in enumerate(templates):
+        if not set(item['module_keys']) <= set(manifests):
+            raise ProtocolError('catalog.reference', f'/templates/{index}/module_keys', 'Template refers to an unavailable module')
     return catalog
 
 
 def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
-    catalog = {"catalog_version": {"legacy-explicit-v1": "0.1.0", "conservative-pts-bulk-v1": "0.2.0", "spatial-unbiased-v1": "0.3.0"}[execution_semantics], "module_protocol_versions": ["0.1.0"],
+    catalog = {"catalog_version": {"legacy-explicit-v1": "0.1.0", "conservative-pts-bulk-v1": "0.2.0", "spatial-unbiased-v1": "0.3.0", "chemotaxis-spatial-v1": "0.4.0"}[execution_semantics], "module_protocol_versions": ["0.1.0"],
                "execution_semantics": execution_semantics, "modules": [], "entries": [], "objects": []}
     for module in modules:
         manifest = deepcopy(dict(module.manifest))
@@ -150,7 +156,7 @@ def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
                  "ports": {side: {name: _port_contract(port, execution_semantics) for name, port in manifest[side].items()}
                            for side in ("inputs", "outputs")}}
         entry.update(declaration)
-        if execution_semantics == "spatial-unbiased-v1":
+        if execution_semantics in ("spatial-unbiased-v1", "chemotaxis-spatial-v1"):
             for field in ("provides_roles", "default_parameters"):
                 if hasattr(module, field):
                     entry[field] = deepcopy(getattr(module, field))
@@ -169,4 +175,9 @@ def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
         catalog["modules"].append(manifest)
         catalog["entries"].append(entry)
         catalog["objects"].extend(deepcopy(getattr(module, "object_types", [])))
+    if execution_semantics == 'chemotaxis-spatial-v1':
+        from .engine.observations import DEFINITIONS
+        from .engine.chemotaxis_templates import template_catalog
+        catalog['observations'] = deepcopy(DEFINITIONS)
+        catalog['templates'] = template_catalog()
     return validate_catalog(catalog)

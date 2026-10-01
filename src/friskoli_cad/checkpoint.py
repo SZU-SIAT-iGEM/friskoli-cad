@@ -15,7 +15,7 @@ import sys
 from friskoli_cad.engine.checkpoint_io import (
     CheckpointFileError, MAX_CHECKPOINT_BYTES, load_checkpoint, save_checkpoint,
 )
-from friskoli_cad.engine.profiles import SPATIAL_PROFILE
+from friskoli_cad.engine.profiles import SPATIAL_PROFILE, CHEMOTAXIS_PROFILE
 from friskoli_cad.engine.runtime import SimulationError
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.protocol import ProtocolError
@@ -46,7 +46,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Save/restore a committed spatial simulation; this does not resume a server task.")
     inputs = parser.add_mutually_exclusive_group(required=True)
     inputs.add_argument("--example", action="store_true", help="Use the bundled spatial example")
-    inputs.add_argument("--project", type=Path, help="Start from a Project 0.4 JSON file")
+    inputs.add_argument("--project", type=Path, help="Start from a spatial Project 0.4 or scientific Project 0.5 JSON file")
     inputs.add_argument("--resume", type=Path, help="Continue a self-contained checkpoint file")
     parser.add_argument("--steps", required=True, type=_steps, help="Additional numerical steps (0..10000)")
     parser.add_argument("--dt", required=True, type=_dt, help="Numerical step in seconds; use the same dt sequence for exact comparison")
@@ -67,8 +67,8 @@ def main(argv=None):
             if len(raw) > MAX_CHECKPOINT_BYTES:
                 raise CheckpointFileError("checkpoint.too_large", "Project exceeds the file byte limit", args.project)
             project = strict_json_loads(raw)
-            if type(project) is not dict or project.get("execution_profile") != SPATIAL_PROFILE:
-                raise CheckpointFileError("checkpoint.profile", "Only spatial-unbiased-v1 supports this checkpoint command")
+            if type(project) is not dict or project.get("execution_profile") not in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE):
+                raise CheckpointFileError("checkpoint.profile", "This checkpoint command supports spatial-unbiased-v1 and chemotaxis-spatial-v1")
             sim = simulation_from_project(project)
         start = {"frame_index": sim.frame_index, "time_s": sim.time_s}
         for _ in range(args.steps):

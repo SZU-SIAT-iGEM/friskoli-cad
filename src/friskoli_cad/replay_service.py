@@ -18,7 +18,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from friskoli_cad.engine import SimulationError
 from friskoli_cad.engine.modules import default_registry
-from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, registry_for_profile, registry_for_project
+from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, registry_for_profile, registry_for_project
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.project import validate_project
 from friskoli_cad.protocol import ProtocolError, validate_frame_sequence
@@ -81,6 +81,8 @@ class ReplayRequestError(ValueError):
 def _snapshot_payload(snapshot, *, spatial=False) -> dict:
     return {
         "frame": snapshot.cell_frame,
+        **({'metrics': dict(snapshot.metrics)} if snapshot.metrics else {}),
+        **({'lifecycle_details': dict(snapshot.lifecycle_details)} if snapshot.lifecycle_details else {}),
         **({"object_states": {key: dict(value) for key, value in snapshot.object_states.items()}} if spatial else {}),
         "concentrations": {
             species: {"unit": snapshot.concentration_units[species], "values_zyx": values.tolist()}
@@ -89,20 +91,22 @@ def _snapshot_payload(snapshot, *, spatial=False) -> dict:
     }
 
 
-def prepare_project(project: Mapping[str, object], *, dt_s: float, steps: int):
+def prepare_project(project: Mapping[str, object], *, dt_s: float, steps: int, validation_only=False):
     """Validate and limit allocations before creating the initial state; never advances time."""
-    if type(steps) is not int or not 1 <= steps <= 100:
-        raise ReplayRequestError("replay.steps", "steps must be an integer from 1 to 100")
+    maximum_steps = 10000 if validation_only else 100
+    if type(steps) is not int or not 1 <= steps <= maximum_steps:
+        raise ReplayRequestError("replay.steps", f"steps must be an integer from 1 to {maximum_steps}")
     if type(dt_s) not in (int, float) or not math.isfinite(dt_s) or dt_s <= 0:
         raise ReplayRequestError("replay.dt", "dt_s must be positive and finite")
     registry = registry_for_project(project)
     validate_project(project, registry.manifests, registry=registry)
     nx, ny, nz = project["domain"]["counts_xyz"]
-    if nx * ny > MAX_VIEW_TILES or nx * ny * nz * (steps + 1) > MAX_REPLAY_VALUES:
+    allocated_frames = 1 if validation_only else steps + 1
+    if nx * ny > MAX_VIEW_TILES or nx * ny * nz * allocated_frames > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "grid exceeds the local viewer limit", 413)
     if sum(len(group["ids"]) for group in project["groups"].values()) > MAX_VIEW_CELLS:
         raise ReplayRequestError("replay.cell_count", "cell count exceeds the local viewer limit", 413)
-    if project.get("execution_profile") == SPATIAL_PROFILE and nx * ny * nz * max(1, len(project["species"])) * (steps + 1) > MAX_REPLAY_VALUES:
+    if project.get("execution_profile") in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) and nx * ny * nz * max(1, len(project["species"])) * allocated_frames > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "replay field data exceeds the local viewer limit", 413)
     simulation = simulation_from_project(project, registry)
     initial = simulation.current
@@ -111,7 +115,7 @@ def prepare_project(project: Mapping[str, object], *, dt_s: float, steps: int):
         raise ReplayRequestError("replay.view_size", "XY slice exceeds the local viewer limit", 413)
     if len(initial.cell_frame["cells"]) > MAX_VIEW_CELLS:
         raise ReplayRequestError("replay.cell_count", "cell count exceeds the local viewer limit", 413)
-    if initial.domain.voxel_count * field_count * (steps + 1) > MAX_REPLAY_VALUES:
+    if initial.domain.voxel_count * field_count * allocated_frames > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "replay field data exceeds the local viewer limit", 413)
     return simulation
 
@@ -121,7 +125,7 @@ def build_replay(project: Mapping[str, object], *, dt_s: float, steps: int) -> d
     project = deepcopy(project)
     simulation = prepare_project(project, dt_s=dt_s, steps=steps)
     initial = simulation.current
-    spatial = project.get("execution_profile") == SPATIAL_PROFILE
+    spatial = project.get("execution_profile") in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)
     snapshots = [_snapshot_payload(initial, spatial=spatial)]
     for _ in range(steps):
         snapshots.append(_snapshot_payload(simulation.step(dt_s), spatial=spatial))
@@ -257,6 +261,14 @@ class ReplayHandler(BaseHTTPRequestHandler):
         elif path == "/api/examples/registry-readout":
             self._send(200, files("friskoli_cad").joinpath("examples", "registry_readout.project.json").read_bytes(),
                        "application/json; charset=utf-8")
+        elif path.startswith('/api/examples/chemotaxis-'):
+            from friskoli_cad.engine.chemotaxis_templates import EXAMPLES
+            key = path.rsplit('/', 1)[-1]
+            if key not in EXAMPLES:
+                self._json(404, {'error': {'code': 'example.not_found', 'message': 'Unknown scientific example'}})
+            else:
+                self._send(200, files('friskoli_cad').joinpath('examples', key.replace('-', '_') + '.project.json').read_bytes(),
+                           'application/json; charset=utf-8')
         elif path == "/api/examples/spatial-baseline":
             self._send(200, files("friskoli_cad").joinpath("examples", "spatial_baseline.project.json").read_bytes(),
                        "application/json; charset=utf-8")
@@ -271,16 +283,16 @@ class ReplayHandler(BaseHTTPRequestHandler):
             except ValueError:
                 query = {"invalid": []}
             profile = query.get("execution_profile", [LEGACY_PROFILE])
-            if set(query) - {"execution_profile"} or len(profile) != 1 or profile[0] not in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE):
+            if set(query) - {"execution_profile"} or len(profile) != 1 or profile[0] not in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE):
                 self._json(422, {"error": {"code": "catalog.profile", "path": "/execution_profile", "message": "Unsupported execution profile"}})
                 return
             self._json(200, registry_for_profile(profile[0]).catalog)
         elif path == "/api/capabilities":
             capabilities = {
                 "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"],
-                "catalog_versions": ["0.1.0", "0.2.0", "0.3.0"], "execution_semantics": "legacy-explicit-v1",
-                "execution_profiles": [LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE],
-                "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"], "replay_versions": ["0.1.0"],
+                "catalog_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"], "execution_semantics": "legacy-explicit-v1",
+                "execution_profiles": [LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE],
+                "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"], "replay_versions": ["0.1.0"],
                 "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
                 "limits": {"request_bytes": MAX_REQUEST_BYTES, "cells": MAX_VIEW_CELLS,
                            "xy_tiles": MAX_VIEW_TILES, "replay_values": MAX_REPLAY_VALUES, "steps": 100},
@@ -288,13 +300,14 @@ class ReplayHandler(BaseHTTPRequestHandler):
                                for item in default_registry().catalog["objects"]],
                 "placeable_profiles": {profile: [item["initializer"]["module"]
                     for item in registry_for_profile(profile).catalog["objects"]]
-                    for profile in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE)},
+                    for profile in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)},
             }
             service = getattr(self.server, "task_service", None)
             if service is not None:
                 capabilities["task"] = service.capabilities()
                 capabilities["task_profiles"] = {PTS_PROFILE: service.capabilities(PTS_PROFILE),
-                                                  SPATIAL_PROFILE: service.capabilities(SPATIAL_PROFILE)}
+                                                  SPATIAL_PROFILE: service.capabilities(SPATIAL_PROFILE),
+                                                  CHEMOTAXIS_PROFILE: service.capabilities(CHEMOTAXIS_PROFILE)}
             self._json(200, capabilities)
         elif path in STATIC_FILES:
             filename, content_type = STATIC_FILES[path]
@@ -322,7 +335,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
             if request_id is not None and (not isinstance(request_id, str) or not 1 <= len(request_id) <= 128):
                 raise ReplayRequestError("request.id", "request_id must be a short string")
             if self.path == "/api/validate":
-                simulation = prepare_project(request["project"], dt_s=request["dt_s"], steps=request["steps"])
+                simulation = prepare_project(request["project"], dt_s=request["dt_s"], steps=request["steps"], validation_only=True)
                 self._json(200, {"api_version": "0.2.0", "valid": True, "issues": [],
                                  "cells": len(simulation.current.cell_frame["cells"]),
                                  "voxels": simulation.current.domain.voxel_count})

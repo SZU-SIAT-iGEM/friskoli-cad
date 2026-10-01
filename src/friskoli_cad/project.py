@@ -64,9 +64,9 @@ class ControlSchedule:
         return self.changes[index][1], next_change
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=5)
 def _project_validator(version: str) -> Draft202012Validator:
-    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json", "0.3.0": "project-v0.3.schema.json", "0.4.0": "project-v0.4.schema.json"}.get(version)
+    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json", "0.3.0": "project-v0.3.schema.json", "0.4.0": "project-v0.4.schema.json", "0.5.0": "project-v0.5.schema.json"}.get(version)
     if schema_file is None:
         _fail("project.version", "/project_version", f"unsupported project version {version}")
     schema = json.loads(
@@ -92,7 +92,7 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     if error is not None:
         path = "/" + "/".join(str(part) for part in error.absolute_path)
         _fail("project.schema", path, error.message)
-    if version == "0.4.0":
+    if version in ("0.4.0", "0.5.0"):
         cells = sum(len(group["ids"]) for group in document["groups"].values())
         voxels = math.prod(document["domain"]["counts_xyz"])
         if cells > 256 or voxels > 10000 or len(document["species"]) > 8:
@@ -103,6 +103,9 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     if version == "0.4.0":
         from friskoli_cad.engine.spatial_runtime import validate_spatial_project
         validate_spatial_project(document, manifests, registry=registry)
+    if version == "0.5.0":
+        from friskoli_cad.engine.chemotaxis_runtime import validate_chemotaxis_project
+        validate_chemotaxis_project(document, manifests, registry=registry)
     if version == "0.3.0":
         from friskoli_cad.engine.pts_runtime import validate_pts_project
         validate_pts_project(document, manifests)
@@ -205,6 +208,9 @@ def simulation_from_project(document: Mapping[str, object], registry=None, *, se
         for schedule_id, entry in document["controls"].items()
     }
     world = World(grid, groups, initial, controls)
+    if document["project_version"] == "0.5.0":
+        from friskoli_cad.engine.chemotaxis_runtime import ChemotaxisSimulation
+        return ChemotaxisSimulation(world, document, registry, seed=seed)
     if document["project_version"] == "0.4.0":
         from friskoli_cad.engine.spatial_runtime import SpatialSimulation
         return SpatialSimulation(world, document, registry, seed=seed)

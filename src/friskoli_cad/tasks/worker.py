@@ -10,7 +10,7 @@ from pathlib import Path
 
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.engine.runtime import SimulationError
-from friskoli_cad.engine.profiles import PTS_PROFILE, SPATIAL_PROFILE
+from friskoli_cad.engine.profiles import PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE
 from friskoli_cad.protocol.task_validation import canonical_bytes, sha256
 from .metadata import source_hashes
 
@@ -52,9 +52,18 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
         execution = submission["execution"]
         observations = set(submission["output_plan"]["observables"])
         every = submission["output_plan"]["frame_every_steps"]
+        pending_events = []
+        pending_deaths = []
+        pending_event_bytes = 0
         for step in range(execution["steps"] + 1):
             phase = "execute"
             snapshot = simulation.current if step == 0 else simulation.step(execution["dt_s"])
+            if execution['semantics'] == CHEMOTAXIS_PROFILE:
+                pending_events.extend(snapshot.cell_frame['events'])
+                pending_deaths.extend(snapshot.lifecycle_details['deaths'])
+                pending_event_bytes += len(canonical_bytes(snapshot.cell_frame['events'])) + len(canonical_bytes(snapshot.lifecycle_details['deaths']))
+                if pending_event_bytes > limits['chunk_bytes']:
+                    raise WorkerLimit('Lifecycle events between stored frames exceed chunk_bytes; reduce frame_every_steps.')
             if len(snapshot.cell_frame["cells"]) > limits["cells"]:
                 raise WorkerLimit("Cell growth exceeded the published cell limit.")
             if snapshot.domain.voxel_count > limits["voxels"]:
@@ -64,11 +73,18 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
                        "final": step == execution["steps"]}
             if step == 0 or step % every == 0 or message["final"]:
                 frame = dict(snapshot.cell_frame)
+                if execution['semantics'] == CHEMOTAXIS_PROFILE:
+                    frame['events'] = pending_events
+                    pending_events = []
+                    message['lifecycle_details'] = {'lifecycle_version': '0.1.0', 'deaths': pending_deaths}
+                    pending_deaths = []
+                    pending_event_bytes = 0
+                    message['metrics'] = dict(snapshot.metrics)
                 frame["cells"] = [{**cell, "channels": {key: value for key, value
                     in cell["channels"].items() if key in observations}}
                     for cell in frame["cells"]]
                 message["frame"] = frame
-                if execution["semantics"] == SPATIAL_PROFILE:
+                if execution["semantics"] in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE):
                     expected_objects = {node["id"]: node for node in submission["project"]["graph"]["nodes"]
                         if node["module_id"] in ("material.degradable_box", "source.finite_local")}
                     states = snapshot.object_states
@@ -85,7 +101,7 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
                     message["object_states"] = {key: dict(value) for key, value in states.items()}
                 if submission["output_plan"]["include_fields"]:
                     expected = {node["parameters"]["species"]["value"] for node in submission["project"]["graph"]["nodes"]
-                                if node["module_id"] == "field.diffusive_local"}
+                                if node["module_id"] in ("field.diffusive_local", "field.ideal_local_reservoir")}
                     if set(snapshot.concentration_fields) != expected or any(
                         snapshot.concentration_units[species] != "uM" or values.shape != snapshot.domain.shape
                         or not np.isfinite(values).all() or (values < 0).any()
@@ -103,7 +119,7 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
         # peer left to consume another error message.
         pass
     except BaseException as error:
-        known = isinstance(error, SimulationError) and submission["execution"]["semantics"] in (PTS_PROFILE, SPATIAL_PROFILE)
+        known = isinstance(error, SimulationError) and submission["execution"]["semantics"] in (PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)
         code = error.code if known else ("task.resource_limit" if isinstance(error, WorkerLimit) else "task.worker_failed")
         # Numerical error paths are input pointers; arbitrary exception details never expose paths.
         message = str(error) if known or isinstance(error, WorkerLimit) else "Numerical worker failed during " + phase + "."

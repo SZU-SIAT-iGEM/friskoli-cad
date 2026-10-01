@@ -19,7 +19,7 @@ from jsonschema import Draft202012Validator
 from friskoli_cad.protocol.task_validation import (
     TaskValidationError, canonical_bytes, strict_json_loads,
 )
-from .spatial_checkpoint import export_checkpoint, restore_checkpoint
+from .profiles import CHEMOTAXIS_PROFILE
 
 
 FILE_VERSION = "0.1.0"
@@ -40,10 +40,12 @@ def _limit(value):
     return value
 
 
-@lru_cache(maxsize=1)
-def _validator():
+@lru_cache(maxsize=2)
+def _validator(version=FILE_VERSION):
+    if version not in ('0.1.0', '0.2.0'):
+        raise CheckpointFileError('checkpoint.file_version', 'Unsupported checkpoint file version')
     schema = json.loads(files("friskoli_cad.protocol").joinpath(
-        "schemas", "checkpoint-file-v0.1.schema.json").read_text(encoding="utf-8"))
+        "schemas", f"checkpoint-file-v{version[:-2]}.schema.json").read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema)
 
@@ -58,8 +60,13 @@ def checkpoint_document(sim):
     The caller must own the simulation; do not call concurrently with step().
     The returned document shares no mutable data with the simulation.
     """
+    chemotaxis = sim.project.get('execution_profile') == CHEMOTAXIS_PROFILE
+    if chemotaxis:
+        from .chemotaxis_checkpoint import export_checkpoint
+    else:
+        from .spatial_checkpoint import export_checkpoint
     checkpoint = export_checkpoint(sim)
-    document = {"checkpoint_file_version": FILE_VERSION,
+    document = {"checkpoint_file_version": '0.2.0' if chemotaxis else FILE_VERSION,
                 "project": deepcopy(sim.project), "checkpoint": checkpoint}
     document["document_sha256"] = _digest(document)
     return document
@@ -127,7 +134,7 @@ def load_checkpoint(path, registry=None, *, max_bytes=MAX_CHECKPOINT_BYTES):
         raise CheckpointFileError("checkpoint.too_large", "Checkpoint exceeds the file byte limit", source)
     try:
         document = strict_json_loads(raw)
-        error = next(_validator().iter_errors(document), None)
+        error = next(_validator(document.get('checkpoint_file_version') if isinstance(document, dict) else None).iter_errors(document), None)
         if error is not None:
             pointer = "/" + "/".join(str(p) for p in error.absolute_path)
             raise CheckpointFileError("checkpoint.file_schema", f"{pointer}: {error.message}", source)
@@ -136,4 +143,8 @@ def load_checkpoint(path, registry=None, *, max_bytes=MAX_CHECKPOINT_BYTES):
             raise CheckpointFileError("checkpoint.file_hash", "Checkpoint document checksum differs", source)
     except TaskValidationError as error:
         raise CheckpointFileError("checkpoint.json", str(error), source) from error
+    if document['checkpoint_file_version'] == '0.2.0':
+        from .chemotaxis_checkpoint import restore_checkpoint
+    else:
+        from .spatial_checkpoint import restore_checkpoint
     return restore_checkpoint(document["project"], document["checkpoint"], registry)

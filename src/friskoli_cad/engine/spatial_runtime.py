@@ -138,17 +138,37 @@ def _xyz(node, prefix):
 
 
 class SpatialSimulation:
-    def __init__(self, world, project, registry, *, seed=None):
+    MOTION_MODULE_IDS = ('motion.unbiased_run_tumble',)
+    FIELD_MODULE_IDS = ('field.diffusive_local',)
+
+    def _validate_project(self, project, registry):
         validate_spatial_project(project, registry.manifests, registry)
+
+    def _execution_schedule(self):
+        return spatial_schedule(self.plan, self.registry)
+
+    def _initial_walks(self, capsules):
+        return {c.cell_id: RandomWalkState(c.heading) for c in capsules}
+
+    def _prepare_node_ids(self):
+        return self.schedule['prepare_nodes']
+
+    def _initial_field_species(self):
+        return [FieldSpecies(n.parameters['species'].value,
+            self.project['species'][n.parameters['species'].value]['initial_concentration']['value'],
+            n.parameters['diffusivity_um2_s'].value) for n in self._field_nodes.values()]
+
+    def __init__(self, world, project, registry, *, seed=None):
+        self._validate_project(project, registry)
         self.project, self.run = deepcopy(project), deepcopy(project['run'])
         self.world, self.registry = world, registry
         self.plan = compile_graph(project['graph'], registry.manifests)
-        self.schedule = spatial_schedule(self.plan, registry)
+        self.schedule = self._execution_schedule()
         self.seed = project['random_seed'] if seed is None else seed
         self.streams = RandomStreams(self.seed)
         self.time_s, self.frame_index = 0., 0
-        self._motion_nodes = {n.owner_id: n for n in self.plan.nodes if n.module_id == 'motion.unbiased_run_tumble'}
-        self._field_nodes = {n.id: n for n in self.plan.nodes if n.module_id == 'field.diffusive_local'}
+        self._motion_nodes = {n.owner_id: n for n in self.plan.nodes if n.module_id in self.MOTION_MODULE_IDS}
+        self._field_nodes = {n.id: n for n in self.plan.nodes if n.module_id in self.FIELD_MODULE_IDS}
         self._source_nodes = {n.id: n for n in self.plan.nodes if n.module_id == 'source.finite_local'}
         self._material_nodes = {n.id: n for n in self.plan.nodes if n.module_id == 'material.degradable_box'}
         self._degradation_node = next(iter(_degradation_providers(self.plan, registry)), None)
@@ -162,9 +182,7 @@ class SpatialSimulation:
         make_local_field_state(world.grid, [], obstacles=[SolidAABB(_xyz(n, 'lower'), _xyz(n, 'upper')) for n in obstacle_nodes])
         self.obstacles, _ = self._geometry_for(self.materials)
         active_nodes = list(self._fixed_obstacle_nodes) + [n for n in self._material_nodes.values() if self.materials[n.id].remaining_molecules > 0]
-        fields = [FieldSpecies(n.parameters['species'].value,
-            project['species'][n.parameters['species'].value]['initial_concentration']['value'],
-            n.parameters['diffusivity_um2_s'].value) for n in self._field_nodes.values()]
+        fields = self._initial_field_species()
         sources = [LocalSource(n.id, n.parameters['species'].value, _xyz(n, 'center'),
             n.parameters['radius_um'].value, n.parameters['initial_molecules'].value,
             n.parameters['release_rate'].value) for n in self._source_nodes.values()]
@@ -179,7 +197,7 @@ class SpatialSimulation:
             raise SimulationError('spatial.initial_overlap', details, '/groups') from error
         except ValueError as error:
             raise SimulationError('spatial.geometry', str(error), '/domain') from error
-        self.walks = MappingProxyType({c.cell_id: RandomWalkState(c.heading) for c in capsules})
+        self.walks = MappingProxyType(self._initial_walks(capsules))
         self.outputs, self.state, self.ledger, self.motion_contacts = {}, {}, MappingProxyType({}), ()
         outputs, state = self._prepare()
         self._settle_outputs(outputs, state, None, None)
@@ -224,7 +242,7 @@ class SpatialSimulation:
         outputs, state = {}, {}
         samples = {gid: sample_local_fields(self.fields, g.positions_um) for gid, g in self.world.groups.items()}
         stocks = {s.id: s.remaining_molecules for s in self.fields.sources}
-        for nid in self.schedule['prepare_nodes']:
+        for nid in self._prepare_node_ids():
             n = self.plan.by_id[nid]
             p, m = n.parameters, n.module_id
             if m == 'space.axis_aligned_obstacle':
@@ -372,9 +390,7 @@ class SpatialSimulation:
         node = self._degradation_node
         distance = node.parameters['contact_range_um'].value
         adapter = self.registry.get(node.module_id, node.module_version).propose_degradation
-        parameters = {key: value.value for key, value in node.parameters.items()}
-        copies = {cid: (self._enzyme_nodes[gid].parameters['enzyme_copies'].value if gid in self._enzyme_nodes else 0.)
-                  for gid, group in self.world.groups.items() for cid in group.ids}
+        copies = self._contact_enzyme_copies()
         contacts = {capsule.cell_id: [] for capsule in capsules}
         for mid in sorted(self.materials):
             material = self.materials[mid]
@@ -389,6 +405,7 @@ class SpatialSimulation:
         released = []
         for mid in sorted(self.materials):
             budgets = {cid: copies[cid] / len(targets) if mid in targets else 0. for cid, targets in contacts.items()}
+            parameters = self._degradation_parameters(node, mid)
             proposal = adapter(self.materials[mid], capsules, MappingProxyType(budgets), MappingProxyType(parameters), dt)
             self._validate_degradation(proposal, self.materials[mid], budgets, contacts, mid)
             remaining[mid], ledgers[mid] = proposal.material, proposal.ledger
@@ -402,6 +419,13 @@ class SpatialSimulation:
                         raise SimulationError('spatial.source_id', 'Source ID collides with internal contact release namespace')
                     temporary.append(LocalSource(sid, proposal.material.species, positions[cid], 0., amount, amount / dt))
         return MappingProxyType(remaining), MappingProxyType(ledgers), tuple(temporary), math.fsum(released)
+
+    def _contact_enzyme_copies(self):
+        return {cid: (self._enzyme_nodes[gid].parameters['enzyme_copies'].value if gid in self._enzyme_nodes else 0.)
+                for gid, group in self.world.groups.items() for cid in group.ids}
+
+    def _degradation_parameters(self, node, material_id):
+        return {key: value.value for key, value in node.parameters.items()}
 
     @staticmethod
     def _validate_degradation(proposal, material, budgets, contacts, mid):

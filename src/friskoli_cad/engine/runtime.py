@@ -275,6 +275,8 @@ class Snapshot:
     environment_fields: Mapping[str, Mapping[str, FieldOutput]]
     domain: GridDomain
     object_states: Mapping[str, Mapping[str, object]] = field(default_factory=dict)
+    metrics: Mapping[str, object] = field(default_factory=dict)
+    lifecycle_details: Mapping[str, object] = field(default_factory=dict)
 
 
 class Simulation:

@@ -16,7 +16,7 @@ import time
 import uuid
 import psutil
 from friskoli_cad.project import validate_project
-from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, profile_for_project, task_version
+from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, profile_for_project, task_version
 from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.protocol.task_validation import (VERSION, TaskValidationError, canonical_bytes, canonical_loads, sha256, strict_json_loads, validate_submission)
 from .metadata import BACKEND, compiled_plan, estimate, provenance, registry_metadata
@@ -81,7 +81,8 @@ class TaskService:
         self._registry, self._version_lock, self._sources = registry_metadata()
         self._profile_metadata = {LEGACY_PROFILE: (self._registry, self._version_lock, self._sources),
                                   PTS_PROFILE: registry_metadata(PTS_PROFILE),
-                                  SPATIAL_PROFILE: registry_metadata(SPATIAL_PROFILE)}
+                                  SPATIAL_PROFILE: registry_metadata(SPATIAL_PROFILE),
+                                  CHEMOTAXIS_PROFILE: registry_metadata(CHEMOTAXIS_PROFILE)}
         self._ctx = multiprocessing.get_context("spawn")
         self.directory.mkdir(parents=True, exist_ok=True)
         self._owner_file = (self.directory / "service.lock").open("a+b")
@@ -190,7 +191,7 @@ class TaskService:
         return {"task_contract_version": task_version(profile), "mode": "single-worker",
             "pause": False, "resume": False, "checkpoint": False, "partial_results": True,
             "hash_canonicalization": "RFC8785", "limits": {**asdict(self.limits),
-                **({"cells": min(256, self.limits.cells), "voxels": min(10000, self.limits.voxels)} if profile == SPATIAL_PROFILE else {})},
+                **({"cells": min(256, self.limits.cells), "voxels": min(10000, self.limits.voxels)} if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) else {})},
             "version_lock": canonical_loads(self._dump(version_lock)),
             "execution": {"semantics": profile, "backend": BACKEND, "default_seed": 0}}
 
@@ -234,7 +235,7 @@ class TaskService:
         unknown = set(submission["output_plan"]["observables"]) - set(project["run"]["channels"])
         if unknown:
             raise TaskError(422, "task.observable_unknown", "Output plan includes an unknown frame channel.", "/output_plan/observables", phase="validate")
-        if submission["output_plan"]["frame_every_steps"] != 1 and any("divide" in node["outputs"] for node in plan["nodes"]):
+        if profile != CHEMOTAXIS_PROFILE and submission["output_plan"]["frame_every_steps"] != 1 and any("divide" in node["outputs"] for node in plan["nodes"]):
             raise TaskError(422, "task.sampling_unsupported", "Division models require every complete frame to preserve lineage events.", "/output_plan/frame_every_steps", phase="validate")
         budget = estimate(submission, registry)
         for name, bound in (("cells", "cells"), ("voxels", "voxels"), ("steps", "steps"),
@@ -437,7 +438,9 @@ class TaskService:
                 "chunk_id": chunk_id, "frames": [{"sequence": sequence, "step_index": message["step"],
                     "time_s": message["time_s"], "grid_revision": message["grid_revision"], "frame": message["frame"],
                     **({"concentrations": message["concentrations"]} if "concentrations" in message else {}),
-                    **({"object_states": message["object_states"]} if "object_states" in message else {})}]})
+                    **({"object_states": message["object_states"]} if "object_states" in message else {}),
+                    **({"metrics": message["metrics"]} if "metrics" in message else {}),
+                    **({"lifecycle_details": message["lifecycle_details"]} if "lifecycle_details" in message else {})}]})
             if len(body) > self.limits.chunk_bytes or sum(item["bytes"] for item in descriptors) + len(body) > self.limits.output_bytes:
                 raise TaskError(413, "task.resource_limit", "Actual output exceeds the published output limit.", "/output_plan", phase="publish")
             metadata = {"chunk_id": chunk_id, "href": f"/api/runs/{run_id}/chunks/{chunk_id}",

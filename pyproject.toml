@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "friskoli-cad"
-version = "0.1.0"
+version = "0.2.0"
 description = "Modular chemotaxis CAD contracts and numerical engine"
 requires-python = ">=3.11"
 dependencies = ["jsonschema>=4.23,<5", "numpy>=1.26,<3", "rfc8785==0.1.4", "psutil==7.2.2"]

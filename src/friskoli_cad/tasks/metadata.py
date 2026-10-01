@@ -8,7 +8,7 @@ from importlib.resources import files
 import numpy as np
 
 from friskoli_cad.engine.compiler import compile_graph
-from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, profile_for_project, registry_for_profile, pts_schedule, spatial_schedule, task_version
+from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, profile_for_project, registry_for_profile, pts_schedule, spatial_schedule, chemotaxis_schedule, task_version
 from friskoli_cad.protocol.task_validation import sha256
 
 SEMANTICS = LEGACY_PROFILE
@@ -45,7 +45,8 @@ def registry_metadata(profile=LEGACY_PROFILE) -> tuple:
 def compiled_plan(project, registry) -> dict:
     plan = compile_graph(project["graph"], registry.manifests)
     return {"plan_version": task_version(profile_for_project(project)), "graph_id": plan.id,
-        **({"schedule": spatial_schedule(plan, registry)} if profile_for_project(project) == SPATIAL_PROFILE else
+        **({"schedule": chemotaxis_schedule(plan, registry)} if profile_for_project(project) == CHEMOTAXIS_PROFILE else
+           {"schedule": spatial_schedule(plan, registry)} if profile_for_project(project) == SPATIAL_PROFILE else
            {"schedule": pts_schedule(plan)} if profile_for_project(project) == PTS_PROFILE else {}),
         "execution_semantics": profile_for_project(project), "nodes": [{
             "id": node.id, "module_id": node.module_id, "module_version": node.module_version,
@@ -62,11 +63,12 @@ def compiled_plan(project, registry) -> dict:
 
 
 def provenance(seed: int, sources: dict, project=None) -> dict:
-    spatial = project is not None and profile_for_project(project) == SPATIAL_PROFILE
-    used = spatial and any(node["module_id"] == "motion.unbiased_run_tumble"
-        and node["parameters"]["tumble_rate_s"]["value"] > 0
-        and project["groups"][node["owner"]["id"]]["ids"]
-        for node in project["graph"]["nodes"])
+    spatial = project is not None and profile_for_project(project) in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)
+    used = spatial and any(project['groups'][node['owner']['id']]['ids'] and (
+        node['module_id'] == 'motion.unbiased_run_tumble' and node['parameters']['tumble_rate_s']['value'] > 0 or
+        node['module_id'] == 'motion.hazard_run_tumble' and node['parameters']['maximum_tumble_rate_s']['value'] > 0 or
+        node['module_id'] == 'life.health_balance' or node['module_id'] == 'division.area_adder')
+        for node in project['graph']['nodes'] if node['owner']['kind'] == 'population')
     return {"provenance_version": "0.2.0" if spatial else "0.1.0", "backend": BACKEND, "precision": "float64",
         "python_version": platform.python_version(), "numpy_version": np.__version__,
         "platform": platform.platform(), "source_sha256": sources,
@@ -77,6 +79,8 @@ def estimate(submission, registry) -> dict:
     """Conservative array/copy and serialized-frame budgets; no NumPy allocation."""
     project = submission["project"]
     cells = sum(len(group["ids"]) for group in project["groups"].values())
+    budget_cells = 256 if profile_for_project(project) == CHEMOTAXIS_PROFILE and any(
+        n['module_id'] == 'division.area_adder' for n in project['graph']['nodes']) else cells
     nx, ny, nz = project["domain"]["counts_xyz"]
     voxels = nx * ny * nz
     field_arrays = cell_arrays = 0
@@ -94,7 +98,7 @@ def estimate(submission, registry) -> dict:
     # It still retains the domain counts for geometry validation and limits.
     field_elements = 1 if profile_for_project(project) == PTS_PROFILE else voxels
     memory = 64 * 1024 * 1024 + field_elements * max(1, field_arrays) * 8 * 16
-    memory += cells * (4096 + cell_arrays * 8 * 16)
+    memory += budget_cells * (4096 + cell_arrays * 8 * 16)
     # UTF-8 names and channel IDs are included, rather than assuming ASCII names.
     channel_bytes = sum(len(name.encode("utf-8")) + 32
                         for name in submission["output_plan"]["observables"])
@@ -103,10 +107,11 @@ def estimate(submission, registry) -> dict:
     field_bytes = 0
     if submission["output_plan"]["include_fields"]:
         species = {node["parameters"]["species"]["value"] for node in project["graph"]["nodes"]
-                   if node["module_id"] == "field.diffusive_local"}
+                   if node["module_id"] in ("field.diffusive_local", "field.ideal_local_reservoir")}
         field_bytes = sum(128 + len(name.encode("utf-8")) + voxels * 32 for name in species)
     object_bytes = sum(192 + len(node["id"].encode("utf-8")) * 6 for node in project["graph"]["nodes"]
-        if node["module_id"] in ("material.degradable_box", "source.finite_local")) if profile_for_project(project) == SPATIAL_PROFILE else 0
-    output = frames * (2048 + cells * (768 + longest_id + channel_bytes) + field_bytes + object_bytes)
+        if node["module_id"] in ("material.degradable_box", "source.finite_local")) if profile_for_project(project) in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) else 0
+    metric_bytes = 1024 * len(project['groups']) if profile_for_project(project) == CHEMOTAXIS_PROFILE else 0
+    output = frames * (2048 + budget_cells * (768 + longest_id + channel_bytes) + field_bytes + object_bytes + metric_bytes)
     return {"cells": cells, "voxels": voxels, "steps": steps,
             "memory_bytes": memory, "output_bytes": output}

@@ -212,7 +212,7 @@ def sha256(obj: Any) -> str:
 @lru_cache(maxsize=16)
 def _validator(definition: str, version: str = VERSION) -> Draft202012Validator:
     folder = files("friskoli_cad.protocol").joinpath("schemas")
-    schema_name = {VERSION: _SCHEMA_NAME, "0.2.0": "task-v0.2.schema.json", "0.3.0": "task-v0.3.schema.json"}.get(version)
+    schema_name = {VERSION: _SCHEMA_NAME, "0.2.0": "task-v0.2.schema.json", "0.3.0": "task-v0.3.schema.json", "0.4.0": "task-v0.4.schema.json"}.get(version)
     if schema_name is None:
         _fail("task.version", "Unsupported task contract version.", "/task_contract_version")
     schema = json.loads(folder.joinpath(schema_name).read_text(encoding="utf-8"))
