@@ -4,7 +4,7 @@ import { registerCatalog, resolveGraph, readableManifest, unavailableModules } f
 import { adaptWorkspace } from './migration.mjs';
 import { renderModuleDocumentation } from './math-inspector.mjs';
 import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
-import { writeWorkspace, validateDesignBrief, validateDesignDocument, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
+import { readWorkspace, writeWorkspace, validateDesignBrief, validateDesignDocument, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
 import { TaskStore, buildSubmission, matchesDraft, supportsTasks, taskCapability } from './task-store.mjs';
 import { renderResultData } from './results.mjs';
@@ -34,7 +34,8 @@ const state = { project: null, blocks: [], modules: new Map(), replay: null, vie
   frameIndex: 0, selectedBlock: null, selectedCell: null, selectedEnvironment: null, graphSelection: null, selectedManifest: null,
   field: '', slice: 0, ranges: {}, timer: null, status: ['ready', {}, false], layout: {},
   history: [], future: [], tool: 'select', snap: false, settings: {dt_s: .5, steps: 8},
-  revision: 0, draftToken: crypto.randomUUID(), latestTask: null, saved: '', busy: false, checks: [], runs: [], activeRun: null, template: null, capabilities: null };
+  revision: 0, draftToken: crypto.randomUUID(), latestTask: null, saved: '', busy: false, checks: [], runs: [], activeRun: null, template: null, capabilities: null,
+  assemblyDraft: null, assemblyBusy: false, assemblyError: '', assemblyNotice: '', assemblyToken: 0 };
 const kernel = new KernelClient();
 let taskStorage = null;
 try { taskStorage = localStorage; } catch { /* display unavailable recovery in the task panel */ }
@@ -54,11 +55,17 @@ installDockSizing($('studio'), $('diagnostics'));
 const snapshot = () => structuredClone({ project: state.project, blocks: state.blocks, layout: state.layout, settings: state.settings, design:state.design, designBrief:state.designBrief });
 const fingerprint = () => JSON.stringify(snapshot());
 function changed() {
+  clearDesignEvaluation();
+  state.assemblyToken = (state.assemblyToken ?? 0) + 1;
+  // A project edit invalidates an in-flight assembly request. Release its UI lock;
+  // the request's completion handler will discard the stale response.
+  state.assemblyBusy = false;
   state.revision++;
   state.checks = [];
   try { localStorage.setItem(RECOVERY_KEY, JSON.stringify(writeWorkspace(state))); }
   catch { status('recoveryFailed', {}, true); }
 }
+function clearDesignEvaluation(){state.designEvaluation=null;state.designEvaluationToken=(state.designEvaluationToken??0)+1;}
 function pushHistory(before) {
   state.history.push(before);
   if (state.history.length > 80) state.history.shift();
@@ -783,6 +790,7 @@ function selectRun(record) {
 
 function taskUpdated(record, records) {
   const previous = state.runs.find(run => run.localId === record.localId);
+  if(record.design_ref?.design_id===state.design?.id)clearDesignEvaluation();
   state.runs = [...state.runs.filter(run => !run.localId || run.imported), ...records];
   if(state.batch?.active===record.localId && ['completed','failed','cancelled','interrupted','rejected','unavailable'].includes(record.status)) {
     const batch=state.batch;batch.active=null;
@@ -830,6 +838,11 @@ async function designRequest(path,body,kind='json') {
   if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.message??error.error?.message??error.issues?.[0]?.message??JSON.stringify(error));}
   return kind==='blob'?response.blob():kind==='text'?response.text():response.json();
 }
+async function assemblyRequest(path,body) {
+  const response=await fetch('/api/assemblies/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.message??error.error?.message??error.issues?.[0]?.message??JSON.stringify(error));}
+  return response.json();
+}
 function downloadBlob(name,blob){const url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function renderDesign(){renderDesignPanel($('design-view'),state,{
   render:renderDesign,changed, error:error=>{state.designError=error.message;renderDesign();},
@@ -856,6 +869,52 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
   },
   stop(){const active=state.batch?.active;state.batch=null;state.designBatchStatus='Stopped; published results retained';if(active)taskStore.cancel(active);renderDesign();},
   compare(){state.comparison.clear();for(const run of state.runs.filter(r=>r.design_ref?.design_id===state.design.id&&r.status==='completed'&&r.replay))state.comparison.add(run.id);showBottom('runs');renderDiagnostics();},
+  async evaluate(){
+    if(state.batch||state.designEvaluating||!state.design)return;
+    clearDesignEvaluation();const token=state.designEvaluationToken,id=state.design.id;state.designEvaluating=true;state.designError='';renderDesign();
+    try{
+      const registry=await fetch('/api/catalog?execution_profile='+encodeURIComponent(state.design.baseline_project.execution_profile)).then(r=>{if(!r.ok)throw new Error('Catalog unavailable');return r.json();});
+      if(token!==state.designEvaluationToken||id!==state.design?.id)return;
+      const evaluation=await designRequest('evaluate',designPackagePayload(state,writeWorkspace(state),registry));
+      if(token===state.designEvaluationToken&&id===state.design?.id)state.designEvaluation=evaluation;
+    }finally{state.designEvaluating=false;renderDesign();}
+  },
+  async exportAssembly({groupId,metadata}){
+    if(state.assemblyBusy||!state.project)return;
+    const token=state.assemblyToken,draftToken=state.draftToken,revision=state.revision;
+    state.assemblyBusy=true;state.assemblyError='';state.assemblyNotice='';renderDesign();
+    try{
+      const assembly=await assemblyRequest('extract',{project:structuredClone(state.project),group_id:groupId,metadata:structuredClone(metadata)});
+      if(token!==state.assemblyToken||draftToken!==state.draftToken||revision!==state.revision)return;
+      download(`${metadata.id}.friskoli-assembly.json`,JSON.stringify(assembly,null,2),'application/json');
+      state.assemblyNotice=currentLanguage()==='zh-CN'?`已导出 ${metadata.name}；assembly 保留菌群机制、模块版本和环境依赖。`:`Exported ${metadata.name}; the assembly includes its mechanism, module versions and environment dependencies.`;
+    }catch(error){
+      if(token===state.assemblyToken&&draftToken===state.draftToken){state.assemblyError=error.message;renderDesign();}
+    }finally{if(token===state.assemblyToken&&draftToken===state.draftToken){state.assemblyBusy=false;renderDesign();}}
+  },
+  async importAssembly(file,groupId){
+    if(state.assemblyBusy||!state.project)return;
+    const token=state.assemblyToken,draftToken=state.draftToken,revision=state.revision;
+    state.assemblyBusy=true;state.assemblyError='';state.assemblyNotice='';renderDesign();
+    try{
+      if(file.size>10*1024*1024)throw new Error('Assembly file exceeds 10 MiB');
+      const assembly=JSON.parse(await file.text());
+      const result=await assemblyRequest('apply',{project:structuredClone(state.project),group_id:groupId,assembly,bindings:null});
+      if(token!==state.assemblyToken||draftToken!==state.draftToken||revision!==state.revision)return;
+      const loaded=readWorkspace(result);
+      state.assemblyBusy=false;
+      edit('updated',()=>{
+        state.project=loaded.project;state.blocks=loaded.blocks;state.layout=autoLayout(state.project.graph,state.modules,state.layout);
+        state.selectedBlock=groupId;state.selectedEnvironment=null;state.graphSelection=null;state.replay=null;state.activeRun=null;
+        state.design=null;state.designBrief=null;state.designImported=false;state.designBatchStatus='';state.designNotice='';state.designError='';
+        state.draftToken=crypto.randomUUID();
+      });
+      state.assemblyNotice=currentLanguage()==='zh-CN'?`已应用 ${assembly.name} 到 ${groupId}；原有空间位置和其他菌群保持不变。`:`Applied ${assembly.name} to ${groupId}; positions and other populations were preserved.`;
+      renderDesign();
+    }catch(error){
+      if(token===state.assemblyToken&&draftToken===state.draftToken){state.assemblyError=error.message;renderDesign();}
+    }finally{if(token===state.assemblyToken&&draftToken===state.draftToken){state.assemblyBusy=false;renderDesign();}}
+  },
   view:selectRun,
   async open(candidate){const design=state.design,brief=state.designBrief;await loadProject(candidate.project);state.design=design;state.designBrief=brief;changed();setView('workflow');},
   async export(format){
@@ -868,7 +927,7 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
     const id=state.design.id;
     if(!state.exportedDesigns?.has(id))throw new Error(currentLanguage()==='zh-CN'?'请先导出 .friskoli 设计包。':'Export the .friskoli package first.');
     if(!confirm(currentLanguage()==='zh-CN'?'从本机历史清除此设计的已结束运行？导出的包保留完整记录。':'Remove this design’s finished runs from local history? The exported package keeps the records.'))return;
-    const records=taskStore.removeDesignRecords(id);state.runs=[...state.runs.filter(r=>(!r.localId||r.imported)&&r.design_ref?.design_id!==id),...records];state.comparison.clear();state.designBatchStatus='';renderDesign();renderDiagnostics();
+    const records=taskStore.removeDesignRecords(id);state.runs=[...state.runs.filter(r=>(!r.localId||r.imported)&&r.design_ref?.design_id!==id),...records];state.comparison.clear();state.designBatchStatus='';clearDesignEvaluation();renderDesign();renderDiagnostics();
   },
   import(){
     const input=el('input');input.type='file';input.accept='.friskoli';input.addEventListener('change',async()=>{
@@ -1406,6 +1465,7 @@ async function loadProject(document) {
   state.modules = registry.modules; state.objects = registry.objects;
   state.activeObject = availablePlaceables(state.modules, state.capabilities, state.objects,loaded.project).find(item => item.status === 'ready')?.id ?? null;
   state.draftToken = crypto.randomUUID(); state.latestTask = null;
+  state.assemblyBusy = false; state.assemblyError = ''; state.assemblyNotice = ''; state.assemblyDraft = null;
   state.activeSpecies=null;
   Object.assign(state, loaded);
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);

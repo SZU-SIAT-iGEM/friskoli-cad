@@ -158,6 +158,19 @@ def test_checksum_and_consistent_manifest_do_not_hide_divergent_evidence(payload
     assert error.value.code == 'design_package.cross_reference'
 
 
+def test_historical_report_bytes_are_preserved_without_renderer_lock(payload):
+    """A renderer update must not make an otherwise valid native package unreadable."""
+    archive = export_design_package(payload)
+
+    def mutate(entries):
+        entries['reports/design.html'] += b'\n<!-- historical renderer output -->\n'
+        entries['reports/design.csv'] += b'\r\n# historical renderer output'
+        rehash(entries, 'reports/design.html')
+        rehash(entries, 'reports/design.csv')
+
+    assert import_design_package(rewrite(archive, mutate)) == payload
+
+
 def test_duplicate_zip_member_and_expansion_budget_rejected(payload, monkeypatch):
     archive = export_design_package(payload)
     out = io.BytesIO(archive)

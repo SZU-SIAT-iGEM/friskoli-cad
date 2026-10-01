@@ -82,9 +82,12 @@ def _settings(settings):
     return result
 
 
-@lru_cache(maxsize=1)
-def _brief_validator():
-    schema = json.loads(files('friskoli_cad.protocol').joinpath('schemas', 'design-brief-v0.1.schema.json').read_text(encoding='utf-8'))
+@lru_cache(maxsize=2)
+def _brief_validator(version='0.1.0'):
+    filename = {'0.1.0': 'design-brief-v0.1.schema.json', '0.2.0': 'design-brief-v0.2.schema.json'}.get(version)
+    if filename is None:
+        _fail('Unsupported design brief version', '/brief/brief_version')
+    schema = json.loads(files('friskoli_cad.protocol').joinpath('schemas', filename).read_text(encoding='utf-8'))
     return Draft202012Validator(schema)
 
 
@@ -95,12 +98,14 @@ def validate_design_brief(project, brief, registry=None):
         canonical_bytes(brief)
     except TaskValidationError as error:
         _fail(str(error), '/brief')
-    error = next(_brief_validator().iter_errors(brief), None)
+    version = brief.get('brief_version') if isinstance(brief, dict) else None
+    error = next(_brief_validator(version).iter_errors(brief), None)
     if error is not None:
         _fail(error.message, '/brief/' + '/'.join(str(p) for p in error.absolute_path))
-    _object(brief, ('brief_version', 'id', 'name', 'goal', 'chassis', 'variables', 'constraints', 'seeds', 'max_runs'), path='/brief')
-    if brief['brief_version'] != '0.1.0':
-        _fail('Unsupported design brief version', '/brief/brief_version')
+    required = ('brief_version', 'id', 'name', 'goal', 'chassis', 'variables', 'constraints', 'seeds', 'max_runs')
+    if version == '0.2.0':
+        required += ('result_constraints', 'selection_policy')
+    _object(brief, required, path='/brief')
     for key in ('id', 'name'):
         _text(brief[key], '/brief/' + key)
     goal = brief['goal']
@@ -122,6 +127,25 @@ def validate_design_brief(project, brief, registry=None):
         _fail('Duplicate seeds are not independent repeats', '/brief/seeds')
     if type(brief['max_runs']) is not int or not 1 <= brief['max_runs'] <= MAX_RUNS:
         _fail('max_runs must be an integer in [1, 32]', '/brief/max_runs')
+    if version == '0.2.0':
+        policy = brief['selection_policy']
+        _object(policy, ('min_repeats', 'min_control_improvement'), path='/brief/selection_policy')
+        if type(policy['min_repeats']) is not int or not 2 <= policy['min_repeats'] <= 8:
+            _fail('min_repeats must be an integer in [2, 8]', '/brief/selection_policy/min_repeats')
+        if _number(policy['min_control_improvement'], '/brief/selection_policy/min_control_improvement') < 0:
+            _fail('min_control_improvement must be nonnegative', '/brief/selection_policy/min_control_improvement')
+        result_ids = set()
+        for i, constraint in enumerate(brief['result_constraints']):
+            path = f'/brief/result_constraints/{i}'
+            _object(constraint, ('id', 'kind', 'metric', 'group_id', 'operator', 'value'), path=path)
+            if constraint['id'] in result_ids:
+                _fail('Duplicate result constraint id', path + '/id')
+            result_ids.add(constraint['id'])
+            if constraint['metric'] not in METRICS or constraint['kind'] not in ('hard', 'soft') or constraint['operator'] not in ('<=', '>='):
+                _fail('Unsupported result constraint', path)
+            if constraint['group_id'] not in project['groups'] or not project['groups'][constraint['group_id']]['ids']:
+                _fail('Result constraint requires a populated initial group', path + '/group_id')
+            _number(constraint['value'], path + '/value')
     nodes = {node['id']: node for node in project['graph']['nodes']}
     if type(brief['variables']) is not list or not brief['variables']:
         _fail('At least one exploration variable is required', '/brief/variables')
@@ -303,7 +327,7 @@ def generate_design(project, settings, brief):
     count, repeats = len(candidates), len(brief['seeds'])
     if count > MAX_CANDIDATES or count * repeats > brief['max_runs']:
         _fail('Feasible candidates plus the fixed control exceed the candidate/run budget; reduce values or seeds', '/brief', 'design.budget')
-    return {'design_version': '0.1.0', 'id': brief['id'], 'brief': brief, 'baseline_project': baseline,
+    return {'design_version': brief['brief_version'], 'id': brief['id'], 'brief': brief, 'baseline_project': baseline,
         'settings': settings, 'candidates': candidates, 'excluded': excluded,
         'budget': {'candidate_count': count, 'feasible_candidate_count': feasible, 'control_count': int(bool(feasible)),
             'repeats': repeats, 'total_runs': count * repeats, 'total_steps': count * repeats * settings['steps'],

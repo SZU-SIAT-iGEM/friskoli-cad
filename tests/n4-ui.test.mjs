@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {numericDesignParameters,designRunQueue,designPackagePayload} from '../src/friskoli_cad/web/design-panel.mjs';
+import {numericDesignParameters,designRunQueue,designPackagePayload,defaultAssemblyMetadata,enableResultEvaluation} from '../src/friskoli_cad/web/design-panel.mjs';
 import {readWorkspace,writeWorkspace} from '../src/friskoli_cad/web/workspace.mjs';
 import {TaskStore,TASK_STORAGE_KEY,buildSubmission} from '../src/friskoli_cad/web/task-store.mjs';
 const project=JSON.parse(readFileSync(new URL('../src/friskoli_cad/examples/chemotaxis_pts_a.project.json',import.meta.url)));
@@ -17,10 +17,15 @@ test('design batch enumerates every candidate and control across seeds with inde
  queue[0].project.id='changed';assert.notEqual(queue[1].project.id,'changed');assert.notEqual(project.id,'changed');
  assert.throws(()=>designRunQueue({...design,candidates:[design.candidates[2]]}),/No feasible/);
 });
-test('Workspace0.5 preserves design and editable brief separately without modifying scientific Project',()=>{
+test('Workspace0.6 preserves design and editable brief separately while accepting 0.5 documents',()=>{
  const state=readWorkspace(project);state.design=design;state.designBrief=brief;const document=writeWorkspace(state),loaded=readWorkspace(document);
- assert.equal(document.workspace_format_version,'0.5.0');assert.deepEqual(loaded.design,design);assert.deepEqual(loaded.designBrief,brief);assert.deepEqual(loaded.project,project);assert.equal(loaded.project.design,undefined);
- const old={...document,workspace_format_version:'0.4.0'};delete old.design;delete old.design_brief;assert.equal(readWorkspace(old).design,null);
+ assert.equal(document.workspace_format_version,'0.6.0');assert.deepEqual(loaded.design,design);assert.deepEqual(loaded.designBrief,brief);assert.deepEqual(loaded.project,project);assert.equal(loaded.project.design,undefined);
+ const old={...document,workspace_format_version:'0.5.0'};assert.deepEqual(readWorkspace(old).design,design);
+ const older={...document,workspace_format_version:'0.4.0'};delete older.design;delete older.design_brief;assert.equal(readWorkspace(older).design,null);
+});
+test('result evaluation upgrade and biological assembly metadata keep explicit contracts',()=>{
+ const legacy=structuredClone(brief);assert.equal(enableResultEvaluation(legacy),true);assert.equal(legacy.brief_version,'0.2.0');assert.deepEqual(legacy.selection_policy,{min_repeats:2,min_control_improvement:0});assert.deepEqual(legacy.result_constraints,[]);assert.equal(enableResultEvaluation(legacy),false);
+ const metadata=defaultAssemblyMetadata(project,'cells');assert.equal(metadata.kind,'part');assert.match(metadata.id,/assembly$/);assert.equal(metadata.provenance.kind,'user');assert.ok(metadata.provenance.reference);
 });
 test('design package contains only records linked to the selected design',()=>{
  const runs=[{id:'r',design_ref:{design_id:'d'}},{id:'unrelated',design_ref:{design_id:'other'}},{id:'ordinary'}];

@@ -2,7 +2,7 @@
 import { blocksFromProject } from './population.mjs';
 import { METRIC_KEYS, metricRows, csvCell } from './metrics.mjs';
 
-export const WORKSPACE_VERSION = '0.5.0';
+export const WORKSPACE_VERSION = '0.6.0';
 export const RECOVERY_KEY = 'friskoli.workspace.v2';
 const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
   v.every(n => Number.isFinite(n) && (!positive || n > 0));
@@ -10,17 +10,22 @@ const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
 const nonempty = v => typeof v === 'string' && v.trim().length > 0;
 export function validateDesignBrief(brief) {
   const metrics=['mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s'];
-  if (!brief || brief.brief_version!=='0.1.0' || !nonempty(brief.id) || !nonempty(brief.name) ||
+  if (!brief || !['0.1.0','0.2.0'].includes(brief.brief_version) || !nonempty(brief.id) || !nonempty(brief.name) ||
     !metrics.includes(brief.goal?.metric) || !['maximize','minimize'].includes(brief.goal?.direction) || !nonempty(brief.goal?.group_id) ||
     !nonempty(brief.chassis?.name) || !nonempty(brief.chassis?.provenance) || !Array.isArray(brief.variables) || !brief.variables.length ||
     brief.variables.some(v=>!nonempty(v.node_id)||!nonempty(v.parameter)||!Array.isArray(v.values)||!v.values.length||v.values.some(x=>!Number.isFinite(x))) ||
     !Array.isArray(brief.constraints) || brief.constraints.some(c=>!nonempty(c.id)||!['hard','soft'].includes(c.kind)||!nonempty(c.node_id)||!nonempty(c.parameter)||!['<=','>='].includes(c.operator)||!Number.isFinite(c.value)||(c.weight!==undefined&&(!Number.isFinite(c.weight)||c.weight<0))) ||
-    !Array.isArray(brief.seeds)||!brief.seeds.length||brief.seeds.some(n=>!Number.isSafeInteger(n)||n<0)||new Set(brief.seeds).size!==brief.seeds.length||
+    !Array.isArray(brief.seeds)||!brief.seeds.length||brief.seeds.length>8||brief.seeds.some(n=>!Number.isSafeInteger(n)||n<0)||new Set(brief.seeds).size!==brief.seeds.length||
     !Number.isSafeInteger(brief.max_runs)||brief.max_runs<1||brief.max_runs>32) throw new Error('Invalid design brief: check objective, chassis, parameter values, constraints and distinct seeds');
+  if (brief.brief_version==='0.2.0' && (!Array.isArray(brief.result_constraints) ||
+    brief.result_constraints.some(c=>!nonempty(c.id)||!['hard','soft'].includes(c.kind)||!metrics.includes(c.metric)||!nonempty(c.group_id)||!['<=','>='].includes(c.operator)||!Number.isFinite(c.value)) ||
+    new Set(brief.result_constraints.map(c=>c.id)).size!==brief.result_constraints.length ||
+    !Number.isSafeInteger(brief.selection_policy?.min_repeats)||brief.selection_policy.min_repeats<2||brief.selection_policy.min_repeats>8||
+    !Number.isFinite(brief.selection_policy?.min_control_improvement)||brief.selection_policy.min_control_improvement<0)) throw new Error('Invalid result constraints or selection policy');
   return brief;
 }
 export function validateDesignDocument(design) {
-  if (!design || design.design_version!=='0.1.0' || !nonempty(design.id) || !Array.isArray(design.candidates) || !Array.isArray(design.excluded) ||
+  if (!design || !['0.1.0','0.2.0'].includes(design.design_version) || !nonempty(design.id) || !Array.isArray(design.candidates) || !Array.isArray(design.excluded) ||
     !design.settings || !Number.isFinite(design.settings.dt_s)||design.settings.dt_s<=0||!Number.isSafeInteger(design.settings.steps)||design.settings.steps<1 ||
     !design.budget || ['candidate_count','repeats','total_runs','total_steps'].some(k=>!Number.isSafeInteger(design.budget[k])||design.budget[k]<0)) throw new Error('Invalid design document structure');
   validateDesignBrief(design.brief);readWorkspace(design.baseline_project);
@@ -34,7 +39,7 @@ export function validateDesignDocument(design) {
 
 export function readWorkspace(document) {
   const version = document?.workspace_format_version;
-  if (version && !['0.1.0', '0.2.0', '0.3.0', '0.4.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
+  if (version && !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
   const project = structuredClone(version ? document.project : document);
   if (!project || !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0'].includes(project.project_version) || typeof project.id !== 'string' ||
       (project.project_version === '0.3.0' && project.execution_profile !== 'conservative-pts-bulk-v1') ||

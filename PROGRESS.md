@@ -13,8 +13,8 @@
 - **N3 空间基线已提交**：数值基础 `8d06ac0`、完整接入 `308cbb0`。M4 独立随机流、完整 JSON 状态与失败回滚，配合 M5 无偏 run/tumble 基线及 N6 必要子集：胞体/器壁/实体碰撞、有限接触酶降解、自动稳定扩散、局部共享摄取。障碍物、可降解底物、引诱物源和所需机制正式登记。PTS 示例使用同一养分场；MCP 的均匀营养背景/独立引诱物对照留作独立案例。412 项 Python / 142 项子测试、78 项 JavaScript、775 项隔离安装检查通过。具体范围见[科学说明](docs/science/spatial-baseline.md)和[验收](docs/verification-spatial.md)。
 - **M4 已实现并验收**：提交 `3fb9cae`、`d31fc89` 补齐空间 checkpoint 严格恢复、帧检查器与碰撞诊断保存、自包含文件、原子发布及新进程续算。连续 50 步和 20+保存恢复+30 步一致；最后校验点失败后重试保持完整状态；真实任务的输出帧间隔不影响共同结果。442 项 Python / 186 项子测试、78 项 JavaScript、789 项隔离安装检查通过。具体交付见 [M4 验收](docs/verification-m4.md)，入口见 [checkpoint 文件](docs/checkpoint-files.md)。不包含任务级暂停续算或新生物机制。
 - **完整 N3 已提交并验收**：新 `chemotaxis-spatial-v1` 接入 A/B memory、reduced MCP、信号驱动运动、营养生长/表达/健康/死亡/面积 adder；25 个注册模块、六套可编辑模板、逐数值步指标、显式 seed 批次和完整动态 checkpoint。核心提交 `8f075a9`，前端提交 `8f9be84`，研究脚本 `47103a2`；此前碰撞 owner 修复为 `7f079fb`、科学纯函数与证据为 `e853ceb`。532 项 Python 主测试通过记录覆盖全量首轮与修复后专项，186 子测试、90 项 JavaScript、1,265 项最终隔离安装检查通过；368 次研究与 43 对修复前后等价检查另行记录。最终 wheel 为 0.2.0，标签 `n3-complete`。详见[完整 N3 验收](docs/verification-n3-complete.md)；B 当前参数的群体效应尚未分辨，A 有时间步敏感性，参数均未实验标定。
-- **N4 首轮已接入**（`5fc7b21`）：Design 工作区、注册参数枚举与约束、固定对照、候选 seed 批次、预算、比较及无损 `.friskoli` / HTML / CSV。底盘元件目录、结果约束及自动推荐继续开发。见[本轮验收](docs/verification-n4-design.md)。任务级暂停续算仍属于 N7。
-- **未实施**：N4 注册底盘/元件组合与结果推荐、N5 静态 Wiki / 标准导出与发布，以及 N6–N8 的高级空间/材料、任务续算、标定和性能扩展。详细依赖与验收见[路线图](docs/design/roadmap-and-acceptance.md)。
+- **N4 核心节点已实现**（本轮）：DesignBrief/Design 0.1/0.2、参数枚举与约束、固定对照、候选 seed 批次、预算、完整比较、配对 seed 结果评价、Workspace 0.6、底盘/元件 biological assembly、无损原生设计包、HTML、CSV 均已接入。assembly 保存完整菌群机制分支、chassis 几何和外部环境依赖；评价规则要求所有计划 seed 完整、每次硬阈值通过、每次配对改善超过声明阈值，结果为探索性说明，不代表统计显著性或实验标定。见 N4 验收记录。
+- **未实施**：N4 大型设计的选择性重跑与可安装 registry、N5 静态 Wiki / 标准导出与发布，以及 N6–N8 的高级空间/材料、任务续算、标定和性能扩展。
 
 | 阶段 | 任务 | 状态 | 完成时可检查的结果 |
 | --- | --- | --- | --- |

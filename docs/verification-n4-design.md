@@ -1,24 +1,33 @@
-# N4 参数设计首轮验收
+# N4 CAD 设计、评价与生物组合验收
 
-日期：2026-10-01。分支 `feat/n4-design`，基于 `n3-complete` / `6581428`，功能提交 `5fc7b21`。本轮按用户要求在 25 分钟开发窗口内实施可使用的参数设计流程，不将整个 N4 标为完成。
+日期：2026-10-01。分支 feat/n4-design，基于 N3 完整实现。此次节点把用户目标、参数扫描、可复现比较、结果判断和生物学机制组合接成一条可检查的流程。
 
-## 已检查
+## 已完成
 
-- 首轮 Python 全量：**581 passed，186 subtests passed**，300.59 秒。该轮开始时已有候选与 HTTP 测试；后加入的包专项和收尾修订另行复测。
-- 最终 N4 专项：**76 passed**，63.75 秒，包括候选 40、设计包 25、HTTP 11。唯一 warning 来自故意构造重复 ZIP 成员的拒绝测试。
-- 最终 JavaScript 全量：**98 passed**，包含 8 项 N4 测试；验证 TaskStore 归属持久化、Workspace 0.5、候选队列、包选取、导入结构拒绝、活动任务保护和历史清理失败恢复。
-- 全部六套科学模板各自生成两候选和固定对照并真实计算两步；参数枚举与初始化不推进数值步，原输入与证据不被改写。
-- 原生包和 HTTP 往返保持 payload 相等，检查错误 hash、路径越界、重复成员、展开规模、结构、冻结输入与来源锁。HTML/CSV 正确处理空/partial/失败、重复 seed 和不同版本。
-- 浏览器从 PTS A 模板生成两候选与对照，seed 0/1 各运行两步，**6/6 completed**，逐分支比较、均值和样本 SD 可查看。短运行只验证工程链路，不据此判断趋化性能。
-- 浏览器实际导出包含六次运行的 `.friskoli`，Python 回读后再次导出/导入与原 payload 完全相等，三个统计组各有 N=2。刷新并恢复工作区后，设计和六项本机结果仍可见。
-- 浏览器尺寸模拟：390×844、844×390、768×1024、1440×900，页面与 Design 面板均无横向溢出；表单区域可独立滚动。没有实体手机/平板触控实测。
+- DesignBrief/Design 0.1.0 继续可读；0.2.0 增加结果硬/软阈值、最少重复次数和逐 seed 对照改善规则。
+- 候选生成使用有限注册参数和离散值；保留每个候选的解释、排除原因、预算和固定对照，不推进科学数值步。
+- 结果评价只读已保存的完整运行。候选和对照必须使用相同计划 seed、观测定义、执行设置、实现版本锁和端点；缺失、失败、partial、重复 seed、空指标或版本不一致不会生成推荐。
+- 硬阈值要求每一次有效重复都通过；软阈值逐项展示；主目标必须有唯一最佳候选；配对改善必须对每一个 seed 超过声明的最小值。评价结果明确为探索性描述，不代表统计显著性、实验性能或已标定参数。
+- biological assembly 已实现。part 保存一个菌群及其所属 workflow 机制分支；chassis 另外保存初始几何。assembly 冻结模块版本、物种需求、外部环境端口、来源和生物学作用。应用时保留目标菌群位置、姿态、ID 和其他菌群；不兼容 provider、物种、profile 或 graph 依赖会拒绝。
+- Workspace 0.6 保存 design 和 brief，继续读取旧 Workspace 0.1–0.5。HTTP 新增结果评价、assembly 提取和应用接口；这些接口只编辑数据，不隐式启动求解任务。
+- 原生设计包的结构化证据、依赖和冻结输入继续逐字节交叉校验；报告文件按包内 checksum 保留历史版本，报告渲染器升级不会拒绝旧的合法包。
 
-浏览器验收的第一组设计 ID 为 `design-1790840845388`，当时固定对照为首轮实现的 0.25；最终生成器统一改为 N3 模板的 **0.5**，最终专项覆盖该值。旧包保留实际 0.25 输入，不能改写为 0.5；最终生成器另行浏览器复核：设计 `design-0ee83165-6aa6-4ee8-b1db-d955f968ff52` 的 6/6 运行也全部完成，新包回读相等，三个统计组各 N=2；两轮共 12 次真实任务。科学内核未修改。
+## 自动化验证
 
-本机证据位于相邻 `friskoli-cad-releases/n4-design-20261001/`，包含下载包、HTML/CSV、最后专项日志与截图，主仓库仅保存代码和文档。本轮没有构建安装包。
+- N4 Python 专项：68 passed，包含候选生成、原生包、旧包回读、结果评价、assembly 组合和 HTTP 提取/应用；唯一 warning 是拒绝测试故意写入重复 ZIP 成员。
+- JavaScript N3/N4 回归：20 passed；Workspace 0.6、结果评价表单、assembly 元数据和现有任务/空间行为均通过。
+- JavaScript 全量回归：99 passed，包含修正旧 Workspace 版本断言后的完整 tests/*.test.mjs。
+- Python 全量回归：640 passed，186 subtests passed；本轮没有修改科学数值内核。
+- 浏览器实体设备触控仍未测；尺寸模拟和交互逻辑测试与实体设备验收分开。
 
-## 当前边界与后续
+## 当前边界
 
-底盘为名称及来源说明，尚无正式底盘/元件兼容目录；扫描只改注册数值参数。硬软约束是参数约束，结果阈值、置信区间、多目标排序及自动推荐仍待实现。导入运行是只读历史，刷新后重新打开原生包；大包受明确传输和展开限制。任务级暂停续算仍属 N7。
+- assembly 目前是数据包和应用接口，不是可安装的全局 registry；更多经过审查的生物组合、跨 profile 安装锁和插件分发安排在后续。
+- 结果评价没有置信区间、统计检验或 Pareto 多目标排序；多单位指标不合并为一个分数。
+- 大型设计的选择性重跑、部分候选重跑和导入历史管理仍待补充。
+- SBOL、SBML、OMEX 标准子集、静态 Wiki 发布、服务级 pause/resume、实验参数标定和 GPU 性能扩展仍属于 N5–N8。
 
-后续顺序已同步[开发安排](development-order.md)。实现与协议见[设计工作流](design-workflow.md)。
+## 复现入口
+
+代码入口：src/friskoli_cad/design.py、design_evaluation.py、biological_assemblies.py、design_delivery.py、replay_service.py；前端入口：src/friskoli_cad/web/design-panel.mjs、app.mjs、workspace.mjs。
+测试入口：tests/test_design_evaluation.py、tests/test_biological_assemblies.py、tests/test_design_delivery.py、tests/test_design_http.py、tests/n4-ui.test.mjs。

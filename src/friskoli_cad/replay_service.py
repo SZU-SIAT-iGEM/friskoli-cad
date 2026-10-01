@@ -171,7 +171,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
 
     def _post_design(self, path: str, query: str) -> None:
         """Designs are data. Generation and file import never submit solver jobs."""
-        routes = {"/api/design/generate", "/api/design/export", "/api/design/import", "/api/design/report"}
+        routes = {"/api/design/generate", "/api/design/export", "/api/design/import", "/api/design/report", "/api/design/evaluate"}
         try:
             maximum = MAX_REQUEST_BYTES if path.endswith("/generate") else MAX_DESIGN_REQUEST_BYTES
             body = strict_json_loads(self._task_body(maximum))
@@ -185,6 +185,9 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 if set(body) != {"project", "settings", "brief"}:
                     raise ValueError("Generation requires project, settings and brief")
                 self._json(200, generate_design(body["project"], body["settings"], body["brief"]))
+            elif path.endswith("/evaluate"):
+                from friskoli_cad.design_evaluation import evaluate_design
+                self._json(200, evaluate_design(body))
             elif path.endswith("/export"):
                 from friskoli_cad.design_delivery import export_design_package
                 self._send(200, export_design_package(body), "application/zip",
@@ -209,6 +212,29 @@ class ReplayHandler(BaseHTTPRequestHandler):
             self._json(422, {"issues": error.issues})
         except (ValueError, TypeError, KeyError, binascii.Error) as error:
             self._json(422, {"error": {"code": getattr(error, "code", "design.invalid"), "message": str(error)}})
+
+    def _post_assembly(self, path: str, query: str) -> None:
+        try:
+            body = strict_json_loads(self._task_body(MAX_REQUEST_BYTES))
+            if not isinstance(body, dict) or query:
+                raise ValueError("Assembly request must be an object without query parameters")
+            from friskoli_cad.biological_assemblies import extract_assembly, apply_assembly
+            if path == "/api/assemblies/extract":
+                if set(body) != {"project", "group_id", "metadata"}:
+                    raise ValueError("Extraction requires project, group_id and metadata")
+                self._json(200, extract_assembly(body["project"], body["group_id"], body["metadata"]))
+            elif path == "/api/assemblies/apply":
+                if not {"project", "group_id", "assembly"} <= set(body) or set(body) - {"project", "group_id", "assembly", "bindings"}:
+                    raise ValueError("Application requires project, group_id, assembly and optional bindings")
+                self._json(200, apply_assembly(body["project"], body["group_id"], body["assembly"], bindings=body.get("bindings")))
+            else:
+                self._json(404, {"error": {"code": "assembly.not_found", "message": "Unknown assembly resource"}})
+        except TaskError as error:
+            self._task_error(error)
+        except TaskValidationError as error:
+            self._json(422, {"issues": error.issues})
+        except (ValueError, TypeError, KeyError) as error:
+            self._json(422, {"error": {"code": getattr(error, "code", "assembly.invalid"), "message": str(error)}})
 
     def _task_error(self, error: TaskError) -> None:
         headers = {"Retry-After": "1"} if error.status in (429, 503) else None
@@ -337,12 +363,14 @@ class ReplayHandler(BaseHTTPRequestHandler):
             self._json(200, registry_for_profile(profile[0]).catalog)
         elif path == "/api/capabilities":
             capabilities = {
-                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"],
+                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0"],
                 "catalog_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"], "execution_semantics": "legacy-explicit-v1",
                 "execution_profiles": [LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE],
-                "design": {"design_version": "0.1.0", "package_version": "0.1.0",
+                "design": {"design_version": "0.2.0", "design_versions": ["0.1.0", "0.2.0"],
+                           "evaluation_version": "0.1.0", "package_version": "0.1.0",
                            "execution_profiles": [CHEMOTAXIS_PROFILE], "max_runs": 32,
                            "request_bytes": MAX_DESIGN_REQUEST_BYTES},
+                "biological_assemblies": {"assembly_versions": ["0.1.0"], "extract": True, "apply": True},
                 "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"], "replay_versions": ["0.1.0"],
                 "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
                 "limits": {"request_bytes": MAX_REQUEST_BYTES, "cells": MAX_VIEW_CELLS,
@@ -369,6 +397,9 @@ class ReplayHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
         target = urlsplit(self.path)
+        if target.path.startswith("/api/assemblies/"):
+            self._post_assembly(target.path, target.query)
+            return
         if target.path.startswith("/api/design/"):
             self._post_design(target.path, target.query)
             return
