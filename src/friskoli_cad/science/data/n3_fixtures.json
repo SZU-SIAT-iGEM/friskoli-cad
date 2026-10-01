@@ -1,0 +1,87 @@
+{
+  "version": "n3-source-fixtures-v1",
+  "date": "2026-10-01",
+  "kind": "source-derived outputs at constructed inputs",
+  "biological_calibration": "unknown",
+  "dt_s": 0.25,
+  "rebuilt": {
+    "memory": [
+      1.1599111707413534,
+      4.76013324388797
+    ],
+    "bias": [
+      0.005043698831388676,
+      1.0
+    ],
+    "growth": [
+      [
+        0.0005602824866551275,
+        3.501765541594547e-05
+      ],
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.5000011672551805,
+        0.8000001167255181
+      ],
+      [
+        1000.0,
+        100.0
+      ]
+    ],
+    "health": [
+      0.8000062435749166,
+      0.009088815436816482
+    ],
+    "expression_rate": [
+      474.95882574331966,
+      2.763753876528492
+    ]
+  },
+  "simplified": {
+    "memory": [
+      2.9200444146293236,
+      4.079955585370676
+    ],
+    "motor": [
+      1.6699555853706762,
+      3.5100444146293235
+    ],
+    "bias": [
+      0.0017064497407432147,
+      0.7823704033736814
+    ],
+    "growth": [
+      [
+        0.0005602824866551275,
+        3.501765541594547e-05
+      ],
+      [
+        0.0,
+        0.0
+      ],
+      [
+        0.5000011672551805,
+        0.8000001167255181
+      ]
+    ],
+    "health": [
+      0.8000025000000001,
+      0.009982916666666668
+    ],
+    "death_hazard": [
+      0.0,
+      0.8003416666666666
+    ],
+    "copy_euler": [
+      1003.2083333333334,
+      3002.9583333333335
+    ]
+  },
+  "generator": {
+    "rebuilt_python": "\nimport json, numpy as np\nfrom parameters import DEFAULTS as p\nfrom model import signaling, growth, health\narr = lambda x: np.array(x, dtype=float)\nmemory = signaling.memory_step(arr([1,5]), arr([3,2]), .25, p)\ng = growth.step(arr([1000,100]), arr([.5,.8]), .25/60, p)\nh, dead = health.step(arr([.8,.01]),arr([.003,0]),arr([.1,.4]),arr([.2,.3]),arr([0,100000]),.25/60,arr([1,1]),p)\nout = dict(memory=memory.tolist(), bias=signaling.gradient_bias(arr([.2,.7]),memory,arr([3,2]),p).tolist(), growth=[x.tolist() for x in g], health=h.tolist(), expression_rate=(60*growth.inp_expression(arr([0,0]),arr([.8,.1]),arr([.003,0]),arr([.2,.9]),1/60,p)).tolist())\nprint(json.dumps(out))\n",
+    "simplified_python": "\nimport json, numpy as np\nfrom core import batch as b\nfrom model_b_morphology import membrane_occupancy as m\narr = lambda x: np.array(x, dtype=float)\nmemory=b.adaptation_step(arr([3,4]),arr([2,5]),.25)\ng=b.growth_step(arr([1000,100]),arr([.5,.8]),.25/60)\nh=b.health_step(arr([.8,.01]),arr([.003,0]),arr([.1,2]),.25/60,np.random.default_rng(42),return_terms=True)\nprint(json.dumps(dict(memory=memory.tolist(),motor=b.motor_effective_signal(arr([2,5]),memory).tolist(),bias=b.motor_bias(b.motor_effective_signal(arr([2,5]),memory)).tolist(),growth=[x.tolist() for x in g],health=h[0].tolist(),death_hazard=h[-1].tolist(),copy_euler=m.update_inp_copies(arr([1000,3000]),1,arr([.003,0]),.25/60).tolist())))\n"
+  }
+}

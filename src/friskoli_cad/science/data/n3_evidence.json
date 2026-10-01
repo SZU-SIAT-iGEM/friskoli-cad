@@ -1,0 +1,200 @@
+{
+  "version": "n3-evidence-v1",
+  "checked_on": "2026-10-01",
+  "execution_profile": "chemotaxis-spatial-v1",
+  "biological_calibration": "unknown",
+  "review_method": "Targeted source-code and primary-literature checks, not a systematic review",
+  "references": [
+    {
+      "id": "Tu2008",
+      "doi": "10.1073/pnas.0807569105",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2551628/",
+      "location": "General Model for Kinetics of Bacterial Chemotaxis; Fig.1; Fig.2 inset",
+      "access": "Primary PMC indexed full-text sections; direct PMC fetch challenged",
+      "supports": "MWC activity with additive ligand/methylation free energy and monotone activity-dependent adaptation.",
+      "limits": "Linear F(a)=k(a0-a) and current numerical constants are constructed; paper ramp feedback and explicit CheR/CheB are not implemented.",
+      "checked_on": "2026-10-01"
+    },
+    {
+      "id": "Somavanshi2016",
+      "doi": "10.1371/journal.pbio.2000074",
+      "url": "https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2000074",
+      "location": "Abstract; Results: PTS Network Senses the Overall Influx of Sugars; PTS Signals Propagate Linearly",
+      "access": "Primary publisher full HTML, relevant sections read",
+      "supports": "PTS network conveys overall influx and metabolic information.",
+      "limits": "Does not establish this EI surrogate, AscF constants or downstream low-pass time constant.",
+      "checked_on": "2026-10-01"
+    },
+    {
+      "id": "Neumann2012",
+      "doi": "10.1073/pnas.1205307109",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3409764/",
+      "location": "Involvement of receptor methylation in adaptation; Fig.3; CheB discussion/Fig.4",
+      "access": "Primary PMC indexed excerpt; direct full-text fetch challenged",
+      "supports": "PTS chemotactic adaptation involves receptor methylation.",
+      "limits": "Does not calibrate A concentration memory or B CheY low-pass proxy.",
+      "checked_on": "2026-10-01"
+    },
+    {
+      "id": "Cluzel2000",
+      "doi": "10.1126/science.287.5458.1652",
+      "url": "https://cluzel.fas.harvard.edu/sites/g/files/omnuum7156/files/cluzel/files/cluzel_science_00.pdf",
+      "location": "pp.1652-1653, Hill fit and Fig.2",
+      "access": "Author-institution primary PDF parsed",
+      "supports": "Ultrasensitive single-motor CheY-P response; Hill fit near bias .1-.9, h=10.3 +/- 1.1 and K=3.1 uM.",
+      "limits": "Not a calibrated whole-cell hazard law; Hill fit does not cover the entire response exactly.",
+      "checked_on": "2026-10-01"
+    },
+    {
+      "id": "Mesibov1972",
+      "doi": "10.1128/jb.112.1.315-326.1972",
+      "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC251414/",
+      "location": "Abstract",
+      "access": "Primary PMC indexed abstract; direct fetch challenged",
+      "supports": "Nonoxidizable analogues can be attractants; sensing and nutrient consumption can be separated.",
+      "limits": "Uniform external nutrition is a constructed case, not a universal MCP definition.",
+      "checked_on": "2026-10-01"
+    },
+    {
+      "id": "Lin2018",
+      "doi": "10.1038/s41467-018-06714-z",
+      "url": "https://www.nature.com/articles/s41467-018-06714-z.pdf",
+      "location": "Abstract; model overview",
+      "access": "Primary publisher HTML initially available, later redirect blocked; primary PDF parsed",
+      "supports": "Model distinguishes molecular numbers and concentrations in growing cells.",
+      "limits": "No Friskoli expression calibration. dc/dt=(dN/dt)/V-c(dV/dt)/V is independently derived by quotient rule; the full resource model is not adopted.",
+      "checked_on": "2026-10-01"
+    },
+    {
+      "id": "Harris2016",
+      "doi": "10.1016/j.cell.2016.05.045",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/27259152/",
+      "location": "Abstract; Fig.1 and Fig.7 captions",
+      "access": "Primary PubMed abstract and author figure captions read",
+      "supports": "Relative surface/volume synthesis and a surface-material threshold hypothesis.",
+      "limits": "Does not make fixed-radius geometry plus area adder equivalent to independent surface synthesis; membrane stock is absent.",
+      "checked_on": "2026-10-01"
+    },
+    {
+      "id": "BergBrown1972",
+      "doi": "10.1038/239500a0",
+      "url": "https://www.nature.com/articles/239500a0",
+      "location": "Abstract",
+      "access": "Primary publisher abstract",
+      "supports": "Chemotaxis changes directional switching in tracked cells.",
+      "limits": "This access did not verify exact normal turn-angle parameters or dwell constants; these are source-derived.",
+      "checked_on": "2026-10-01"
+    },
+    {
+      "id": "BIPM2019",
+      "doi": null,
+      "url": "https://www.bipm.org/en/si-base-units/mole",
+      "location": "SI base unit mole definition",
+      "access": "Official primary definition",
+      "supports": "Exact Avogadro constant 6.02214076e23 mol^-1.",
+      "limits": "Unit conversion only; no biological calibration.",
+      "checked_on": "2026-10-01"
+    }
+  ],
+  "parameter_rules": {
+    "registry_examples": "constructed unless a field is explicitly mapped to a source value below; equality alone does not establish experimental calibration",
+    "source_comparisons": "source-derived at constructed fixture inputs",
+    "inherited_pts_parameters": "See science/data/evidence.json for per-parameter PTS provenance",
+    "numerical_controls": "constructed numerical policy, verified by tests; not biological measurements",
+    "experimental_fit": "unknown for all Friskoli parameters"
+  },
+  "source_parameter_sets": {
+    "A_health": {
+      "source": "rebuilt-v2/parameters.py HealthParameters and MembraneParameters",
+      "status": "source-derived",
+      "values": {
+        "repair_max_per_min": 0.01,
+        "repair_half_growth_per_min": 0.001,
+        "tolerated_effective_occupancy": 0.25,
+        "occupancy_half_excess": 0.05,
+        "occupancy_hill": 3,
+        "occupancy_toxicity_max_per_min": 0.2,
+        "excess_toxicity_max_per_min": 0.03,
+        "excess_half_copies": 50000,
+        "starvation_max_per_min": 0.002,
+        "starvation_half_growth_per_min": 0.0005,
+        "starvation_hill": 4,
+        "death_half_health": 0.05,
+        "death_hazard_max_per_min": 1,
+        "death_hill": 4,
+        "inp_toxicity_weight": 0.15
+      }
+    },
+    "A_expression": {
+      "source": "rebuilt-v2/parameters.py MembraneParameters; model/growth.py inp_expression",
+      "status": "source-derived",
+      "values": {
+        "expression_copies_min": 800,
+        "health_floor": 0.25,
+        "health_hill": 2,
+        "metabolic_floor": 0.6,
+        "metabolic_half_growth_per_min": 0.001,
+        "burden_half_fraction": 0.35,
+        "burden_hill": 4,
+        "turnover_per_min": 0.03
+      }
+    },
+    "A_B_growth": {
+      "source": "rebuilt-v2/parameters.py GrowthParameters; simplified-v4/config.py",
+      "status": "source-derived",
+      "values": {
+        "max_growth_per_min": 0.005,
+        "volume_yield_um3_molecule": 1.1672551805315156e-09,
+        "A_half_saturation_uM": 10
+      }
+    },
+    "B_health": {
+      "source": "simplified-v4/config.py and core/batch.py health_step",
+      "status": "source-derived, criterion-selected burden constant; not fitted",
+      "values": {
+        "repair_per_min": 0.01,
+        "burden_per_min": 0.006,
+        "starvation_per_min": 0.002,
+        "max_growth_per_min": 0.005,
+        "death_max_per_min": 1,
+        "death_threshold": 0.05
+      }
+    },
+    "A_memory": {
+      "source": "rebuilt-v2/parameters.py SignalingParameters",
+      "status": "source-derived",
+      "values": {
+        "memory_tau_s": 3,
+        "gradient_strength_per_uM": 2
+      }
+    },
+    "B_memory": {
+      "source": "simplified-v4/config.py and core/batch.py adaptation_step",
+      "status": "source-derived",
+      "values": {
+        "adaptation_tau_s": 3,
+        "baseline_uM": 2.59,
+        "total_uM": 8
+      }
+    },
+    "A_B_turn": {
+      "source": "rebuilt-v2/simulation.py; simplified-v4/model_a_behavior/motion.py",
+      "status": "source-derived",
+      "values": {
+        "mean_deg": 68,
+        "sd_deg": 36,
+        "B_fixed_dwell_s": 0.1
+      },
+      "bounds": "A lower clamp at 0; B clamp 0..180; isotropic and planar rules are separate constructed choices"
+    }
+  },
+  "model_changes": [
+    "A contact/surface/bulk transport replaced by direct-bulk by user choice; no claim of full A reproduction",
+    "CAD event localization replaces at-most-one-per-step source Bernoulli",
+    "Committed motor drives following interval",
+    "Exact frozen copy expression replaces source Euler",
+    "MCP MWC structure from Tu2008 with constructed linear adaptation feedback",
+    "Direct-bulk contact box geometry and voxel support replace source adhesion geometry",
+    "Fixed-radius adder has no independent membrane material inventory"
+  ]
+}

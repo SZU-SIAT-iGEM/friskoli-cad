@@ -1,0 +1,93 @@
+{
+  "version": "n3-source-lock-v1",
+  "date": "2026-10-01",
+  "review_repository_head": "6b6180b68ac047b244aa9947fe7cc7d227f76310",
+  "original_b_zip_sha256": "a3900092cb03a9d686800ca3c9450a2ce09fd5470c921b416b5aae5d0b63a5c2",
+  "files": [
+    {
+      "path": "rebuilt-v2/parameters.py",
+      "sha256": "9a906c9291fd032d303f33129e1c409b0737ff83e71c7151336db95221e6d5e9",
+      "last_change_commit": "e2093f8ae68bbf3de48d51dcf3af1e42e391d9b8"
+    },
+    {
+      "path": "rebuilt-v2/model/signaling.py",
+      "sha256": "e7454db51c8d4df9f6816e8ce3bab9f6d19a753db3232a0d51033e9d9e8c57ef",
+      "last_change_commit": "8b8bb76fea4094dc3b5d2d1539ad8a6db791c3dd"
+    },
+    {
+      "path": "rebuilt-v2/model/transport.py",
+      "sha256": "b16c9ba2a98305411ead9e8bad0b30fcbdb8e0a15021f0385f2522a7f7f80f47",
+      "last_change_commit": "8b8bb76fea4094dc3b5d2d1539ad8a6db791c3dd"
+    },
+    {
+      "path": "rebuilt-v2/model/hydrolysis.py",
+      "sha256": "d56c548e9c2f8e5363c779827b87748c4531203266845f3504207d7100a3052a",
+      "last_change_commit": "8b8bb76fea4094dc3b5d2d1539ad8a6db791c3dd"
+    },
+    {
+      "path": "rebuilt-v2/model/growth.py",
+      "sha256": "829db81b85f248a19caca3ad33e7a8df52c78f88e0b1de3688aa063e3156586d",
+      "last_change_commit": "e2093f8ae68bbf3de48d51dcf3af1e42e391d9b8"
+    },
+    {
+      "path": "rebuilt-v2/model/health.py",
+      "sha256": "afaa4fa23b3d65f6afa43f674c6c666f55c791c90eeb9014e412f100e42361b2",
+      "last_change_commit": "8b8bb76fea4094dc3b5d2d1539ad8a6db791c3dd"
+    },
+    {
+      "path": "rebuilt-v2/simulation.py",
+      "sha256": "bb09181884886b7433230e51a192c167237c6b23ec1bb1fa3dba0716d7f0ceea",
+      "last_change_commit": "e2093f8ae68bbf3de48d51dcf3af1e42e391d9b8"
+    },
+    {
+      "path": "rebuilt-v2/reference.py",
+      "sha256": "9c894f5e90fdfaaa39a3bdfb703a820e7786c36e45bf41acf81ae1a93027a0af",
+      "last_change_commit": "8b8bb76fea4094dc3b5d2d1539ad8a6db791c3dd"
+    },
+    {
+      "path": "simplified-v4/config.py",
+      "sha256": "b664e0cfafee8c4cfbb6818e14096b1717e6f5326f86c833819cd0c7c6ea1760",
+      "last_change_commit": "6b6180b68ac047b244aa9947fe7cc7d227f76310"
+    },
+    {
+      "path": "simplified-v4/core/batch.py",
+      "sha256": "a0ada3f9384b139f8fa10c5103b5e5d1ea76269ddc22f5284b625939d6193a2c",
+      "last_change_commit": "6b6180b68ac047b244aa9947fe7cc7d227f76310"
+    },
+    {
+      "path": "simplified-v4/core/simulation.py",
+      "sha256": "e4496e5ea04847ac55efb72a07d54b49658fc80e05fe566f1e6b08239901247c",
+      "last_change_commit": "6b6180b68ac047b244aa9947fe7cc7d227f76310"
+    },
+    {
+      "path": "simplified-v4/core/agent.py",
+      "sha256": "ff02e1f06267ae2fe20a9996b10102f4451e8c035a3e2c415d825fb9b4e00d16",
+      "last_change_commit": "6b6180b68ac047b244aa9947fe7cc7d227f76310"
+    },
+    {
+      "path": "simplified-v4/model_a_behavior/motion.py",
+      "sha256": "190b5bb0da5efbdb99007aad2eb61b36a2db40464e713e26638a80734366d7f0",
+      "last_change_commit": "6b6180b68ac047b244aa9947fe7cc7d227f76310"
+    },
+    {
+      "path": "simplified-v4/model_b_morphology/membrane_occupancy.py",
+      "sha256": "adbc550c99a14ef994fe63bd74be3296dfc0a0a8a2a2417f73d4dcd443644a05",
+      "last_change_commit": "6b6180b68ac047b244aa9947fe7cc7d227f76310"
+    },
+    {
+      "path": "simplified-v4/model_b_morphology/health.py",
+      "sha256": "0d8e0ec37f35b583197d8ef8e96f6cf4c0887229cec726e21e3dc9b835db2020",
+      "last_change_commit": "98b12ffae92c47864c1fec32c35f24158679254d"
+    },
+    {
+      "path": "simplified-v4/model_b_morphology/division.py",
+      "sha256": "a07ab560a1f66e6c11f35626d95f8575edb03c4a173dc43c4a683acbf6bdb77b",
+      "last_change_commit": "98b12ffae92c47864c1fec32c35f24158679254d"
+    },
+    {
+      "path": "simplified-v4/integration/abm_coupling.py",
+      "sha256": "23b501545d29a3152a68db2b5c6c642cc6b15cbfeffe9b5be37e7be0d44ac1da",
+      "last_change_commit": "98b12ffae92c47864c1fec32c35f24158679254d"
+    }
+  ]
+}
