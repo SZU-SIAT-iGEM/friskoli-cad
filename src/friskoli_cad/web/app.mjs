@@ -1,9 +1,10 @@
+import {renderDesignPanel,designRunQueue,designPackagePayload} from './design-panel.mjs';
 import { normalizeReplay, cellHistory } from './replay.mjs';
 import { registerCatalog, resolveGraph, readableManifest, unavailableModules } from './catalog.mjs';
 import { adaptWorkspace } from './migration.mjs';
 import { renderModuleDocumentation } from './math-inspector.mjs';
 import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
-import { writeWorkspace, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
+import { writeWorkspace, validateDesignBrief, validateDesignDocument, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
 import { TaskStore, buildSubmission, matchesDraft, supportsTasks, taskCapability } from './task-store.mjs';
 import { renderResultData } from './results.mjs';
@@ -37,7 +38,7 @@ const state = { project: null, blocks: [], modules: new Map(), replay: null, vie
 const kernel = new KernelClient();
 let taskStorage = null;
 try { taskStorage = localStorage; } catch { /* display unavailable recovery in the task panel */ }
-const taskStore = new TaskStore(kernel, {storage:taskStorage, maxRecords:32, onChange:taskUpdated, isProtected:record => state.comparison?.has(record.id) || state.batch?.records.has(record.localId)});
+const taskStore = new TaskStore(kernel, {storage:taskStorage, maxRecords:32, onChange:taskUpdated, isProtected:record => Boolean(record.design_ref) || state.comparison?.has(record.id) || state.batch?.records.has(record.localId)});
 state.objects = new Map();
 state.registries = new Map();
 state.activeObject = null;
@@ -50,7 +51,7 @@ let viewport;
 installDockSizing($('studio'), $('diagnostics'));
 
 // Undo keeps whole-document snapshots; projects are small enough that this stays cheap.
-const snapshot = () => structuredClone({ project: state.project, blocks: state.blocks, layout: state.layout, settings: state.settings });
+const snapshot = () => structuredClone({ project: state.project, blocks: state.blocks, layout: state.layout, settings: state.settings, design:state.design, designBrief:state.designBrief });
 const fingerprint = () => JSON.stringify(snapshot());
 function changed() {
   state.revision++;
@@ -204,7 +205,7 @@ function renderScene() {
   viewport?.setDomain(domain);
   viewport?.setSnap(state.snap);
   viewport?.setMode(state.view);
-  if (state.view !== 'workflow') {
+  if (!['workflow','design'].includes(state.view)) {
     viewport?.setSnapshot(snapshot ?? {frame:{cells:[]},concentrations:{}}, state.view === 'results' ? state.selectedCell : null,
       state.view === 'results' ? state.field : '', state.slice, state.ranges[state.field]);
     viewport?.setBlocks(state.blocks.map(block => objectForBlock(block,state.objects) ? block : {...block,locked:true}), state.selectedBlock);
@@ -604,7 +605,7 @@ function renderDomainInspector(root) {
     if (state.project.project_version === '0.5.0') {
       const row = el('label','edit-row',t('frameInterval')), input = el('input'); input.type='number'; input.min='1'; input.step='1'; input.value=state.settings.frame_every_steps ?? 1;
       input.addEventListener('change',()=>edit('updated',()=>{
-        const value=Number(input.value); if (!Number.isSafeInteger(value)||value<1||value>state.settings.steps) throw new Error('Invalid frame interval'); state.settings.frame_every_steps=value;
+        const value=Number(input.value); if (!Number.isSafeInteger(value)||value<1||value>10000) throw new Error('Invalid frame interval'); state.settings.frame_every_steps=value;
       })); row.append(input);part.append(row);
     }
   }
@@ -718,6 +719,7 @@ function renderDiagnostics() {
   for (const run of [...state.runs].reverse()) {
     const row = el('li', 'task-record');
     row.append(el('strong', '', `${run.project.id} · ${run.id}`));
+    if(run.design_ref)row.append(el('span','task-note',`${run.design_ref.candidate_name} · ${run.design_ref.candidate_id} · ${run.design_ref.design_id}`));
     const progress = run.task ? ` · ${run.task.progress.committed_step}/${run.settings.steps} ${t('steps')}` : '';
     row.append(el('span', '', `${t(run.status)}${progress}${run.localId ? ' · ' + t(run.completeness) : ''}`));
     if (run.task?.cancel_requested && run.status === 'running') row.append(el('span', 'task-note', t('cancelRequested')));
@@ -735,7 +737,7 @@ function renderDiagnostics() {
     const actions = el('div', 'task-actions');
     const action = (label, fn) => { const button = el('button', 'menu-button', t(label)); button.type = 'button'; button.addEventListener('click', fn); actions.append(button); };
     if (run.replay) action('viewPublished', () => selectRun(run));
-    if (run.localId) {
+    if (run.localId && !run.imported) {
       action('inputSnapshot', () => { $('task-input-json').value = JSON.stringify(run.submission, null, 2); $('task-input-dialog').showModal(); });
       if (['queued', 'running'].includes(run.status) && !run.task?.cancel_requested) action('cancelTask', () => taskStore.cancel(run.localId));
       if (run.paused && run.status !== 'unavailable' && run.error !== 'task.idempotency_window_expired')
@@ -781,11 +783,11 @@ function selectRun(record) {
 
 function taskUpdated(record, records) {
   const previous = state.runs.find(run => run.localId === record.localId);
-  state.runs = [...state.runs.filter(run => !run.localId), ...records];
+  state.runs = [...state.runs.filter(run => !run.localId || run.imported), ...records];
   if(state.batch?.active===record.localId && ['completed','failed','cancelled','interrupted','rejected','unavailable'].includes(record.status)) {
     const batch=state.batch;batch.active=null;
     if(record.status==='completed')queueMicrotask(()=>nextSeed(batch));
-    else state.batch=null;
+    else {state.designBatchStatus=record.status;state.batch=null;}
   }
   if (record.localId === state.latestTask && matchesDraft(record, state) && record.status !== previous?.status)
     status(record.status, {}, ['failed', 'rejected', 'unavailable'].includes(record.status));
@@ -794,9 +796,10 @@ function taskUpdated(record, records) {
     if (record.replay) { state.replay = record.replay; state.frameIndex = Math.min(state.frameIndex, record.replay.snapshots.length - 1); updateRanges(); }
   }
   if (record.replay && record.replay !== previous?.replay && record.status === 'completed' &&
-      record.localId === state.latestTask && matchesDraft(record, state)) selectRun(record);
+      record.localId === state.latestTask && matchesDraft(record, state) && !record.design_ref) selectRun(record);
   else if (state.view === 'results' && state.activeRun?.localId === record.localId) renderAll();
   else { updateRunButton(); renderDiagnostics(); }
+  if(state.view==='design')renderDesign();
 }
 
 function renderData() { renderResultData($('data-pane'), state.replay, state.selectedCell, setFrame,
@@ -813,13 +816,75 @@ function startSeedBatch(text) {
 }
 async function nextSeed(batch) {
   if(state.batch!==batch)return;
-  const seed=batch.seeds.shift();if(seed===undefined){state.batch=null;renderDiagnostics();return;}
+  const entry=batch.queue?.shift();
+  const seed=batch.queue ? entry?.seed : batch.seeds.shift();if(seed===undefined){state.batch=null;state.designBatchStatus='Completed';renderDiagnostics();if(state.view==='design')renderDesign();return;}
   try {
-    const submission=buildSubmission(state.capabilities,batch.project,{...batch.settings,seed},`${batch.draftToken}:${batch.revision}`);
-    const record=taskStore.create(submission,{draftToken:batch.draftToken,revision:batch.revision,idempotencyRetentionSeconds:taskCapability(state.capabilities,batch.project).limits.idempotency_retention_seconds});
+    const submission=buildSubmission(state.capabilities,entry?.project??batch.project,{...batch.settings,seed},`${batch.draftToken}:${batch.revision}`);
+    const record=taskStore.create(submission,{draftToken:batch.draftToken,revision:batch.revision,design_ref:entry?.design_ref,idempotencyRetentionSeconds:taskCapability(state.capabilities,entry?.project??batch.project).limits.idempotency_retention_seconds});
     batch.records.add(record.localId);batch.active=record.localId;state.latestTask=record.localId;showBottom('runs');renderDiagnostics();await taskStore.submit(record.localId);taskStore.start();
-  }catch(error){state.batch=null;status('runFailed',{message:t(error.code??error.message)},true);renderDiagnostics();}
+  }catch(error){state.batch=null;state.designBatchStatus=error.message;status('runFailed',{message:t(error.code??error.message)},true);renderDiagnostics();}
 }
+
+async function designRequest(path,body,kind='json') {
+  const response=await fetch('/api/design/'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  if(!response.ok){const error=await response.json().catch(()=>({}));throw new Error(error.message??error.error?.message??error.issues?.[0]?.message??JSON.stringify(error));}
+  return kind==='blob'?response.blob():kind==='text'?response.text():response.json();
+}
+function downloadBlob(name,blob){const url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function renderDesign(){renderDesignPanel($('design-view'),state,{
+  render:renderDesign,changed, error:error=>{state.designError=error.message;renderDesign();},
+  async generate(brief){
+    if(state.batch)return;
+    const draftToken=state.draftToken,revision=state.revision,requestBrief=structuredClone(brief);
+    validateDesignBrief(requestBrief);
+    if(state.runs.some(r=>r.design_ref?.design_id===requestBrief.id)||(state.design?.id===requestBrief.id&&JSON.stringify(state.design.brief)!==JSON.stringify(requestBrief))){
+      requestBrief.id='design-'+crypto.randomUUID();state.designNotice=currentLanguage()==='zh-CN'?'已分配新的设计 ID，原运行仍保留。':'A new design ID was assigned; earlier runs are retained.';
+    }
+    state.designBusy=true;state.designError='';renderDesign();
+    try{
+      const design=await designRequest('generate',{project:structuredClone(state.project),settings:structuredClone(state.settings),brief:requestBrief});
+      if(state.draftToken!==draftToken||state.revision!==revision)throw new Error(currentLanguage()==='zh-CN'?'草稿已修改，未应用迟到的候选结果。':'The draft changed; generated candidates were not applied.');
+      validateDesignDocument(design);state.design=design;state.designBrief=structuredClone(design.brief);state.designBatchStatus='';state.designImported=false;changed();
+    }finally{state.designBusy=false;renderDesign();}
+
+  },
+  run(){
+    if(state.batch)return;const queue=designRunQueue(state.design);taskStore.assertCapacity(queue.length);
+    if(state.runs.some(r=>r.design_ref?.design_id===state.design.id))throw new Error('This design already has run history. Generate a new design ID to run again.');
+    const batch={queue,designId:state.design.id,records:new Set(),settings:structuredClone(state.design.settings),draftToken:state.draftToken,revision:state.revision,active:null};
+    state.batch=batch;state.designBatchStatus='Running';nextSeed(batch);renderDesign();
+  },
+  stop(){const active=state.batch?.active;state.batch=null;state.designBatchStatus='Stopped; published results retained';if(active)taskStore.cancel(active);renderDesign();},
+  compare(){state.comparison.clear();for(const run of state.runs.filter(r=>r.design_ref?.design_id===state.design.id&&r.status==='completed'&&r.replay))state.comparison.add(run.id);showBottom('runs');renderDiagnostics();},
+  view:selectRun,
+  async open(candidate){const design=state.design,brief=state.designBrief;await loadProject(candidate.project);state.design=design;state.designBrief=brief;changed();setView('workflow');},
+  async export(format){
+    const registry=await fetch('/api/catalog?execution_profile='+encodeURIComponent(state.design.baseline_project.execution_profile)).then(r=>r.json());
+    const payload=designPackagePayload(state,writeWorkspace(state),registry);
+    if(format==='package'){downloadBlob(state.design.id+'.friskoli',await designRequest('export',payload,'blob'));state.exportedDesigns??=new Set();state.exportedDesigns.add(state.design.id);renderDesign();}
+    else downloadBlob(state.design.id+'.'+format,new Blob([await designRequest('report',{payload,format},'text')],{type:format==='html'?'text/html':'text/csv'}));
+  },
+  clear(){
+    const id=state.design.id;
+    if(!state.exportedDesigns?.has(id))throw new Error(currentLanguage()==='zh-CN'?'请先导出 .friskoli 设计包。':'Export the .friskoli package first.');
+    if(!confirm(currentLanguage()==='zh-CN'?'从本机历史清除此设计的已结束运行？导出的包保留完整记录。':'Remove this design’s finished runs from local history? The exported package keeps the records.'))return;
+    const records=taskStore.removeDesignRecords(id);state.runs=[...state.runs.filter(r=>(!r.localId||r.imported)&&r.design_ref?.design_id!==id),...records];state.comparison.clear();state.designBatchStatus='';renderDesign();renderDiagnostics();
+  },
+  import(){
+    const input=el('input');input.type='file';input.accept='.friskoli';input.addEventListener('change',async()=>{
+      const file=input.files[0];if(!file)return;try{
+        if(file.size>100*1024*1024)throw new Error('Package exceeds 100 MiB');
+        const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+        const payload=await designRequest('import',{archive_base64:btoa(binary)});
+        if(state.project&&fingerprint()!==state.saved&&!confirm(t('replaceDraft')))return;
+        validateDesignDocument(payload.design);await loadProject(payload.workspace);state.designImported=true;state.design=payload.design;state.designBrief=structuredClone(payload.design.brief);
+        const ids=new Set(state.runs.map(r=>r.id));
+        for(const record of payload.runs){if(ids.has(record.id))continue;const run=structuredClone(record);run.imported=true;run.paused=true;if(run.replay)run.replay=normalizeReplay(run.replay);state.runs.push(run);ids.add(run.id);}
+        changed();setView('design');
+      }catch(error){state.designError=error.message;renderDesign();}
+    });input.click();
+  }
+});}
 
 async function checkProject() {
   if (!state.project || state.busy) return;
@@ -1187,7 +1252,7 @@ function updateRunButton() {
   const missingValues = state.project ? missingParameters(state.project.graph,state.modules).length : 0;
   const unavailable = state.project ? unavailableModules(state.project.graph, state.modules).length : 0;
   const unresolved = taskStore.list().some(run => matchesDraft(run, state) && ['submitting', 'submission_unknown'].includes(run.status));
-  $('run-button').disabled = state.busy || unresolved || pending || !state.project || missing > 0 || missingValues > 0 || unavailable > 0;
+  $('run-button').disabled = Boolean(state.batch) || state.busy || unresolved || pending || !state.project || missing > 0 || missingValues > 0 || unavailable > 0;
   $('run-button').title = state.busy ? t('running') : pending ? t('pending') : missing ? t('missingConnections') : '';
   if (unavailable) $('run-button').title = t('unknownModule');
   if (missingValues) $('run-button').title = t('parameterMissing');
@@ -1203,12 +1268,14 @@ function renderAll() {
   $('dt-input').value = state.settings.dt_s;
   $('steps-input').value = state.settings.steps;
   $('species-options').replaceChildren(...Object.keys(state.project.species ?? {}).map(id => new Option(id, id)));
-  $('document-label').textContent = t(state.view === 'workflow' ? 'workflow' : state.view === 'results' ? 'results' : 'space');
+  $('document-label').textContent = t(state.view === 'design' ? 'design' : state.view === 'workflow' ? 'workflow' : state.view === 'results' ? 'results' : 'space');
   for (const button of document.querySelectorAll('[data-view]')) button.classList.toggle('active', button.dataset.view === state.view);
   for (const button of document.querySelectorAll('[data-left]')) button.classList.toggle('active', button.dataset.left === state.left);
-  $('spatial-canvas').hidden = state.view === 'workflow';
-  $('scene-annotations').hidden = state.view === 'workflow';
-  $('view-controls').hidden = state.view === 'workflow';
+  $('spatial-canvas').hidden = ['workflow','design'].includes(state.view);
+  $('design-view').hidden = state.view !== 'design';
+  if(state.view==='design')renderDesign();
+  $('scene-annotations').hidden = ['workflow','design'].includes(state.view);
+  $('view-controls').hidden = ['workflow','design'].includes(state.view);
   $('workflow-view').hidden = state.view !== 'workflow';
   $('bottom-dock').hidden = state.view !== 'results' || !state.replay;
   $('result-banner').hidden = state.view !== 'results' || !state.activeRun;

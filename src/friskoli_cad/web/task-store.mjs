@@ -55,7 +55,7 @@ export function buildSubmission(capabilities, project, settings, editRevision, r
   if (spatial && settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw failure('task.invalid_output_plan');
   if (!Number.isSafeInteger(seed) || seed < 0) throw failure('task.invalid_seed');
   const stride = task.task_contract_version === '0.4.0' ? (settings.frame_every_steps ?? 1) : 1;
-  if (!Number.isSafeInteger(stride) || stride < 1 || stride > settings.steps) throw failure('task.invalid_output_plan');
+  if (!Number.isSafeInteger(stride) || stride < 1 || stride > 10000) throw failure('task.invalid_output_plan');
   return immutable({task_contract_version:task.task_contract_version, request_id:requestId,
     edit_revision:String(editRevision), project, version_lock:lock,
     execution:{semantics:execution.semantics, backend:execution.backend, dt_s:settings.dt_s, steps:settings.steps, seed},
@@ -192,15 +192,16 @@ export class TaskStore {
     return candidates;
   }
   assertCapacity(count = 1) { this.evictionPlan(count); }
-  create(submission, {draftToken, revision, idempotencyRetentionSeconds}) {
+  create(submission, {draftToken, revision, idempotencyRetentionSeconds, design_ref}) {
     if (this.list().some(r => matchesDraft(r, {draftToken, revision}) &&
         ['submitting', 'submission_unknown'].includes(r.status))) throw failure('task.unresolved_submission');
+    if (design_ref && !['design_id','candidate_id','candidate_name'].every(key => typeof design_ref[key] === 'string' && design_ref[key])) throw failure('task.invalid_design_ref');
     const evicted = this.evictionPlan();
     const localId = `request-${this.newId()}`, createdAt = this.now();
     const retention = Number(idempotencyRetentionSeconds);
     if (!Number.isFinite(retention) || retention <= 0) throw failure('task.invalid_retention');
     const record = immutable({localId, id:localId, runId:null, idempotencyKey:`friskoli-${this.newId()}`,
-      submission, project:submission.project, settings:{...submission.execution,...submission.output_plan}, draftToken, revision,
+      submission, ...(design_ref ? {design_ref} : {}), project:submission.project, settings:{...submission.execution,...submission.output_plan}, draftToken, revision,
       status:'submitting', completeness:'none', createdAt, retryDeadline:createdAt + retention * 1000,
       cursor:0, eventsComplete:true, task:null, manifest:null, replay:null, failures:0, paused:false,
       connection:'online', error:null, restored:false});
@@ -212,6 +213,15 @@ export class TaskStore {
     for (const old of evicted) this.cache.delete(old.localId);
     this.onChange(record, this.list());
     return record;
+  }
+  removeDesignRecords(designId) {
+    const selected=this.list().filter(r=>r.design_ref?.design_id===designId);
+    if(selected.some(r=>!TERMINAL_TASK_STATES.has(r.status)&&!['rejected','unavailable'].includes(r.status)) || selected.some(r=>this.inflight.has(r.localId)))throw failure('task.design_active');
+    const previous=this.records;this.records=new Map(previous);
+    for(const r of selected)this.records.delete(r.localId);
+    try{this.persist(true);}catch(error){this.records=previous;throw error;}
+    for(const r of selected)this.cache.delete(r.localId);
+    return this.list();
   }
   applyTask(id, task) {
     const record = this.get(id); validateTask(task, record);

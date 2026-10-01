@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import json
 import math
 import hashlib
@@ -31,7 +33,9 @@ MAX_REQUEST_BYTES = 1_000_000
 MAX_REPLAY_VALUES = 1_000_000
 MAX_VIEW_TILES = 4_096
 MAX_VIEW_CELLS = 2_000
+MAX_DESIGN_REQUEST_BYTES = 64 * 1024 * 1024
 STATIC_FILES = {
+    "/design-panel.mjs": ("design-panel.mjs", "text/javascript; charset=utf-8"),
     "/metrics.mjs": ("metrics.mjs", "text/javascript; charset=utf-8"),
     "/metric-results.mjs": ("metric-results.mjs", "text/javascript; charset=utf-8"),
     "/templates.mjs": ("templates.mjs", "text/javascript; charset=utf-8"),
@@ -165,6 +169,47 @@ class ReplayHandler(BaseHTTPRequestHandler):
             raise TaskError(503, "task.unavailable", "asynchronous task service is not enabled")
         return service
 
+    def _post_design(self, path: str, query: str) -> None:
+        """Designs are data. Generation and file import never submit solver jobs."""
+        routes = {"/api/design/generate", "/api/design/export", "/api/design/import", "/api/design/report"}
+        try:
+            maximum = MAX_REQUEST_BYTES if path.endswith("/generate") else MAX_DESIGN_REQUEST_BYTES
+            body = strict_json_loads(self._task_body(maximum))
+            if path not in routes or query:
+                self._json(404, {"error": {"code": "design.not_found", "message": "Unknown design resource"}})
+                return
+            if not isinstance(body, dict):
+                raise ValueError("Design request must be a JSON object")
+            if path.endswith("/generate"):
+                from friskoli_cad.design import generate_design
+                if set(body) != {"project", "settings", "brief"}:
+                    raise ValueError("Generation requires project, settings and brief")
+                self._json(200, generate_design(body["project"], body["settings"], body["brief"]))
+            elif path.endswith("/export"):
+                from friskoli_cad.design_delivery import export_design_package
+                self._send(200, export_design_package(body), "application/zip",
+                           {"Content-Disposition": 'attachment; filename="design.friskoli"'})
+            elif path.endswith("/import"):
+                from friskoli_cad.design_delivery import import_design_package
+                if set(body) != {"archive_base64"} or not isinstance(body["archive_base64"], str):
+                    raise ValueError("Import requires archive_base64")
+                archive = base64.b64decode(body["archive_base64"], validate=True)
+                self._json(200, import_design_package(archive))
+            else:
+                from friskoli_cad.design_delivery import design_report_csv, design_report_html
+                if set(body) != {"payload", "format"} or body["format"] not in ("html", "csv"):
+                    raise ValueError("Report requires payload and format html or csv")
+                render = design_report_html if body["format"] == "html" else design_report_csv
+                mime = "text/html" if body["format"] == "html" else "text/csv"
+                self._send(200, render(body["payload"]).encode("utf-8"), mime + "; charset=utf-8",
+                           {"Content-Disposition": f'attachment; filename="design-report.{body["format"]}"'})
+        except TaskError as error:
+            self._task_error(error)
+        except TaskValidationError as error:
+            self._json(422, {"issues": error.issues})
+        except (ValueError, TypeError, KeyError, binascii.Error) as error:
+            self._json(422, {"error": {"code": getattr(error, "code", "design.invalid"), "message": str(error)}})
+
     def _task_error(self, error: TaskError) -> None:
         headers = {"Retry-After": "1"} if error.status in (429, 503) else None
         self._json(error.status, error.to_dict(), headers)
@@ -292,9 +337,12 @@ class ReplayHandler(BaseHTTPRequestHandler):
             self._json(200, registry_for_profile(profile[0]).catalog)
         elif path == "/api/capabilities":
             capabilities = {
-                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"],
+                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"],
                 "catalog_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"], "execution_semantics": "legacy-explicit-v1",
                 "execution_profiles": [LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE],
+                "design": {"design_version": "0.1.0", "package_version": "0.1.0",
+                           "execution_profiles": [CHEMOTAXIS_PROFILE], "max_runs": 32,
+                           "request_bytes": MAX_DESIGN_REQUEST_BYTES},
                 "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"], "replay_versions": ["0.1.0"],
                 "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
                 "limits": {"request_bytes": MAX_REQUEST_BYTES, "cells": MAX_VIEW_CELLS,
@@ -321,6 +369,9 @@ class ReplayHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
         target = urlsplit(self.path)
+        if target.path.startswith("/api/design/"):
+            self._post_design(target.path, target.query)
+            return
         if target.path == "/api/runs" or target.path.startswith("/api/runs/"):
             self._post_task(target.path, target.query)
             return

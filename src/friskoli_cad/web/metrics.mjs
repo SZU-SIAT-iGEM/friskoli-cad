@@ -56,7 +56,7 @@ export function compareRuns(records) {
     }
     const lock=runs[0].submission?.version_lock;
     const provenance=lock?`Task ${runs[0].submission.task_contract_version} · ${runs[0].submission.execution.backend} · registry ${lock.registry_sha256.slice(0,12)}`:'Legacy synchronous result';
-    return {label:runs[0].project.id,provenance,versionLock:lock??null,seeds,runs,byGroup};
+    return {label:runs[0].design_ref ? `${runs[0].design_ref.candidate_name} · ${runs[0].design_ref.candidate_id}` : runs[0].project.id,provenance,versionLock:lock??null,seeds,runs,byGroup};
   });
 }
 

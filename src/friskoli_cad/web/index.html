@@ -27,6 +27,7 @@
       <nav class="workspace-tabs" aria-label="Workspace">
         <button type="button" class="active" data-view="space" data-i18n="space">Space</button>
         <button type="button" data-view="workflow" data-i18n="workflow">Workflow</button>
+        <button type="button" data-view="design" data-i18n="design">Design</button>
         <button type="button" data-view="results" data-i18n="results">Results</button>
       </nav>
       <div class="run-tools">
@@ -75,6 +76,7 @@
             <select id="slice-select" aria-label="Concentration field Z plane"></select>
           </div>
           <div class="viewport-bottom"><span id="view-readout">—</span><span id="measure-readout" class="measure-readout"></span><div class="zoom-controls"><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="fit-button" type="button" data-i18n="fit">Fit</button><button id="zoom-in" type="button" aria-label="Zoom in">+</button></div></div>
+          <div id="design-view" class="design-view" hidden></div>
           <div id="workflow-view" class="content-view" hidden></div>
           <div id="viewport-error" class="viewport-error" role="alert" hidden></div>
         </div>

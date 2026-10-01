@@ -2,14 +2,39 @@
 import { blocksFromProject } from './population.mjs';
 import { METRIC_KEYS, metricRows, csvCell } from './metrics.mjs';
 
-export const WORKSPACE_VERSION = '0.4.0';
+export const WORKSPACE_VERSION = '0.5.0';
 export const RECOVERY_KEY = 'friskoli.workspace.v2';
 const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
   v.every(n => Number.isFinite(n) && (!positive || n > 0));
 
+const nonempty = v => typeof v === 'string' && v.trim().length > 0;
+export function validateDesignBrief(brief) {
+  const metrics=['mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s'];
+  if (!brief || brief.brief_version!=='0.1.0' || !nonempty(brief.id) || !nonempty(brief.name) ||
+    !metrics.includes(brief.goal?.metric) || !['maximize','minimize'].includes(brief.goal?.direction) || !nonempty(brief.goal?.group_id) ||
+    !nonempty(brief.chassis?.name) || !nonempty(brief.chassis?.provenance) || !Array.isArray(brief.variables) || !brief.variables.length ||
+    brief.variables.some(v=>!nonempty(v.node_id)||!nonempty(v.parameter)||!Array.isArray(v.values)||!v.values.length||v.values.some(x=>!Number.isFinite(x))) ||
+    !Array.isArray(brief.constraints) || brief.constraints.some(c=>!nonempty(c.id)||!['hard','soft'].includes(c.kind)||!nonempty(c.node_id)||!nonempty(c.parameter)||!['<=','>='].includes(c.operator)||!Number.isFinite(c.value)||(c.weight!==undefined&&(!Number.isFinite(c.weight)||c.weight<0))) ||
+    !Array.isArray(brief.seeds)||!brief.seeds.length||brief.seeds.some(n=>!Number.isSafeInteger(n)||n<0)||new Set(brief.seeds).size!==brief.seeds.length||
+    !Number.isSafeInteger(brief.max_runs)||brief.max_runs<1||brief.max_runs>32) throw new Error('Invalid design brief: check objective, chassis, parameter values, constraints and distinct seeds');
+  return brief;
+}
+export function validateDesignDocument(design) {
+  if (!design || design.design_version!=='0.1.0' || !nonempty(design.id) || !Array.isArray(design.candidates) || !Array.isArray(design.excluded) ||
+    !design.settings || !Number.isFinite(design.settings.dt_s)||design.settings.dt_s<=0||!Number.isSafeInteger(design.settings.steps)||design.settings.steps<1 ||
+    !design.budget || ['candidate_count','repeats','total_runs','total_steps'].some(k=>!Number.isSafeInteger(design.budget[k])||design.budget[k]<0)) throw new Error('Invalid design document structure');
+  validateDesignBrief(design.brief);readWorkspace(design.baseline_project);
+  const ids=new Set();for(const c of design.candidates){
+    if(!nonempty(c.id)||ids.has(c.id)||!nonempty(c.name)||!['candidate','control'].includes(c.kind)||!nonempty(c.explanation)||!Number.isFinite(c.soft_penalty)||!Array.isArray(c.overrides)||c.overrides.some(o=>!nonempty(o.node_id)||!nonempty(o.parameter)||!Number.isFinite(o.value)))throw new Error('Invalid design candidate');
+    ids.add(c.id);readWorkspace(c.project);
+  }
+  if(design.excluded.some(c=>!nonempty(c.id)||!nonempty(c.name)||!Array.isArray(c.reasons)||c.reasons.some(r=>!nonempty(r))))throw new Error('Invalid excluded candidate');
+  return design;
+}
+
 export function readWorkspace(document) {
   const version = document?.workspace_format_version;
-  if (version && !['0.1.0', '0.2.0', '0.3.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
+  if (version && !['0.1.0', '0.2.0', '0.3.0', '0.4.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
   const project = structuredClone(version ? document.project : document);
   if (!project || !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0'].includes(project.project_version) || typeof project.id !== 'string' ||
       (project.project_version === '0.3.0' && project.execution_profile !== 'conservative-pts-bulk-v1') ||
@@ -72,13 +97,17 @@ export function readWorkspace(document) {
   if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isSafeInteger(settings.steps) || settings.steps < 1 || settings.steps > 10000) throw new Error('Invalid run settings');
   if (settings.seed !== undefined && (!Number.isSafeInteger(settings.seed) || settings.seed < 0)) throw new Error('Invalid execution seed');
   if (settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw new Error('Invalid field output setting');
-  if (settings.frame_every_steps !== undefined && (!Number.isSafeInteger(settings.frame_every_steps) || settings.frame_every_steps < 1 || settings.frame_every_steps > settings.steps)) throw new Error('Invalid frame interval');
-  return { project, blocks, layout, settings };
+  if (settings.frame_every_steps !== undefined && (!Number.isSafeInteger(settings.frame_every_steps) || settings.frame_every_steps < 1 || settings.frame_every_steps > 10000)) throw new Error('Invalid frame interval');
+  const design = version ? structuredClone(document.design ?? null) : null;
+  const designBrief = version ? structuredClone(document.design_brief ?? null) : null;
+  if (design) validateDesignDocument(design);
+  if (designBrief) validateDesignBrief(designBrief);
+  return { project, blocks, layout, settings, design, designBrief };
 }
 
-export function writeWorkspace({ project, blocks, layout, settings }) {
+export function writeWorkspace({ project, blocks, layout, settings, design, designBrief }) {
   return structuredClone({ workspace_format_version: WORKSPACE_VERSION, project,
-    population_blocks: blocks, graph_layout: layout, run_settings: settings });
+    population_blocks: blocks, graph_layout: layout, run_settings: settings, ...(design ? {design} : {}), ...(designBrief ? {design_brief:designBrief} : {}) });
 }
 
 export function draftSnapshot(project) {
