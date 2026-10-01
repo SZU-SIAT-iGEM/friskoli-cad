@@ -82,18 +82,22 @@ class RandomStreams:
 
     @classmethod
     def from_dict(cls, payload):
-        if not isinstance(payload, dict) or payload.get("version") != STREAM_VERSION:
+        if type(payload) is not dict or payload.get("version") != STREAM_VERSION:
             raise ValueError("Unsupported random stream checkpoint version")
+        if set(payload) != {"version", "numpy_version", "run_seed", "streams"}:
+            raise ValueError("Random stream checkpoint has missing or unknown fields")
         if payload.get("numpy_version") != np.__version__:
             raise ValueError("Random checkpoint requires the identical NumPy version")
         seed = payload.get("run_seed")
         if not isinstance(seed, str) or not seed.isascii() or not seed.isdecimal():
             raise ValueError("Checkpoint run_seed must be a decimal string")
         result = cls(int(seed))
-        if not isinstance(payload.get("streams"), list):
+        if type(payload.get("streams")) is not list:
             raise ValueError("Checkpoint streams must be a list")
         for entry in payload["streams"]:
             try:
+                if type(entry) is not dict or set(entry) != {"key", "state"}:
+                    raise ValueError("Random stream entry has missing or unknown fields")
                 key = entry["key"]
                 if not isinstance(key, list) or len(key) != 4:
                     raise ValueError("Checkpoint stream key must have four identities")
@@ -101,6 +105,10 @@ class RandomStreams:
                 if key in result._streams:
                     raise ValueError("Duplicate stream key")
                 encoded = entry["state"]
+                if type(encoded) is not dict or set(encoded) != {"bit_generator", "state", "has_uint32", "uinteger"}:
+                    raise ValueError("Random generator state has missing or unknown fields")
+                if type(encoded["state"]) is not dict or set(encoded["state"]) != {"state", "inc"}:
+                    raise ValueError("PCG64 state has missing or unknown fields")
                 if encoded["bit_generator"] != "PCG64":
                     raise ValueError("Checkpoint bit generator must be PCG64")
                 restored = {}

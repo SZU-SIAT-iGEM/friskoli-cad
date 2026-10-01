@@ -62,8 +62,16 @@ class RandomWalkState:
 
     @classmethod
     def from_dict(cls, payload):
-        if not isinstance(payload, dict) or payload.get("version") != WALK_VERSION:
+        if type(payload) is not dict or payload.get("version") != WALK_VERSION:
             raise ValueError("Unsupported random walk checkpoint version")
+        if set(payload) != {"version", "heading", "remaining_wait_s"}:
+            raise ValueError("Random walk checkpoint has missing or unknown fields")
+        heading = payload['heading']
+        if type(heading) is not list or len(heading) != 3 or any(type(v) not in (int, float) for v in heading):
+            raise ValueError("Checkpoint heading must be three JSON numbers")
+        wait = payload['remaining_wait_s']
+        if wait is not None and type(wait) not in (int, float):
+            raise ValueError("Checkpoint waiting time must be a JSON number or null")
         try:
             return cls(payload["heading"], payload["remaining_wait_s"])
         except KeyError as error:

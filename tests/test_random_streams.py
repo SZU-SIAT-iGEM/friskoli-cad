@@ -9,6 +9,23 @@ from friskoli_cad.engine.random_streams import RandomStreams
 
 
 class RandomStreamTests(unittest.TestCase):
+    def test_checkpoint_rejects_unknown_and_missing_keys_at_every_record_level(self):
+        streams = RandomStreams(42)
+        streams.stream('n', 'g', 'c', 'wait').random_raw()
+        baseline = streams.to_dict()
+        for path in ((), ('streams', 0), ('streams', 0, 'state'), ('streams', 0, 'state', 'state')):
+            for missing in (False, True):
+                payload = copy.deepcopy(baseline)
+                target = payload
+                for key in path:
+                    target = target[key]
+                if missing:
+                    target.pop(next(iter(target)))
+                else:
+                    target['unknown'] = 0
+                with self.subTest(path=path, missing=missing), self.assertRaises(ValueError):
+                    RandomStreams.from_dict(payload)
+
     def test_order_and_unrelated_streams_do_not_change_cell_sequences(self):
         left, right = RandomStreams(487), RandomStreams(487)
         expected = {cell: [left.stream("move", "group", cell, "wait").random_raw()

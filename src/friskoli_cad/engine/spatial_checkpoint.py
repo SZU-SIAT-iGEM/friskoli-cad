@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict, fields as dataclass_fields
+from fractions import Fraction
 import hashlib
 import inspect
 import math
@@ -21,6 +22,7 @@ from friskoli_cad.project import simulation_from_project
 from friskoli_cad.protocol import FrameSequenceValidator
 from .local_fields import FieldLedger, local_field_state_from_dict, local_field_state_to_dict
 from .degradation import DegradableBox
+from .collision import Contact
 from .settlement import SettlementLedger
 from .motion import heading_from_orientation
 from .profiles import SPATIAL_PROFILE
@@ -31,6 +33,13 @@ from .runtime import CellGroup, SimulationError, World
 
 
 CHECKPOINT_VERSION = "spatial-checkpoint/v2"
+_REQUIRED_KEYS = frozenset(("version", "execution_profile", "project_sha256", "implementation_lock",
+    "seed", "time_s", "frame_index", "world", "local_fields", "materials", "material_ledger",
+    "object_states", "walks", "random_streams", "outputs", "state", "current_frame", "ledger",
+    "payload_sha256"))
+# Both extensions are absent in the original v2 writer. Accept that exact legacy
+# shape, but never silently accept a partially missing extended checkpoint.
+_EXTENSION_KEYS = frozenset(("frame_validator", "motion_contacts"))
 
 
 def _reject(message):
@@ -39,6 +48,17 @@ def _reject(message):
 
 def _hash(value):
     return hashlib.sha256(rfc8785.dumps(value)).hexdigest()
+
+
+def _keys(value, expected, label):
+    if type(value) is not dict or set(value) != set(expected):
+        _reject(f"{label} has missing or unknown fields")
+
+
+def _validator_record(validator):
+    return {"run_id": validator.run_id, "next_index": validator.next_index,
+        "previous_time": validator.previous_time, "frame_version": validator.frame_version,
+        "alive": dict(validator.alive), "seen": sorted(validator.seen)}
 
 
 def _implementation_lock(registry):
@@ -93,7 +113,9 @@ def export_checkpoint(sim):
         "walks": {cid: walk.to_dict() for cid, walk in sim.walks.items()},
         "random_streams": sim.streams.to_dict(), "outputs": _nested_to_dict(sim.outputs),
         "state": _nested_to_dict(sim.state), "current_frame": deepcopy(sim.current.cell_frame),
-        "ledger": {species: asdict(ledger) for species, ledger in sim.ledger.items()}}
+        "ledger": {species: asdict(ledger) for species, ledger in sim.ledger.items()},
+        "frame_validator": _validator_record(sim.frame_validator),
+        "motion_contacts": [_record(contact) for contact in sim.motion_contacts]}
     payload["payload_sha256"] = _hash(payload)
     return payload
 
@@ -138,6 +160,23 @@ def _same(actual, expected, label):
 
 def _restore_fields(sim, payload, index, materials):
     from .spatial_runtime import MAX_SPECIES, MAX_VOXELS
+    template = local_field_state_to_dict(sim.fields)
+    _keys(payload, template, "local_fields")
+    _keys(payload["grid"], template["grid"], "local_fields.grid")
+    if type(payload["sources"]) is not list:
+        _reject("local_fields.sources must be a list")
+    for source in payload["sources"]:
+        _keys(source, ("id", "species", "center_um", "radius_um", "remaining_molecules",
+                       "release_rate_molecules_s"), "local_fields source")
+        _array(source["center_um"], (3,), "source center")
+        for name in ("radius_um", "remaining_molecules", "release_rate_molecules_s"):
+            _number(source[name], "source " + name)
+    for species, initial_values in template["concentrations_uM"].items():
+        _array(payload["concentrations_uM"][species], (len(initial_values),), "field concentration")
+    for value in payload["diffusivities_um2_s"].values():
+        _number(value, "diffusivity")
+    if type(payload["blocked"]) is not list or any(type(v) is not bool for v in payload["blocked"]):
+        _reject("field blocked mask must contain booleans")
     fields = local_field_state_from_dict(payload, max_voxels=MAX_VOXELS,
                                          max_values=MAX_VOXELS * MAX_SPECIES * 2)
     initial = sim.fields
@@ -165,6 +204,8 @@ def _restore_materials(sim, payload, raw_ledger, index):
         values = payload[mid]
         if type(values) is not dict or set(values) != set(_record(initial)):
             _reject("material record shape differs from project")
+        for name in ('lower_um', 'upper_um'):
+            _array(values[name], (3,), 'material ' + name)
         current = DegradableBox(**values)
         initial_config, actual = _record(initial), _record(current)
         if actual.pop('remaining_molecules') > initial_config.pop('remaining_molecules') or actual != initial_config:
@@ -179,6 +220,10 @@ def _restore_materials(sim, payload, raw_ledger, index):
     for mid, values in raw_ledger.items():
         if type(values) is not dict or set(values) != ledger_keys:
             _reject("material ledger shape is invalid")
+        for name in ('reservoir_ids', 'before', 'after', 'accepted_by_reservoir',
+                     'conservation_residual', 'conservation_residual_exact', 'conservation_bound'):
+            if type(values[name]) is not list or len(values[name]) != 1:
+                _reject("material ledger vectors must be one-element lists")
         ledger = SettlementLedger(**{key: tuple(value) if isinstance(value, list) else value for key, value in values.items()})
         material = result[mid]
         if ledger.owner_id != mid or ledger.species != material.species or ledger.reservoir_ids != (mid,):
@@ -196,11 +241,40 @@ def _restore_materials(sim, payload, raw_ledger, index):
             _reject("material ledger stock increased")
         if abs(ledger.total_conservation_residual) > ledger.total_conservation_bound:
             _reject("material ledger conservation residual exceeds bound")
+        for vector, total in (('before', 'total_before'), ('after', 'total_after')):
+            if getattr(ledger, vector)[0] != getattr(ledger, total):
+                _reject("material ledger totals disagree with reservoir amounts")
+        exact = []
+        for encoded, rounded, bound in (
+            (ledger.conservation_residual_exact[0], ledger.conservation_residual[0], ledger.conservation_bound[0]),
+            (ledger.total_conservation_residual_exact, ledger.total_conservation_residual, ledger.total_conservation_bound)):
+            if type(encoded) is not str or len(encoded) > 2048:
+                _reject("material exact residual must be a bounded rational string")
+            value = Fraction(encoded)
+            if str(value) != encoded or float(value) != rounded or abs(value) > Fraction(bound):
+                _reject("material ledger exact residual disagrees with reported residual/bound")
+            exact.append(value)
+        debit = Fraction(ledger.before[0]) - Fraction(ledger.after[0]) - exact[0]
+        if debit < 0 or float(debit) != ledger.accepted_by_reservoir[0]:
+            _reject("material ledger debit disagrees with exact reservoir balance")
+        accepted = Fraction(ledger.total_before) - Fraction(ledger.total_after) - exact[1]
+        if accepted < 0 or float(accepted) != ledger.total_accepted:
+            _reject("material ledger accepted amount disagrees with exact total balance")
+        expected_bound = math.ulp(ledger.after[0]) / 2 if debit else 0.
+        if ledger.conservation_bound[0] != expected_bound:
+            _reject("material ledger reservoir roundoff bound is invalid")
         ledgers[mid] = ledger
     return MappingProxyType(result), MappingProxyType(ledgers)
 
 
 def _restore_rng(sim, payload, walks, index):
+    _keys(payload, ('version', 'numpy_version', 'run_seed', 'streams'), 'random_streams')
+    if type(payload['streams']) is not list:
+        _reject('random_streams.streams must be a list')
+    for entry in payload['streams']:
+        _keys(entry, ('key', 'state'), 'RNG stream')
+        _keys(entry['state'], ('bit_generator', 'state', 'has_uint32', 'uinteger'), 'RNG state')
+        _keys(entry['state']['state'], ('state', 'inc'), 'PCG64 state')
     streams = RandomStreams.from_dict(payload)
     if streams.run_seed != sim.seed:
         _reject("RNG seed differs from project seed")
@@ -226,6 +300,29 @@ def _restore_rng(sim, payload, walks, index):
         if entry["state"]["state"]["inc"] != expected_inc:
             _reject("RNG stream increment differs from its seeded namespace")
     return streams
+
+
+def _restore_contacts(sim, payload, world, index):
+    if type(payload) is not list or (index == 0 and payload):
+        _reject('motion_contacts must be a list, empty at frame zero')
+    ids = {cid for group in world.groups.values() for cid in group.ids}
+    obstacles = {node.id for node in sim._fixed_obstacle_nodes} | set(sim.materials)
+    contacts = []
+    for value in payload:
+        _keys(value, ('cell_ids', 'kind', 'target_id', 'reason'), 'motion contact')
+        cell_ids, kind, target = value['cell_ids'], value['kind'], value['target_id']
+        if (type(cell_ids) is not list or not cell_ids or
+                any(type(cid) is not str or cid not in ids for cid in cell_ids) or
+                len(set(cell_ids)) != len(cell_ids)):
+            _reject('motion contact has invalid cell IDs')
+        if value['reason'] not in ('collision', 'numerically_uncertain', 'budget_exhausted'):
+            _reject('motion contact has invalid reason')
+        if not ((kind == 'wall' and len(cell_ids) == 1 and target == 'domain') or
+                (kind == 'obstacle' and len(cell_ids) == 1 and type(target) is str and target in obstacles) or
+                (kind == 'cell' and len(cell_ids) == 2 and target == cell_ids[1])):
+            _reject('motion contact kind/target disagrees with fixed project entities')
+        contacts.append(Contact(tuple(cell_ids), kind, target, value['reason']))
+    return tuple(contacts)
 
 
 def _validate_coherence(sim, fields, materials, material_ledger, world, walks, outputs, state):
@@ -277,6 +374,8 @@ def restore_checkpoint(project, payload, registry=None):
     try:
         if type(payload) is not dict or payload.get("version") != CHECKPOINT_VERSION or payload.get("execution_profile") != SPATIAL_PROFILE:
             _reject("unsupported spatial checkpoint version/profile")
+        if set(payload) not in (_REQUIRED_KEYS, _REQUIRED_KEYS | _EXTENSION_KEYS):
+            _reject("checkpoint has missing or unknown fields")
         unsigned = {key: value for key, value in payload.items() if key != "payload_sha256"}
         if payload.get("payload_sha256") != _hash(unsigned):
             _reject("checkpoint payload hash mismatch")
@@ -319,6 +418,9 @@ def restore_checkpoint(project, payload, registry=None):
         ids = {cid for group in groups.values() for cid in group.ids}
         if type(raw_walks) is not dict or set(raw_walks) != ids:
             _reject("walk IDs differ from fixed project population")
+        for value in raw_walks.values():
+            _keys(value, ('version', 'heading', 'remaining_wait_s'), 'walk')
+            _array(value['heading'], (3,), 'walk heading')
         walks = MappingProxyType({cid: RandomWalkState.from_dict(value) for cid, value in raw_walks.items()})
         for group in groups.values():
             actual = np.asarray([walks[cid].heading for cid in group.ids]).reshape(-1, 3)
@@ -331,15 +433,19 @@ def restore_checkpoint(project, payload, registry=None):
         state = _nested_from_dict(payload["state"], sim.state, "state")
         _validate_coherence(sim, fields, materials, material_ledger, world, walks, outputs, state)
         current = sim._snapshot(world, fields, outputs, time, index, materials)
-        if payload["current_frame"] != current.cell_frame:
+        if _hash(payload["current_frame"]) != _hash(current.cell_frame):
             _reject("current frame disagrees with restored clock/world/outputs/project geometry")
-        if payload['object_states'] != {mid: dict(value) for mid, value in current.object_states.items()}:
+        if _hash(payload['object_states']) != _hash({mid: dict(value) for mid, value in current.object_states.items()}):
             _reject("visible object inventories disagree with material/source state")
         validator = FrameSequenceValidator(sim.run)
         initial_frame = deepcopy(current.cell_frame)
         initial_frame["frame_index"], initial_frame["time_s"] = 0, 0.
         validator.accept(initial_frame)  # Full schema and channels check.
         validator.next_index, validator.previous_time = index + 1, time
+        if 'frame_validator' in payload:
+            if _hash(payload['frame_validator']) != _hash(_validator_record(validator)):
+                _reject('frame validator disagrees with clock/current frame/fixed population')
+        contacts = _restore_contacts(sim, payload.get('motion_contacts', []), world, index)
         raw_ledger = payload["ledger"]
         if type(raw_ledger) is not dict or set(raw_ledger) != (set(fields.concentrations_uM) if index else set()):
             _reject("ledger species disagree with the frame index")
@@ -353,6 +459,21 @@ def restore_checkpoint(project, payload, registry=None):
             entry = FieldLedger(**values)
             if abs(entry.conservation_residual_molecules) > entry.conservation_bound_molecules:
                 _reject("ledger conservation residual exceeds reported bound")
+            final_mass = math.fsum(float(v) * fields.grid.molecules_per_uM_voxel
+                                   for v in fields.concentrations_uM[species])
+            source_stock = math.fsum(s.remaining_molecules for s in fields.sources if s.species == species)
+            residual = math.fsum((entry.field_before_molecules, entry.source_before_molecules,
+                -entry.source_after_molecules, -entry.accepted_uptake_molecules, -entry.field_after_molecules))
+            if (entry.field_after_molecules != final_mass or entry.source_after_molecules != source_stock or
+                    entry.conservation_residual_molecules != residual):
+                _reject('field ledger balance disagrees with field/source inventory')
+            stages = (
+                (entry.source_before_molecules, -entry.source_after_molecules, -entry.released_molecules),
+                (entry.field_before_molecules, entry.released_molecules, -entry.field_after_release_molecules),
+                (entry.field_after_release_molecules, -entry.field_after_diffusion_molecules),
+                (entry.field_after_diffusion_molecules, -entry.accepted_uptake_molecules, -entry.field_after_molecules))
+            if any(abs(math.fsum(stage)) > entry.conservation_bound_molecules for stage in stages):
+                _reject('field ledger stage balance exceeds reported bound')
             ledger[species] = entry
         if index == 0:
             if poses != export_checkpoint(sim)["world"] or _nested_to_dict(outputs) != _nested_to_dict(sim.outputs) or _nested_to_dict(state) != _nested_to_dict(sim.state):
@@ -362,8 +483,9 @@ def restore_checkpoint(project, payload, registry=None):
         sim.outputs, sim.state, sim.ledger = outputs, state, MappingProxyType(ledger)
         sim.time_s, sim.frame_index = time, index
         sim.current, sim.frame_validator = current, validator
+        sim.motion_contacts = contacts
         return sim
     except SimulationError:
         raise
-    except (KeyError, TypeError, ValueError, OverflowError, AttributeError) as exc:
+    except (KeyError, TypeError, ValueError, OverflowError, AttributeError, ZeroDivisionError) as exc:
         raise SimulationError("spatial.checkpoint", f"Invalid checkpoint: {exc}") from exc

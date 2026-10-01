@@ -183,6 +183,74 @@ class SpatialCheckpointTests(unittest.TestCase):
         with self.assertRaisesRegex(SimulationError, 'implementation lock'):
             restore_checkpoint(self.project, bad)
 
+    def test_original_v2_shape_remains_readable(self):
+        legacy = deepcopy(self.payload)
+        legacy.pop('frame_validator')
+        legacy.pop('motion_contacts')
+        restored = restore_checkpoint(self.project, reseal(legacy))
+        self.assertEqual(restored.checkpoint(), self.payload)
+        restored.step(.17)
+        self.sim.step(.17)
+        self.assertEqual(restored.checkpoint(), self.sim.checkpoint())
+
+    def test_missing_unknown_and_coerced_fields_are_rejected(self):
+        for mutate in (
+            lambda p: p.__setitem__('unknown', 1),
+            lambda p: p.pop('frame_validator'),
+            lambda p: p.pop('motion_contacts'),
+            lambda p: p.pop('ledger'),
+            lambda p: p['local_fields'].__setitem__('unknown', 1),
+            lambda p: p['walks'][next(iter(p['walks']))].__setitem__('unknown', 1),
+            lambda p: p['walks'][next(iter(p['walks']))]['heading'].__setitem__(0, True),
+            lambda p: p['random_streams'].__setitem__('unknown', 1),
+            lambda p: p['random_streams']['streams'][0].__setitem__('unknown', 1),
+            lambda p: p['random_streams']['streams'][0]['state'].__setitem__('unknown', 1),
+            lambda p: p['random_streams']['streams'][0]['state']['state'].__setitem__('unknown', 1),
+            lambda p: p['current_frame'].__setitem__('frame_index', True),
+            lambda p: p['frame_validator'].__setitem__('previous_time', 0),
+            lambda p: p['frame_validator'].__setitem__('next_index', 1),
+            lambda p: p['frame_validator']['seen'].append('foreign'),
+            lambda p: p['frame_validator'].__setitem__('alive', {}),
+            lambda p: p['frame_validator'].__setitem__('unknown', 1),
+        ):
+            with self.subTest(mutate=mutate), self.assertRaises(SimulationError):
+                restore_checkpoint(self.project, self.changed(mutate))
+
+    def test_ledger_report_must_match_its_inventory_and_exact_balance(self):
+        for mutate in (
+            lambda p: p['material_ledger']['material'].__setitem__('total_before', 19999.),
+            lambda p: p['material_ledger']['material'].__setitem__('accepted_by_reservoir', [5.]),
+            lambda p: p['material_ledger']['material'].__setitem__('conservation_residual_exact', ['1/100']),
+            lambda p: p['material_ledger']['material'].__setitem__('total_conservation_residual_exact', '1/100'),
+            lambda p: p['material_ledger']['material'].__setitem__('conservation_bound', [1.]),
+            lambda p: p['material_ledger']['material'].__setitem__('before', 'x'),
+            lambda p: p['ledger']['nutrient'].__setitem__('field_after_molecules', 203.),
+            lambda p: p['ledger']['nutrient'].__setitem__('source_after_molecules', 19799.),
+            lambda p: p['ledger']['nutrient'].__setitem__('field_before_molecules', 1.),
+        ):
+            with self.subTest(mutate=mutate), self.assertRaises(SimulationError):
+                restore_checkpoint(self.project, self.changed(mutate))
+
+    def test_collision_diagnostics_roundtrip_and_reject_foreign_entities(self):
+        project = deepcopy(self.project)
+        for node in project['graph']['nodes']:
+            if node['module_id'] == 'motion.unbiased_run_tumble':
+                node['parameters']['speed_um_s']['value'] = 1000.
+                node['parameters']['tumble_rate_s']['value'] = 0.
+        sim = simulation_from_project(project)
+        sim.step(.1)
+        self.assertTrue(sim.motion_contacts)
+        payload = json.loads(json.dumps(sim.checkpoint()))
+        restored = restore_checkpoint(project, payload)
+        self.assertEqual(restored.motion_contacts, sim.motion_contacts)
+        self.assertEqual(restored.checkpoint(), payload)
+        for name, value in (('cell_ids', ['foreign']), ('kind', 'unknown'),
+                            ('reason', 'initial_overlap'), ('target_id', 'foreign')):
+            broken = deepcopy(payload)
+            broken['motion_contacts'][0][name] = value
+            with self.subTest(name=name), self.assertRaises(SimulationError):
+                restore_checkpoint(project, reseal(broken))
+
 
 if __name__ == "__main__":
     unittest.main()

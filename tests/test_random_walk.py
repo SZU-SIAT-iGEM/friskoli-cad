@@ -19,6 +19,19 @@ def advance(position, state, dt, params, streams, **kwargs):
 
 
 class RandomWalkTests(unittest.TestCase):
+    def test_checkpoint_rejects_non_json_numbers_and_unknown_fields(self):
+        state = RandomWalkState((1., 0., 0.), .2)
+        for heading in ([True, 0, 0], ['1', 0, 0], (1., 0., 0.)):
+            payload = state.to_dict()
+            payload['heading'] = heading
+            with self.subTest(heading=heading), self.assertRaises(ValueError):
+                RandomWalkState.from_dict(payload)
+        for key, value in (('remaining_wait_s', True), ('remaining_wait_s', '0.2'), ('unknown', 1)):
+            payload = state.to_dict()
+            payload[key] = value
+            with self.subTest(key=key), self.assertRaises(ValueError):
+                RandomWalkState.from_dict(payload)
+
     def test_split_and_unsplit_have_same_events_state_and_trajectory(self):
         for dimensions in (2, 3):
             with self.subTest(dimensions=dimensions):
