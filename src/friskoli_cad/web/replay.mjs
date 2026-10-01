@@ -11,6 +11,7 @@ export function normalizeReplay(payload) {
   const runId = payload.run.run_id;
   let version;
   let previousTime = -1;
+  let previousStep = -1;
   let alive = new Map();
   const seen = new Set();
   payload.snapshots.forEach(({ frame, concentrations }, index) => {
@@ -19,7 +20,9 @@ export function normalizeReplay(payload) {
       throw new Error('badFrameVersion');
     }
     version = currentVersion;
-    if (frame.protocol_version !== '0.1.0' || frame.run_id !== runId || frame.frame_index !== index ||
+    const sparse = payload.execution?.task_contract_version === '0.4.0';
+    if (frame.protocol_version !== '0.1.0' || frame.run_id !== runId ||
+        (sparse ? !Number.isSafeInteger(frame.frame_index) || frame.frame_index <= previousStep || (index === 0 && frame.frame_index !== 0) : frame.frame_index !== index) ||
         !Number.isFinite(frame.time_s) || frame.time_s <= previousTime ||
         (index === 0 && (frame.time_s !== 0 || frame.events?.length !== 0)) ||
         !Array.isArray(frame.events) || !Array.isArray(frame.cells)) {
@@ -67,6 +70,7 @@ export function normalizeReplay(payload) {
       }
     }
     previousTime = frame.time_s;
+    previousStep = frame.frame_index;
   });
   return payload;
 }

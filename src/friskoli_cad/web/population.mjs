@@ -103,7 +103,16 @@ export function scatterBlock(project, block, staticModule = null) {
   const ids = Array.from({ length: block.count }, (_, index) => previous?.ids[index] ?? `${block.id}:cell_${index}`);
   const positions = [];
   const orientations = [];
+  const spatial = ['spatial-unbiased-v1','chemotaxis-spatial-v1'].includes(project.execution_profile);
+  // Conservative enclosing spheres keep scatter deterministic and collision-free.
+  // Dense requests fail without mutating the project; no overlapping fallback is emitted.
+  const occupied = spatial ? Object.entries(project.groups).flatMap(([id,group]) => id === block.id ? [] :
+    group.positions_um.map((position,index) => ({position,radius:(group.initial_geometry?.[index]?.length_um ?? block.length)/2}))) : [];
+  const solids = project.graph.nodes.filter(node => ['space.axis_aligned_obstacle','material.degradable_box'].includes(node.module_id))
+    .map(node => ({lower:[...'xyz'].map(a=>node.parameters[`lower_${a}_um`]?.value),upper:[...'xyz'].map(a=>node.parameters[`upper_${a}_um`]?.value)}));
+  let attempts = 0;
   for (let index = 0; index < block.count; index += 1) {
+    if (++attempts > block.count*500) throw new Error('scatterPackingFailed');
     const point = block.center.map((center, axis) => {
       if (axis === 2 && domain.geometry === 'thin_layer') return size[2] / 2;
       const usable = block.size[axis] - block.length;
@@ -121,11 +130,19 @@ export function scatterBlock(project, block, staticModule = null) {
         number(b * Math.sin(2 * Math.PI * u3)), number(b * Math.cos(2 * Math.PI * u3))]);
     }
     orientations[index] = multiplyQuaternion(q, orientations[index]);
+    if (spatial) {
+      const position = positions[index], radius = block.length/2;
+      const overlap = occupied.some(cell => position.reduce((sum,v,i)=>sum+(v-cell.position[i])**2,0) < (radius+cell.radius)**2) ||
+        solids.some(box => position.reduce((sum,v,i)=>sum+Math.max(box.lower[i]-v,0,v-box.upper[i])**2,0) < radius**2);
+      if (overlap) { positions.pop(); orientations.pop(); index--; continue; }
+      const norm = Math.hypot(...orientations[index]); orientations[index] = orientations[index].map(v=>v/norm);
+      occupied.push({position,radius});
+    }
   }
   project.groups[block.id] = { ids, positions_um: positions, orientation_xyzw: orientations,
     initial_geometry: ids.map(() => ({ shape: 'capsule', length_um: block.length,
       diameter_um: block.diameter, provenance: { kind: 'estimated', reference: 'user-defined population volume scatter' } })) };
-  project.project_version = '0.2.0';
+  if (['0.1.0','0.2.0'].includes(project.project_version)) project.project_version = '0.2.0';
   if (needsNode) {
     let nodeId = `${block.id}_static`;
     while (project.graph.nodes.some(node => node.id === nodeId)) nodeId += '_1';

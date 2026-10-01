@@ -54,13 +54,13 @@ test('only registered exact environment adapters can place objects',() => {
   const unknownObjects = new Map([[unknown.id,unknown],[unknownAdapter.id,unknownAdapter]]);
   assert.deepEqual(availablePlaceables(registry.modules,null,unknownObjects).map(item => item.status),['unsupported','unsupported']);
   const p=project(), before=structuredClone(p);
-  assert.throws(() => initializeEnvironmentObject(p,unknown,registry.modules,[1,1,1]));
+  assert.throws(() => initializeEnvironmentObject(p,unknown,registry.modules,[1,1,1],'substrate'));
   assert.deepEqual(p,before);
   assert.deepEqual(environmentObjects(p,unknownObjects,registry.modules),[]);
 });
 
 test('obstacle uses grid-aligned graph bounds, edits and undo do not introduce a second geometry store',() => {
-  const p=project(), id=initializeEnvironmentObject(p,objects[0],registry.modules,[7.7,11.1,8.4]);
+  const p=project(), id=initializeEnvironmentObject(p,objects[0],registry.modules,[7.7,11.1,8.4],'substrate');
   const item=environmentObjects(p,registry.objects,registry.modules)[0];
   assert.deepEqual(item.lower,[6,10,8]); assert.deepEqual(item.upper,[8,12,10]); assert.equal(item.id,id);
   const saved=writeWorkspace(readWorkspace(p));
@@ -72,12 +72,12 @@ test('obstacle uses grid-aligned graph bounds, edits and undo do not introduce a
 });
 
 test('multiple sources share one registered nutrient field and deletion preserves the remaining source field',() => {
-  const p=project(), id=initializeEnvironmentObject(p,objects[1],registry.modules,[5.7,7.1,9]);
+  const p=project(), id=initializeEnvironmentObject(p,objects[1],registry.modules,[5.7,7.1,9],'substrate');
   const source=p.graph.nodes.find(node => node.id===id),field=p.graph.nodes.find(node => node.module_id==='field.diffusive_local');
   assert.equal(source.parameters.species.value,'substrate'); assert.equal(field.parameters.species.value,'substrate');
   assert.deepEqual(environmentObjects(p,registry.objects,registry.modules)[0].center,[5,7,9]);
   assert.equal(p.graph.edges.length,0); assert.deepEqual(availableSourceSpecies(p),['substrate','attractant']);
-  initializeEnvironmentObject(p,objects[1],registry.modules,[15,15,15]);
+  initializeEnvironmentObject(p,objects[1],registry.modules,[15,15,15],'substrate');
   assert.equal(new Set(p.graph.nodes.filter(node=>node.module_id==='source.finite_local').map(node=>node.owner.id)).size,2);
   assert.ok(p.graph.nodes.filter(node=>node.module_id==='source.finite_local').every(node=>node.owner.id===node.id));
   assert.equal(p.graph.nodes.filter(node=>node.module_id==='field.diffusive_local').length,1);
@@ -87,24 +87,33 @@ test('multiple sources share one registered nutrient field and deletion preserve
   deleteEnvironmentObject(p,last.id); assert.equal(p.graph.nodes.length,0);
 });
 
+test('ambiguous source species require explicit selection and do not mutate the draft',()=>{
+  const p=project(),before=structuredClone(p);
+  assert.throws(()=>initializeEnvironmentObject(p,objects[1],registry.modules,[1,1,1]),/chooseSourceSpecies/);
+  assert.deepEqual(p,before);
+  const id=initializeEnvironmentObject(p,objects[1],registry.modules,[1,1,1],'attractant');
+  assert.equal(p.graph.nodes.find(n=>n.id===id).parameters.species.value,'attractant');
+  assert.equal(p.graph.nodes.find(n=>n.module_id==='field.diffusive_local').parameters.species.value,'attractant');
+});
+
 test('obstacle placement rejects initial capsule/source contacts without moving or deleting anything',() => {
   const p=project();
   p.groups.g={ids:['cell'],positions_um:[[7,7,7]],orientation_xyzw:[[0,0,0,1]],initial_geometry:[{length_um:6,diameter_um:1}]};
   const before=structuredClone(p);
   // Capsule segment reaches this voxel although its center is outside the voxel.
-  assert.throws(() => initializeEnvironmentObject(p,objects[0],registry.modules,[9,7,7]),/obstaclePlacementOverlap/);
+  assert.throws(() => initializeEnvironmentObject(p,objects[0],registry.modules,[9,7,7],'substrate'),/obstaclePlacementOverlap/);
   assert.deepEqual(p,before);
-  initializeEnvironmentObject(p,objects[0],registry.modules,[19,19,19]);
-  initializeEnvironmentObject(p,objects[1],registry.modules,[3,3,3]);
+  initializeEnvironmentObject(p,objects[0],registry.modules,[19,19,19],'substrate');
+  initializeEnvironmentObject(p,objects[1],registry.modules,[3,3,3],'substrate');
   const withSource=structuredClone(p);
-  assert.throws(() => initializeEnvironmentObject(p,objects[0],registry.modules,[3,3,3]),/obstaclePlacementOverlap/);
+  assert.throws(() => initializeEnvironmentObject(p,objects[0],registry.modules,[3,3,3],'substrate'),/obstaclePlacementOverlap/);
   assert.deepEqual(p,withSource);
-  assert.throws(() => initializeEnvironmentObject(p,objects[1],registry.modules,[19,19,19]),/sourcePlacementOverlap/);
+  assert.throws(() => initializeEnvironmentObject(p,objects[1],registry.modules,[19,19,19],'substrate'),/sourcePlacementOverlap/);
   assert.deepEqual(p,withSource);
 });
 
 test('deleting a source preserves a referenced field for explicit graph repair',() => {
-  const p=project(),id=initializeEnvironmentObject(p,objects[1],registry.modules,[1,1,1]);
+  const p=project(),id=initializeEnvironmentObject(p,objects[1],registry.modules,[1,1,1],'substrate');
   const field=p.graph.nodes.find(node => node.module_id==='field.diffusive_local');
   p.graph.nodes.push({id:'reader',module_id:'field.sample_local',module_version:'1.0.0',owner:{kind:'population',id:'g'},parameters:{}});
   p.graph.edges.push({id:'read',from:{node:field.id,port:'concentration'},to:{node:'reader',port:'field'},timing:'same_step'});
@@ -113,8 +122,8 @@ test('deleting a source preserves a referenced field for explicit graph repair',
 });
 
 test('material placement atomically installs one role provider and shared nutrient field, with guarded removal',() => {
-  const p=project(); initializeEnvironmentObject(p,objects[1],registry.modules,[1,1,1]);
-  const material=initializeEnvironmentObject(p,objects[2],registry.modules,[11,11,11]);
+  const p=project(); initializeEnvironmentObject(p,objects[1],registry.modules,[1,1,1],'substrate');
+  const material=initializeEnvironmentObject(p,objects[2],registry.modules,[11,11,11],'substrate');
   const provider=p.graph.nodes.find(node=>node.module_id==='reaction.contact_degradation');
   assert.equal(provider.parameters.rate.value,.2);
   assert.equal(provider.parameters.rate.provenance.kind,'example');
@@ -123,7 +132,7 @@ test('material placement atomically installs one role provider and shared nutrie
   assert.equal(p.graph.nodes.filter(node=>node.module_id==='field.diffusive_local').length,1);
   assert.equal(environmentObjects(p,registry.objects,registry.modules).find(item=>item.id===material).kind,'degradable_box');
   assert.equal(requiredRoleRemovalProblem(p,provider.id,registry.objects,registry.modules),'material.degradation');
-  initializeEnvironmentObject(p,objects[2],registry.modules,[17,17,17]);
+  initializeEnvironmentObject(p,objects[2],registry.modules,[17,17,17],'substrate');
   assert.equal(p.graph.nodes.filter(node=>node.module_id==='reaction.contact_degradation').length,1);
   p.graph.nodes.push({id:'alternative',module_id:'plugin.alternative_degradation',module_version:'1.0.0',owner:{kind:'environment',id:'domain'},parameters:{}});
   assert.equal(requiredRoleRemovalProblem(p,provider.id,registry.objects,registry.modules),null);
@@ -138,12 +147,12 @@ test('unknown modules cannot satisfy a required degradation role; missing role d
   p.graph.nodes.push({id:'unknown',module_id:'unknown.degradation',module_version:'1.0.0',owner:{kind:'environment',id:'domain'},parameters:{}});
   const modules=new Map(registry.modules); modules.delete('reaction.contact_degradation@1.0.0');
   const before=structuredClone(p);
-  assert.throws(()=>initializeEnvironmentObject(p,objects[2],modules,[11,11,11]),/Unavailable required role/);
+  assert.throws(()=>initializeEnvironmentObject(p,objects[2],modules,[11,11,11],'substrate'),/Unavailable required role/);
   assert.deepEqual(p,before);
 });
 
 test('result inventory follows the selected snapshot while frozen graph geometry stays independent of draft edits',() => {
-  const draft=project(),id=initializeEnvironmentObject(draft,objects[2],registry.modules,[11,11,11]);
+  const draft=project(),id=initializeEnvironmentObject(draft,objects[2],registry.modules,[11,11,11],'substrate');
   const frozen=structuredClone(draft), node=draft.graph.nodes.find(node=>node.id===id);
   node.parameters.upper_x_um.value=18;
   const at = remaining_molecules => environmentObjects(frozen,registry.objects,registry.modules,

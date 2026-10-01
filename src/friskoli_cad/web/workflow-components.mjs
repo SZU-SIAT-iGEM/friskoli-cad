@@ -45,6 +45,8 @@ export function nodeGeometry(manifest, collapsed = false, coarse = false) {
 
 export function nodeStatus(node, missing = [], language = 'en') {
   if (node.manifest.unavailable) return {kind:'error', text:workflowText(language, 'unavailable')};
+  const parameters=missing.filter(item=>item.node===node.id&&item.parameter).length;
+  if(parameters)return{kind:'error',text:`${language==='zh-CN'?'缺少参数':'Missing parameters'} · ${parameters}`};
   const count = missing.filter(item => item.node === node.id).length;
   if (count) return {kind:'error', text:`${workflowText(language, 'missing')} · ${count}`};
   return {kind:'neutral', text:workflowText(language, node.manifest.declaration?.category === 'data' ? 'data' : 'module')};

@@ -1,20 +1,23 @@
 // Editable documents and solved runs have separate lifetimes. No solver logic belongs here.
 import { blocksFromProject } from './population.mjs';
+import { METRIC_KEYS, metricRows, csvCell } from './metrics.mjs';
 
-export const WORKSPACE_VERSION = '0.3.0';
+export const WORKSPACE_VERSION = '0.4.0';
 export const RECOVERY_KEY = 'friskoli.workspace.v2';
 const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
   v.every(n => Number.isFinite(n) && (!positive || n > 0));
 
 export function readWorkspace(document) {
   const version = document?.workspace_format_version;
-  if (version && !['0.1.0', '0.2.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
+  if (version && !['0.1.0', '0.2.0', '0.3.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
   const project = structuredClone(version ? document.project : document);
-  if (!project || !['0.1.0', '0.2.0', '0.3.0', '0.4.0'].includes(project.project_version) || typeof project.id !== 'string' ||
+  if (!project || !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0'].includes(project.project_version) || typeof project.id !== 'string' ||
       (project.project_version === '0.3.0' && project.execution_profile !== 'conservative-pts-bulk-v1') ||
       (project.project_version === '0.4.0' && (project.execution_profile !== 'spatial-unbiased-v1' ||
         !Number.isSafeInteger(project.random_seed) || project.random_seed < 0)) ||
-      (!['0.3.0','0.4.0'].includes(project.project_version) && project.execution_profile !== undefined) ||
+      (project.project_version === '0.5.0' && (project.execution_profile !== 'chemotaxis-spatial-v1' ||
+        !Number.isSafeInteger(project.random_seed) || project.random_seed < 0)) ||
+      (!['0.3.0','0.4.0','0.5.0'].includes(project.project_version) && project.execution_profile !== undefined) ||
       !vector(project.domain?.counts_xyz, true) || !project.domain.counts_xyz.every(Number.isInteger) ||
       !vector(project.domain.spacing_um_xyz, true) || !['thin_layer', 'volume'].includes(project.domain.geometry) ||
       !project.groups || !project.species || !project.controls || !Array.isArray(project.graph?.nodes) ||
@@ -65,9 +68,11 @@ export function readWorkspace(document) {
   const layout = structuredClone(document.graph_layout ?? {});
   for (const point of Object.values(layout)) if (![point.x, point.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100000) ||
       (point.collapsed !== undefined && typeof point.collapsed !== 'boolean')) throw new Error('Invalid graph layout');
-  const settings = structuredClone(document.run_settings ?? { dt_s: .5, steps: 8 });
-  if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isInteger(settings.steps) || settings.steps < 1 || settings.steps > 100) throw new Error('Invalid run settings');
+  const settings = structuredClone(document.run_settings ?? (project.project_version === '0.5.0' ? {dt_s:.05,steps:200} : { dt_s: .5, steps: 8 }));
+  if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isSafeInteger(settings.steps) || settings.steps < 1 || settings.steps > 10000) throw new Error('Invalid run settings');
+  if (settings.seed !== undefined && (!Number.isSafeInteger(settings.seed) || settings.seed < 0)) throw new Error('Invalid execution seed');
   if (settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw new Error('Invalid field output setting');
+  if (settings.frame_every_steps !== undefined && (!Number.isSafeInteger(settings.frame_every_steps) || settings.frame_every_steps < 1 || settings.frame_every_steps > settings.steps)) throw new Error('Invalid frame interval');
   return { project, blocks, layout, settings };
 }
 
@@ -106,6 +111,8 @@ export function exportRun(record) {
 }
 
 export function metricsCSV(replay) {
+  if (replay.snapshots.some(s => s.metrics)) return [['frame_index','time_s','observation_id','group_id',...METRIC_KEYS],...metricRows(replay)]
+    .map(row => row.map(csvCell).join(',')).join('\n')+'\n';
   const rows = ['frame_index,time_s,cell_count,event_count'];
   for (const { frame } of replay.snapshots) rows.push([frame.frame_index, frame.time_s, frame.cells.length, frame.events.length].join(','));
   return rows.join('\n') + '\n';

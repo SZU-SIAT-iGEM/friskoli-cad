@@ -1,5 +1,6 @@
 const messages = {
   en: {
+    parameterMissing:'Not provided · required before running',parameterSource:'Value and source',range:'Range',
     spatialDemoTitle:'Motion, obstacles & local sources',spatialDemoHint:'Unbiased motion · finite sources · local diffusion',
     randomSeed:'Execution random seed',includeFields:'Include concentration fields',objectPlaced:'Object added to the graph.',
     deleteObject:'Delete object',
@@ -48,7 +49,7 @@ const messages = {
     importStale:'Import cancelled because the workspace changed while reading. Open the file again to import it.',
     demoTitle:'Growth & division',demoHint:'3D · illustrative length-adder model',recover:'Recover local draft',
     export:'Export',exportJSON:'Published result · JSON',exportCSV:'Frame statistics · CSV',
-    exportHint:'Includes the frozen input and published frames. Task exports retain their complete or partial status; N2 tasks contain no field heatmaps.',
+    exportHint:'Includes the frozen input, saved frames, metrics and declared complete or partial status. Concentration fields are included when requested by the run.',
     noResults:'Run a project to inspect its results.',earlierRevision:'Result from an earlier draft',completed:'Completed',failed:'Failed',runs:'Runs',
     updated:'Draft updated',rotation:'Rotation',hidden:'Hidden in Scene',locked:'Lock volume',duplicate:'Duplicate volume',delete:'Delete population',
     thinLayer:'Thin layer',spacing:'Grid spacing',apply:'Apply',projectData:'Project data',
@@ -110,6 +111,7 @@ const messages = {
     selectBlockFirst:'Select a population volume first.',
   },
   'zh-CN': {
+    parameterMissing:'尚未提供 · 运行前须填写',parameterSource:'数值与来源',range:'范围',
     queued:'排队中',cancelled:'已取消',interrupted:'已中断',submitting:'提交中',submission_unknown:'提交结果未知',rejected:'未接受',unavailable:'记录已不可查询',
     none:'尚无已发布输出',partial:'部分输出',complete:'完整输出',
     cancelTask:'取消任务',cancelRequested:'已请求取消，等待已提交步边界生效；这不会暂停任务。',
@@ -158,7 +160,7 @@ const messages = {
     importStale:'读取文件时工作区已改变，本次导入已取消。请重新打开文件以导入。',
     demoTitle:'生长与分裂',demoHint:'3D · 长度 adder 演示模型',recover:'恢复本地草稿',
     export:'导出',exportJSON:'已发布结果 · JSON',exportCSV:'逐帧统计 · CSV',
-    exportHint:'包含冻结输入和已发布帧，保留完整或部分输出状态；N2 任务不含场热图。',
+    exportHint:'包含冻结输入、保存帧和指标，并保留完整或部分输出状态。运行请求了浓度场时，导出同时包含浓度场。',
     noResults:'运行项目后，可在这里检查结果。',earlierRevision:'来自较早草稿的结果',completed:'已完成',failed:'失败',runs:'运行记录',
     updated:'草稿已更新',rotation:'旋转',hidden:'在空间视图中隐藏',locked:'锁定体积块',duplicate:'复制体积块',delete:'删除菌群',
     thinLayer:'薄层',spacing:'格距',apply:'应用',projectData:'项目数据',
@@ -220,6 +222,37 @@ const messages = {
     selectBlockFirst:'请先选择一个菌群体积块。',
   },
 };
+
+Object.assign(messages.en, {
+  sourceSpecies:'Source/material species',chooseSourceSpecies:'Choose source or material species',
+  registeredDeclaration:'Full registered evidence and conditions',
+  editObservation:'Edit observation region',observationAxis:'Displacement axis',region_lower_um:'Lower bound',region_upper_um:'Upper bound',invalidObservation:'Observation bounds must form a positive box inside the domain.',
+  deathRuleHint:'Death was sampled from the declared combined health/hazard rule. The recorded values identify its module and draw; they do not establish a unique biological cause.',
+  templates:'Templates',replaceTemplate:'Replace whole template',templateEditable:'The nodes below are the editable executable graph. Replacement checks unsaved changes and replaces the document.',exploratory:'Exploratory model',
+  copyBranch:'Copy population branch',sourcePopulation:'Source population',copyBranchHint:'Replaces this population’s modules, parameters, channels and incoming edges with a copy of the selected branch. Environment nodes stay shared.',
+  frameInterval:'Save every N steps',observation:'Observation and repeats',observationHint:'Region, axis and observation ID are frozen with each run.',
+  seedList:'Execution seeds',seedListHint:'Up to eight distinct nonnegative integers. Runs use one frozen input in sequence.',runSeeds:'Run seed series',stopSeedBatch:'Stop remaining seed runs',invalidSeeds:'Enter 1–8 distinct nonnegative integer seeds.',
+  'task.history_full':'Run history is full. Export results and deselect older comparisons before starting this batch.',
+  comparison:'Selected run comparison',includeComparison:'Include in comparison',exportComparison:'Export comparison CSV',comparisonNeedTwo:'Select at least two completed runs.',comparisonCompleteOnly:'Only completed runs with published metrics can be compared.',comparisonMismatch:'Observation, domain, duration, step size and initial counts must match.',comparisonDuplicateSeed:'A variant contains repeated seeds. Deselect duplicate runs.',comparisonStatistics:'Variants have identical scientific input except seed and run names. SD uses n−1; one seed has no SD. Different variants remain separate.',
+  recordedMetrics:'Recorded solver metrics',metricDefinitions:'Definitions and observation region',metricDenominators:'Displacement: surviving initial cells along the declared axis. Region fraction: all living cells. Ever arrived and cumulative residence: initial cohort denominator, recorded every solver step; descendants excluded. Null means undefined.',lastPublishedTime:'Last published time',
+  initial_count:'Initial count',live_count:'Live count',mean_displacement_um:'Mean axial displacement [µm]',region_fraction:'Fraction in region [1]',ever_arrived_fraction:'Ever arrived fraction [1]',mean_residence_s:'Mean residence [s]',metric:'Metric',mean:'Mean',
+  scatterPackingFailed:'Cells do not fit without overlap. Reduce count or size, or enlarge the volume. Scatter uses conservative enclosing spheres.',invalidControls:'Enter a positive step size and an integer step count within the server limit.',welcomeScope:'Examples use declared exploratory parameters for mechanism comparisons and numerical checks. They are not experimentally calibrated predictions.',
+});
+Object.assign(messages['zh-CN'], {
+  sourceSpecies:'来源／底物物种',chooseSourceSpecies:'选择来源或底物的物种',
+  registeredDeclaration:'完整登记证据与适用条件',
+  editObservation:'编辑观测区域',observationAxis:'位移方向轴',region_lower_um:'下界',region_upper_um:'上界',invalidObservation:'观测区域须有正体积，且位于场地以内。',
+  deathRuleHint:'死亡由登记的健康度与危险率组合规则抽样产生。记录包含规则节点与抽样值，不据此判定唯一生物学死因。',
+  templates:'机制模板',replaceTemplate:'替换整个模板',templateEditable:'下方是可编辑的真实执行图。替换模板将检查未保存修改，并更换整个项目。',exploratory:'探索性模型',
+  copyBranch:'复制菌群机制分支',sourcePopulation:'来源菌群',copyBranchHint:'复制所选菌群的模块、参数、通道和输入连线，替换本菌群当前分支；环境节点继续共享。',
+  frameInterval:'每 N 步保存一帧',observation:'观测与重复运行',observationHint:'区域、方向轴和观测 ID 会随每次提交冻结。',
+  seedList:'执行随机种子',seedListHint:'最多八个不同的非负整数。使用同一份冻结输入依次运行。',runSeeds:'运行多组 seed',stopSeedBatch:'停止后续 seed 运行',invalidSeeds:'请输入 1–8 个不同的非负整数 seed。',
+  'task.history_full':'运行历史空间不足。请先导出结果并取消较早的比较选择，再启动这批运行。',
+  comparison:'所选运行比较',includeComparison:'加入比较',exportComparison:'导出比较 CSV',comparisonNeedTwo:'请至少选中两次已完成的运行。',comparisonCompleteOnly:'只比较已完成且已发布指标的运行。',comparisonMismatch:'比较需要一致的观测定义、场地、时长、步长和初始菌群数量。',comparisonDuplicateSeed:'同一变体存在重复 seed，请取消重复运行后再计算统计量。',comparisonStatistics:'除执行 seed 与运行名称外，科学输入完全一致的运行归为同一变体。SD 为样本标准差（n−1）；单次运行不计算 SD。不同变体分别展示。',
+  recordedMetrics:'求解器记录的指标',metricDefinitions:'指标定义与观测区域',metricDenominators:'位移：初始菌体中仍存活者沿指定方向轴的平均位移。区域占比：全部存活菌体。曾到达比例和停留时间：以初始菌体数为分母，每个求解步记录，排除后代。停留时间为区域内累计时长。空值表示指标无定义。',lastPublishedTime:'最后发布时刻',
+  initial_count:'初始数量',live_count:'存活数量',mean_displacement_um:'平均轴向位移 [µm]',region_fraction:'区域内比例 [1]',ever_arrived_fraction:'曾到达比例 [1]',mean_residence_s:'平均停留时间 [s]',metric:'指标',mean:'均值',
+  scatterPackingFailed:'当前数量无法无重叠放入。请减少数量或菌体尺寸，或扩大菌群体积。散布使用保守包围球检查。',invalidControls:'请输入正步长和服务器上限以内的整数步数。',welcomeScope:'示例使用已声明的探索性参数，可用于机制比较和数值检查，尚不代表经实验标定的预测。',
+});
 
 let language = 'en';
 try { if (localStorage.getItem('friskoli.language') === 'zh-CN') language = 'zh-CN'; } catch { /* storage unavailable */ }

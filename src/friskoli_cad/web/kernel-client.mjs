@@ -27,8 +27,8 @@ export class KernelClient {
     if (result.api_version !== '0.2.0' || !Array.isArray(result.placeables)) throw new Error('Unsupported kernel API');
     return result;
   }
-  validate(project, settings) { return this.request('/api/validate', { project, ...settings }); }
-  run(project, settings, request_id) { return this.request('/api/replay', { project, ...settings, request_id }); }
+  validate(project, settings) { return this.request('/api/validate', { project, dt_s:settings.dt_s,steps:settings.steps }); }
+  run(project, settings, request_id) { return this.request('/api/replay', { project,dt_s:settings.dt_s,steps:settings.steps, request_id }); }
   submitTask(submission, key) {
     if (!key) throw new Error('Idempotency-Key required');
     return this.request('/api/runs', submission, { 'Idempotency-Key': key });

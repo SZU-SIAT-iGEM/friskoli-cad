@@ -35,7 +35,8 @@ export function nextHit(ids, previousId) {
 export function registerCatalog(payload) {
   const known = (payload?.catalog_version === '0.1.0' && payload.execution_semantics === 'legacy-explicit-v1') ||
     (payload?.catalog_version === '0.2.0' && payload.execution_semantics === 'conservative-pts-bulk-v1') ||
-    (payload?.catalog_version === '0.3.0' && payload.execution_semantics === 'spatial-unbiased-v1');
+    (payload?.catalog_version === '0.3.0' && payload.execution_semantics === 'spatial-unbiased-v1') ||
+    (payload?.catalog_version === '0.4.0' && payload.execution_semantics === 'chemotaxis-spatial-v1');
   if (!known ||
       !Array.isArray(payload.entries) || !Array.isArray(payload.objects)) throw new Error('Unsupported registry catalog');
   const modules = registerModules({protocol_version:'0.1.0', modules:payload.modules});
@@ -63,7 +64,11 @@ export function registerCatalog(payload) {
     }
     objects.set(object.id, structuredClone(object));
   }
-  return {modules, objects};
+  const templates = structuredClone(payload.templates ?? []);
+  if (!Array.isArray(templates) || new Set(templates.map(item => item.id)).size !== templates.length ||
+      templates.some(item => !item.id || !item.version || !item.label || !item.example_id ||
+        !Array.isArray(item.module_keys) || item.module_keys.some(key => !modules.has(key)))) throw new Error('Invalid template catalog');
+  return {modules, objects, templates, observations:structuredClone(payload.observations ?? [])};
 }
 
 export function unavailableModules(graph, modules) {

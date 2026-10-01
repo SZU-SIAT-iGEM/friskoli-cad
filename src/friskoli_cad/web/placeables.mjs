@@ -114,7 +114,7 @@ export function environmentObjects(project, objects, modules, objectStates = nul
   });
 }
 
-export function initializeEnvironmentObject(project, object, modules, point) {
+export function initializeEnvironmentObject(project, object, modules, point, speciesId = null) {
   if (!isEnvironmentObject(object)) throw new Error('Unsupported object initializer');
   const keys = [object.initializer.module, ...object.initializer.data_modules];
   if (keys.some(key => !modules.has(key))) throw new Error('Missing object initializer module');
@@ -123,6 +123,10 @@ export function initializeEnvironmentObject(project, object, modules, point) {
   const manifest = modules.get(object.initializer.module);
   const species = Object.keys(next.species);
   if (['local_source','degradable_box'].includes(object.kind) && !species.length) throw new Error('noSourceSpecies');
+  if (['local_source','degradable_box'].includes(object.kind)) {
+    speciesId ??= species.length === 1 ? species[0] : null;
+    if (!species.includes(speciesId)) throw new Error('chooseSourceSpecies');
+  }
   const node = addNode(graph, manifest, {kind:manifest.scope,id:'domain'}, species);
   // Physical inventories and solids are owned per object, not by the shared domain.
   node.owner.id = node.id;
@@ -133,6 +137,7 @@ export function initializeEnvironmentObject(project, object, modules, point) {
     write(target,spec,name,value);
     target.parameters[name].provenance = {kind:'example',reference:'constructed spatial editor defaults; not biological calibration'};
   };
+  if (manifest.parameters.species && speciesId) write(node,manifest,'species',speciesId);
   const spacing = next.domain.spacing_um_xyz, counts = next.domain.counts_xyz;
   if (object.kind !== 'local_source') {
     for (let i = 0; i < 3; i++) {
@@ -157,11 +162,14 @@ export function initializeEnvironmentObject(project, object, modules, point) {
     constructed(node,manifest,'release_rate',1000);
   }
   for (const key of object.initializer.data_modules) {
-    if (key !== 'field.diffusive_local@1.0.0') throw new Error('Unsupported source data module');
+    if (!['field.diffusive_local@1.0.0','field.diffusive_local@2.0.0'].includes(key)) throw new Error('Unsupported source data module');
     const spec = modules.get(key);
-    if (!graph.nodes.some(item => item.module_id === spec.id && item.parameters.species?.value === species[0])) {
-      const field = addNode(graph,spec,{kind:spec.scope,id:'domain'},species);
-      constructed(field,spec,'diffusivity_um2_s',10);
+    if (!graph.nodes.some(item => item.module_id === spec.id && item.parameters.species?.value === speciesId)) {
+      const field = addNode(graph,spec,{kind:spec.scope,id:'domain'},[speciesId]);
+      applyRegisteredDefaults(field,spec);
+      write(field,spec,'species',speciesId);
+      if (!field.parameters.diffusivity_um2_s) constructed(field,spec,'diffusivity_um2_s',10);
+      if (spec.parameters.initial_concentration && next.species[speciesId]?.initial_concentration) field.parameters.initial_concentration=structuredClone(next.species[speciesId].initial_concentration);
     }
   }
   for (const requirement of object.initializer.requirements ?? []) {

@@ -224,7 +224,7 @@ export class SpatialViewport {
     this.blockData = blocks;
     this.selectedBlock = selectedBlock;
     for (const block of blocks) {
-      if (block.hidden) continue;
+      if (block.hidden || (!block.dirty && block.id !== selectedBlock)) continue;
       const geometry = new THREE.BoxGeometry(...block.size);
       const material = new THREE.MeshBasicMaterial({ color: block.id === selectedBlock ? 0xf3ba78 : 0x4dcaaf,
         transparent: true, opacity: .045, depthWrite: false, side: THREE.DoubleSide });
@@ -237,7 +237,7 @@ export class SpatialViewport {
           transparent: true, opacity: block.id === selectedBlock ? .9 : .43 }));
       mesh.add(outline);
       this.blocks.add(mesh);
-      this.blockHits.push(mesh);
+      if (block.dirty || this.tool === 'move' || this.tool === 'scale' || this.tool === 'rotate') this.blockHits.push(mesh);
     }
     this.blocks.visible = this.mode === 'space';
     this.attachGizmo();

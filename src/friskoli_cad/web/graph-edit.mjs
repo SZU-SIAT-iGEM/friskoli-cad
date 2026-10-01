@@ -15,15 +15,25 @@ function uniqueId(taken, base) {
 export function defaultParameters(manifest, species = []) {
   const parameters = {};
   for (const [name, definition] of Object.entries(manifest.parameters)) {
-    if (definition.type === 'number' || definition.type === 'integer') {
-      let value = definition.minimum ?? 0;
-      if (definition.maximum !== undefined) value = Math.min(value, definition.maximum);
-      if (definition.type === 'integer') value = Math.ceil(value);
-      parameters[name] = { value, unit: definition.unit, provenance: { ...USER } };
-    } else if (definition.type === 'boolean') parameters[name] = { value: false, provenance: { ...USER } };
-    else parameters[name] = { value: species[0] ?? name, provenance: { ...USER } };
+    // A lower bound is a constraint, never an implicit scientific default.
+    const declared = manifest.declaration?.default_parameters ?? {};
+    const provided = Object.hasOwn(declared, name) || Object.hasOwn(definition, 'default');
+    let value = Object.hasOwn(declared, name) ? declared[name] : definition.default;
+    if (!provided && name === 'species' && species.length === 1) value = species[0];
+    if (value === undefined) continue;
+    const entry = {value, provenance:provided
+      ? {kind:'example', reference:'declared module default; not biological calibration'}
+      : {...USER}};
+    if (definition.unit) entry.unit = definition.unit;
+    parameters[name] = entry;
   }
   return parameters;
+}
+
+export function missingParameters(graph, modules) {
+  return graph.nodes.flatMap(node => Object.keys(modules.get(key(node))?.parameters ?? {})
+    .filter(name => node.parameters[name]?.value === undefined)
+    .map(name => ({node:node.id, parameter:name})));
 }
 
 export function addNode(graph, manifest, owner, species = []) {
@@ -112,6 +122,7 @@ export function setParameter(node, manifest, name, raw) {
     if (definition.maximum !== undefined && value > definition.maximum) return 'parameter.range';
   } else if (definition.type === 'boolean') value = raw === true || raw === 'true';
   else if (typeof raw !== 'string' || !raw.trim()) return 'parameter.type';
+  if (definition.enum && !definition.enum.includes(value)) return 'parameter.range';
   const entry = { value, provenance: { ...USER } };
   if (definition.type === 'number' || definition.type === 'integer') entry.unit = definition.unit;
   node.parameters[name] = entry;

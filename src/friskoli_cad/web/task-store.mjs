@@ -1,6 +1,7 @@
 // Task records outlive editor documents. Only committed server snapshots enter this store.
 import { TASK_CONTRACT_VERSION } from './kernel-client.mjs';
 import { normalizeReplay } from './replay.mjs';
+import { validateMetrics } from './metrics.mjs';
 
 export const TASK_STORAGE_KEY = 'friskoli.tasks.v1';
 export const TERMINAL_TASK_STATES = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
@@ -19,8 +20,12 @@ const digestKeys = ['document_sha256', 'scientific_sha256', 'registry_sha256', '
 const sameInput = (a, b) => ['document_sha256', 'scientific_sha256', 'registry_sha256', 'plan_sha256', 'edit_revision']
   .every(key => a?.[key] === b?.[key]);
 
-const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0', '0.3.0']);
+const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0', '0.3.0', '0.4.0']);
 export function taskCapability(capabilities, project) {
+  if (project?.execution_profile === 'chemotaxis-spatial-v1' && project.project_version === '0.5.0') {
+    const task = capabilities?.task_profiles?.[project.execution_profile];
+    return task?.task_contract_version === '0.4.0' && task.execution?.semantics === project.execution_profile ? task : null;
+  }
   if (project?.execution_profile === 'spatial-unbiased-v1' && project.project_version === '0.4.0') {
     const task = capabilities?.task_profiles?.[project.execution_profile];
     return task?.task_contract_version === '0.3.0' && task.execution?.semantics === project.execution_profile ? task : null;
@@ -45,22 +50,24 @@ export function buildSubmission(capabilities, project, settings, editRevision, r
       !execution?.semantics || !execution.backend || !Number.isSafeInteger(execution.default_seed)) {
     throw failure('task.invalid_capabilities');
   }
-  const spatial = project.execution_profile === 'spatial-unbiased-v1';
+  const spatial = ['spatial-unbiased-v1','chemotaxis-spatial-v1'].includes(project.execution_profile);
   const seed = settings.seed ?? (spatial ? project.random_seed : execution.default_seed);
   if (spatial && settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw failure('task.invalid_output_plan');
   if (!Number.isSafeInteger(seed) || seed < 0) throw failure('task.invalid_seed');
+  const stride = task.task_contract_version === '0.4.0' ? (settings.frame_every_steps ?? 1) : 1;
+  if (!Number.isSafeInteger(stride) || stride < 1 || stride > settings.steps) throw failure('task.invalid_output_plan');
   return immutable({task_contract_version:task.task_contract_version, request_id:requestId,
     edit_revision:String(editRevision), project, version_lock:lock,
     execution:{semantics:execution.semantics, backend:execution.backend, dt_s:settings.dt_s, steps:settings.steps, seed},
-    output_plan:{frame_every_steps:1, observables:Object.keys(project.run.channels), include_fields:spatial ? (settings.include_fields ?? true) : false}});
+    output_plan:{frame_every_steps:stride, observables:Object.keys(project.run.channels), include_fields:spatial ? (settings.include_fields ?? true) : false}});
 }
 
 // A field-enabled result must carry the complete active species set in every committed frame.
 function taskFields(item, submission) {
   if (!submission.output_plan.include_fields) return {};
-  if (submission.task_contract_version !== '0.3.0') throw failure('task.unsupported_fields');
+  if (!['0.3.0','0.4.0'].includes(submission.task_contract_version)) throw failure('task.unsupported_fields');
   const fields = item.concentrations;
-  const expected = new Set(submission.project.graph.nodes.filter(node => node.module_id === 'field.diffusive_local')
+  const expected = new Set(submission.project.graph.nodes.filter(node => ['field.diffusive_local','field.ideal_local_reservoir'].includes(node.module_id))
     .map(node => node.parameters.species.value));
   if (!fields || Array.isArray(fields) || typeof fields !== 'object' || Object.keys(fields).length !== expected.size ||
       [...expected].some(name => !Object.hasOwn(fields, name))) throw failure('task.fields_missing');
@@ -75,7 +82,7 @@ function taskFields(item, submission) {
 }
 
 function taskObjects(item, submission) {
-  if (submission.task_contract_version !== '0.3.0') return {};
+  if (!['0.3.0','0.4.0'].includes(submission.task_contract_version)) return {};
   const expected = new Map(submission.project.graph.nodes
     .filter(node => ['material.degradable_box', 'source.finite_local'].includes(node.module_id))
     .map(node => [node.id, node]));
@@ -89,6 +96,23 @@ function taskObjects(item, submission) {
         value.remaining_molecules > node.parameters.initial_molecules.value) throw failure('task.invalid_object_state');
   }
   return {object_states:states};
+}
+
+export function validateTaskLifecycle(item, submission) {
+  if(submission.task_contract_version!=='0.4.0')return {};
+  const details=item.lifecycle_details;
+  if(details?.lifecycle_version!=='0.1.0'||!Array.isArray(details.deaths)||details.deaths.some(death=>
+    !['cell_id','group_id','node_id','module_id','policy'].every(key=>typeof death[key]==='string'&&death[key])||
+    !['time_s','health','death_hazard_per_min','probability','random_draw'].every(key=>Number.isFinite(death[key]))||
+    death.time_s<0||death.time_s>item.time_s||death.health<0||death.health>1||death.death_hazard_per_min<0||death.probability<0||death.probability>1||death.random_draw<=0||death.random_draw>=1||
+    !item.frame.events.some(event=>event.type==='death'&&event.cell_id===death.cell_id&&event.time_s===death.time_s)))throw failure('task.invalid_lifecycle_details');
+  const deaths=item.frame.events.filter(event=>event.type==='death');
+  if(details.deaths.length!==deaths.length||new Set(details.deaths.map(d=>JSON.stringify([d.cell_id,d.time_s]))).size!==deaths.length)throw failure('task.invalid_lifecycle_details');
+  for(const death of details.deaths){
+    const node=submission.project.graph.nodes.find(node=>node.id===death.node_id);
+    if(!node||node.module_id!=='life.health_balance'||death.module_id!==node.module_id||node.owner.kind!=='population'||node.owner.id!==death.group_id||node.parameters.policy?.value!==death.policy||death.random_draw>=death.probability)throw failure('task.invalid_lifecycle_details');
+  }
+  return {lifecycle_details:details};
 }
 
 export function matchesDraft(record, draft) {
@@ -115,10 +139,10 @@ function validateTask(task, record) {
 // Immutable records are replaced, never patched in place; subscribers cannot alter frozen submissions.
 export class TaskStore {
   constructor(client, {storage = null, now = Date.now, newId = identity, maxRecords = 12, maxBytes = 2 * 1024 * 1024,
-    maxErrors = 3, pollMs = 1000, onChange = () => {}} = {}) {
+    maxErrors = 3, pollMs = 1000, onChange = () => {}, isProtected = () => false} = {}) {
     this.client = client; this.storage = storage; this.now = now; this.newId = newId;
     this.maxRecords = maxRecords; this.maxBytes = maxBytes; this.maxErrors = maxErrors; this.pollMs = pollMs;
-    this.onChange = onChange; this.records = new Map(); this.inflight = new Set(); this.cache = new Map();
+    this.onChange = onChange; this.isProtected = isProtected; this.records = new Map(); this.inflight = new Set(); this.cache = new Map();
     this.timer = null; this.started = false; this.persistenceError = null;
   }
   list() { return [...this.records.values()]; }
@@ -151,7 +175,7 @@ export class TaskStore {
             !supportedVersions.has(item.submission?.task_contract_version) || !item.submission.project?.run ||
             !Number.isFinite(item.createdAt) || !Number.isSafeInteger(item.cursor) || item.cursor < 0 ||
             !Number.isFinite(item.retryDeadline) || this.records.has(item.localId)) continue;
-        const record = immutable({...item, project:item.submission.project, settings:item.submission.execution,
+        const record = immutable({...item, project:item.submission.project, settings:{...item.submission.execution,...item.submission.output_plan},
           restored:true, failures:0, paused:false, connection:'recovering', replay:null, manifest:null});
         if (record.task) validateTask(record.task, record);
         this.records.set(record.localId, record);
@@ -159,24 +183,33 @@ export class TaskStore {
     } catch (error) { this.persistenceError = error.message; }
     return this.list();
   }
+  evictionPlan(count = 1) {
+    if (!Number.isSafeInteger(count) || count < 1 || count > this.maxRecords) throw failure('task.history_full');
+    const needed = Math.max(0, this.records.size + count - this.maxRecords);
+    const candidates = this.list().filter(r => !this.isProtected(r) &&
+      (TERMINAL_TASK_STATES.has(r.status) || r.status === 'rejected' || r.status === 'unavailable')).slice(0, needed);
+    if (candidates.length !== needed) throw failure('task.history_full');
+    return candidates;
+  }
+  assertCapacity(count = 1) { this.evictionPlan(count); }
   create(submission, {draftToken, revision, idempotencyRetentionSeconds}) {
     if (this.list().some(r => matchesDraft(r, {draftToken, revision}) &&
         ['submitting', 'submission_unknown'].includes(r.status))) throw failure('task.unresolved_submission');
-    while (this.records.size >= this.maxRecords) {
-      const old = this.list().find(r => TERMINAL_TASK_STATES.has(r.status) || r.status === 'rejected' || r.status === 'unavailable');
-      if (!old) throw failure('task.history_full');
-      this.records.delete(old.localId); this.cache.delete(old.localId);
-    }
+    const evicted = this.evictionPlan();
     const localId = `request-${this.newId()}`, createdAt = this.now();
     const retention = Number(idempotencyRetentionSeconds);
     if (!Number.isFinite(retention) || retention <= 0) throw failure('task.invalid_retention');
     const record = immutable({localId, id:localId, runId:null, idempotencyKey:`friskoli-${this.newId()}`,
-      submission, project:submission.project, settings:submission.execution, draftToken, revision,
+      submission, project:submission.project, settings:{...submission.execution,...submission.output_plan}, draftToken, revision,
       status:'submitting', completeness:'none', createdAt, retryDeadline:createdAt + retention * 1000,
       cursor:0, eventsComplete:true, task:null, manifest:null, replay:null, failures:0, paused:false,
       connection:'online', error:null, restored:false});
+    const previous = this.records;
+    this.records = new Map(previous);
+    for (const old of evicted) this.records.delete(old.localId);
     this.records.set(localId, record);
-    try { this.persist(true); } catch (error) { this.records.delete(localId); throw error; }
+    try { this.persist(true); } catch (error) { this.records = previous; throw error; }
+    for (const old of evicted) this.cache.delete(old.localId);
     this.onChange(record, this.list());
     return record;
   }
@@ -274,20 +307,26 @@ export class TaskStore {
           !Array.isArray(body.frames) || !body.frames.length || body.frames[0].step_index !== chunk.first_step ||
           body.frames.at(-1).step_index !== chunk.last_step) throw failure('task.invalid_chunk');
       for (const item of body.frames) {
-        if (item.sequence !== frames.length || item.step_index !== frames.length || item.frame?.frame_index !== item.step_index ||
+        const stride = record.submission.output_plan.frame_every_steps;
+        const expectedStep = frames.length === 0 ? 0 : Math.min(frames.at(-1).step_index + stride,record.settings.steps);
+        if (item.sequence !== frames.length || item.step_index !== expectedStep || item.frame?.frame_index !== item.step_index ||
             item.time_s !== item.frame.time_s || item.frame.run_id !== record.project.run.run_id ||
             typeof item.grid_revision !== 'string' || !item.grid_revision) throw failure('task.invalid_frame_sequence');
         frames.push(item);
       }
       previousStep = chunk.last_step;
     }
-    if (previousStep !== manifest.progress.committed_step || frames.at(-1).time_s !== manifest.progress.simulation_time_s ||
+    const committed = manifest.progress.committed_step;
+    const expectedPublished = committed === record.settings.steps ? committed : Math.floor(committed / record.submission.output_plan.frame_every_steps) * record.submission.output_plan.frame_every_steps;
+    if (previousStep !== expectedPublished || frames.at(-1).time_s > manifest.progress.simulation_time_s ||
+        (previousStep === committed && frames.at(-1).time_s !== manifest.progress.simulation_time_s) ||
         (manifest.completeness === 'complete' && previousStep !== record.settings.steps)) throw failure('task.incomplete_manifest');
     const replay = normalizeReplay({replay_format_version:'0.1.0', project_id:record.project.id,
       run:record.project.run, domain:record.project.domain,
       execution:{task_contract_version:record.submission.task_contract_version, task_run_id:record.runId, request_id:record.submission.request_id,
         status:manifest.status, completeness:manifest.completeness, include_fields:record.submission.output_plan.include_fields, input_snapshot:manifest.input_snapshot},
-      snapshots:frames.map(item => ({frame:item.frame, concentrations:taskFields(item, record.submission), ...taskObjects(item, record.submission)}))});
+      snapshots:frames.map(item => ({frame:item.frame, concentrations:taskFields(item, record.submission), ...taskObjects(item, record.submission),...validateTaskLifecycle(item,record.submission),
+        ...(record.submission.task_contract_version === '0.4.0' ? {metrics:validateMetrics(item.metrics,record.project)} : {})}))});
     this.replace(id, {manifest, replay});
   }
   async poll(id) {

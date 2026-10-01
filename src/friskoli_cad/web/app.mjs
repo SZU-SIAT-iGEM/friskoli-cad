@@ -7,10 +7,14 @@ import { writeWorkspace, draftSnapshot, blankProject, deletePopulation, exportRu
 import { KernelClient } from './kernel-client.mjs';
 import { TaskStore, buildSubmission, matchesDraft, supportsTasks, taskCapability } from './task-store.mjs';
 import { renderResultData } from './results.mjs';
+import { compareRuns, METRIC_KEYS, csvCell } from './metrics.mjs';
+import { copyPopulationBranch } from './templates.mjs';
+import { renderComparison } from './metric-results.mjs';
 import { installDockSizing } from './panels.mjs';
 import { SpatialViewport } from './scene3d.mjs';
 import { GraphEditor, autoLayout } from './workflow.mjs';
-import { addNode, connect, connectionProblem, disconnect, missingInputs, preferredTiming, removeNode,
+import { moduleName } from './workflow-components.mjs';
+import { addNode, connect, connectionProblem, disconnect, missingInputs, missingParameters, preferredTiming, removeNode,
   setParameter } from './graph-edit.mjs';
 import { applyLanguage, currentLanguage, setLanguage, t } from './i18n.mjs';
 import { availablePlaceables, objectForBlock, initializeObject, environmentObjects,
@@ -33,10 +37,13 @@ const state = { project: null, blocks: [], modules: new Map(), replay: null, vie
 const kernel = new KernelClient();
 let taskStorage = null;
 try { taskStorage = localStorage; } catch { /* display unavailable recovery in the task panel */ }
-const taskStore = new TaskStore(kernel, {storage:taskStorage, onChange:taskUpdated});
+const taskStore = new TaskStore(kernel, {storage:taskStorage, maxRecords:32, onChange:taskUpdated, isProtected:record => state.comparison?.has(record.id) || state.batch?.records.has(record.localId)});
 state.objects = new Map();
 state.registries = new Map();
 state.activeObject = null;
+state.comparison = new Set();
+const isSpatial = project => ['spatial-unbiased-v1','chemotaxis-spatial-v1'].includes(project?.execution_profile);
+const stepLimit = () => taskCapability(state.capabilities,state.project)?.limits?.steps ?? 100;
 const TOOLS = { select: 'select-tool', population: 'population-tool', move: 'move-tool', scale: 'scale-tool',
   rotate: 'rotate-tool', hand: 'hand-tool', orbit: 'orbit-tool', measure: 'measure-tool' };
 let viewport;
@@ -115,7 +122,7 @@ function status(key, values = {}, error = false) {
 // Space tools: select, place, move/scale gizmo, measure. Any tool other than select switches to Space.
 function useTool(tool) {
   if (!state.project) return;
-  if (tool === 'population' && !availablePlaceables(state.modules,state.capabilities,state.objects).some(item => item.kind === 'population' && item.status === 'ready')) {
+  if (tool === 'population' && !availablePlaceables(state.modules,state.capabilities,state.objects,state.project).some(item => item.kind === 'population' && item.status === 'ready')) {
     status('populationAdapterMissing',{},true); return;
   }
   if (tool !== 'select' && state.view !== 'space') setView('space');
@@ -224,12 +231,12 @@ function renderTimeline() {
   $('next-button').disabled = state.frameIndex === replay.snapshots.length - 1;
   const track = $('event-track');
   track.replaceChildren();
-  for (const snapshot of replay.snapshots) {
-    const tick = el('button', `event-tick${snapshot.frame.events.length ? ' has-event' : ''}${snapshot.frame.frame_index === state.frameIndex ? ' current' : ''}`,
+  for (const [index,snapshot] of replay.snapshots.entries()) {
+    const tick = el('button', `event-tick${snapshot.frame.events.length ? ' has-event' : ''}${index === state.frameIndex ? ' current' : ''}`,
       snapshot.frame.events.length ? '◆' : '·');
     tick.type = 'button';
     tick.title = `${fmt(snapshot.frame.time_s, 3)} s · ${snapshot.frame.events.length} events`;
-    tick.addEventListener('click', () => setFrame(snapshot.frame.frame_index));
+    tick.addEventListener('click', () => setFrame(index));
     track.append(tick);
   }
 }
@@ -303,17 +310,18 @@ function renderLeft() {
     container.append(el('div', 'tree-heading', `${t('compiled')} · ${state.modules.size}`));
     for (const [key, manifest] of state.modules) {
       if (filter && !`${key} ${manifest.description}`.toLowerCase().includes(filter)) continue;
-      treeRow(container, manifest.declaration?.label ?? manifest.id, manifest.version, state.selectedManifest === key,
+      treeRow(container, moduleName(manifest,currentLanguage()), key, state.selectedManifest === key,
         () => { state.selectedManifest = key; renderLeft(); renderInspector(); closeDocks(); }, '⬡');
     }
     return;
   }
   if (state.view === 'workflow') {
+    renderTemplateSummary(container);
     container.append(el('div', 'tree-heading', `${t('workflow')} · ${state.project.graph.nodes.length}`));
     for (const node of state.project.graph.nodes) {
       if (filter && !`${node.id} ${node.module_id}`.toLowerCase().includes(filter)) continue;
       const active = state.graphSelection?.kind === 'node' && state.graphSelection.id === node.id;
-      const row = treeRow(container, node.id, node.module_id.split('.').at(-1), active,
+      const row = treeRow(container, moduleName(state.modules.get(moduleKey(node))??{id:node.module_id},currentLanguage()), node.id, active,
         () => { selectGraph({ kind: 'node', id: node.id }); closeDocks(); }, '⬡');
       row.addEventListener('contextmenu', event => {
         event.preventDefault(); showGraphContext({ kind: 'node', id: node.id }, event.clientX, event.clientY);
@@ -323,6 +331,11 @@ function renderLeft() {
   }
   if (state.view === 'space') {
     container.append(el('div', 'tree-heading', t('library')));
+    const speciesRow=el('label','edit-row',t('sourceSpecies')),species=el('select');
+    species.setAttribute('aria-label',t('sourceSpecies'));species.append(new Option(t('chooseSourceSpecies'),''));
+    for(const id of Object.keys(state.project.species))species.append(new Option(id,id));
+    if(Object.keys(state.project.species).length===1)state.activeSpecies=Object.keys(state.project.species)[0];
+    species.value=state.activeSpecies??'';species.addEventListener('change',()=>{state.activeSpecies=species.value;});speciesRow.append(species);container.append(speciesRow);
     for (const item of availablePlaceables(state.modules, state.capabilities, state.objects,state.project)) {
       const ready = item.status === 'ready';
       const row = el('button', `tree-row library-row${ready ? '' : ' unavailable'}${ready && state.tool === item.tool && state.activeObject === item.id ? ' active' : ''}`);
@@ -361,6 +374,30 @@ function renderLeft() {
       if (cells.length > shown.length) container.append(el('div', 'tree-more', `+ ${cells.length - shown.length}`));
     }
   }
+}
+
+function renderTemplateSummary(container) {
+  const registry = state.registries.get(state.project.execution_profile ?? 'legacy-explicit-v1');
+  if (!registry?.templates?.length) return;
+  const details = el('details','template-overview'); details.open=true;
+  details.append(el('summary','',t('templates')));
+  const active = registry.templates.find(item => item.example_id === state.project.id || item.id === state.project.id);
+  if (active) details.append(el('strong','',active.label),el('p','empty-message',active.description));
+  details.append(el('p','empty-message',t('templateEditable')));
+  const select = el('select'); select.setAttribute('aria-label',t('replaceTemplate'));
+  for (const item of registry.templates) select.append(new Option(`${item.label} · ${item.id}`,item.example_id));
+  if (active) select.value=active.example_id;
+  const replace = el('button','inspector-action',t('replaceTemplate'));
+  replace.addEventListener('click',async()=>{
+    if (!replaceAllowed()) return;
+    const revision=state.revision,draft=state.draftToken; replace.disabled=true;
+    try {
+      const document=await kernel.request(`/api/examples/${encodeURIComponent(select.value)}`);
+      if (revision!==state.revision || draft!==state.draftToken) return;
+      await loadProject(document); setView('workflow');
+    } catch(error) { status('loadFailed',{message:error.message},true); }
+    finally { replace.disabled=false; }
+  }); details.append(select,replace);container.append(details);
 }
 
 function numberField(parent, label, block, key, axis = null, definition = {}) {
@@ -450,6 +487,18 @@ function renderBlockInspector(root, block) {
   for (const [label, handler] of [['duplicate', () => duplicateBlock(block.id)], ['delete', () => removeBlock(block.id)]]) {
     const button = el('button', 'inspector-action', t(label)); button.disabled = Boolean(block.locked);
     button.addEventListener('click', handler); root.append(button);
+  }
+  if (isSpatial(state.project) && !block.dirty) {
+    const part = section(root,t('copyBranch'));
+    const source = el('select'); source.setAttribute('aria-label',t('sourcePopulation'));
+    for (const candidate of state.blocks.filter(b => b.id !== block.id && state.project.groups[b.id])) source.append(new Option(`${candidate.name} · ${candidate.id}`,candidate.id));
+    const button = el('button','inspector-action',t('copyBranch'));
+    button.disabled = !source.options.length || block.locked;
+    button.addEventListener('click',() => edit('updated',() => {
+      block.binding = {data_nodes:copyPopulationBranch(state.project,source.value,block.id)};
+      state.layout = autoLayout(state.project.graph,state.modules,state.layout);
+    }));
+    part.append(el('p','empty-message',t('copyBranchHint')),source,button);
   }
   if (block.dirty) root.append(el('div', 'pending-note', t('pending')));
 }
@@ -544,14 +593,20 @@ function renderDomainInspector(root) {
   const name = el('input'); name.value = state.project.id; name.required = true; name.setAttribute('aria-label', t('name'));
   const nameRow = el('label', 'edit-row', t('name')); nameRow.append(name); form.append(nameRow);
   let seed = null;
-  if (state.project.project_version === '0.4.0') {
+  if (isSpatial(state.project)) {
     seed = el('input'); seed.type = 'number'; seed.min = '0'; seed.max = String(Number.MAX_SAFE_INTEGER); seed.step = '1'; seed.required = true;
-    seed.value = state.project.random_seed; seed.setAttribute('aria-label',t('randomSeed'));
+    seed.value = state.settings.seed ?? state.project.random_seed; seed.setAttribute('aria-label',t('randomSeed'));
     const row = el('label','edit-row',t('randomSeed')); row.append(seed); form.append(row);
     const outputRow = el('label','edit-row',t('includeFields')), output = el('input');
     output.type = 'checkbox'; output.checked = state.settings.include_fields !== false;
     output.addEventListener('change',() => edit('updated',() => { state.settings.include_fields = output.checked; }));
     outputRow.append(output); part.append(outputRow);
+    if (state.project.project_version === '0.5.0') {
+      const row = el('label','edit-row',t('frameInterval')), input = el('input'); input.type='number'; input.min='1'; input.step='1'; input.value=state.settings.frame_every_steps ?? 1;
+      input.addEventListener('change',()=>edit('updated',()=>{
+        const value=Number(input.value); if (!Number.isSafeInteger(value)||value<1||value>state.settings.steps) throw new Error('Invalid frame interval'); state.settings.frame_every_steps=value;
+      })); row.append(input);part.append(row);
+    }
   }
   const mode = el('select'); mode.setAttribute('aria-label', t('geometry'));
   mode.append(new Option('3D', 'volume'), new Option(t('thinLayer'), 'thin_layer')); mode.value = state.project.domain.geometry;
@@ -579,6 +634,7 @@ function renderDomainInspector(root) {
         const value = Number(seed.value);
         if (!Number.isSafeInteger(value) || value < 0 || seed.value === '') throw new Error('Invalid random seed');
         state.project.random_seed = value;
+        delete state.settings.seed;
       }
       const domain = {geometry:mode.value, counts_xyz:counts, spacing_um_xyz:spacing};
       for (const block of state.blocks) checkBlock(domain, block);
@@ -604,6 +660,32 @@ function renderDomainInspector(root) {
   const advanced = el('button', 'inspector-action', t('projectData')); advanced.addEventListener('click', () => {
     $('data-editor').value = JSON.stringify(state.project, null, 2); $('data-dialog').showModal();
   }); root.append(advanced);
+  if (state.project.observation) {
+    const observation = section(root,t('observation'));
+    observation.append(el('p','empty-message',t('observationHint')));
+    observation.append(el('pre','parameter-record',JSON.stringify(state.project.observation,null,2)));
+    const editor=el('details','parameter-evidence');editor.append(el('summary','',t('editObservation')));
+    const form=el('form'),axis=el('select');axis.setAttribute('aria-label',t('observationAxis'));
+    for(let i=0;i<3;i++)axis.append(new Option('XYZ'[i],String(i)));axis.value=String(state.project.observation.axis);
+    const axisRow=el('label','edit-row',t('observationAxis'));axisRow.append(axis);form.append(axisRow);
+    const bounds={};
+    for(const key of ['region_lower_um','region_upper_um']){
+      bounds[key]=[];
+      for(let i=0;i<3;i++){const row=el('label','edit-row',`${t(key)} ${'XYZ'[i]} [µm]`),input=el('input');input.type='number';input.step='any';input.required=true;input.value=state.project.observation[key][i];row.append(input);form.append(row);bounds[key].push(input);}
+    }
+    const apply=el('button','inspector-action',t('apply'));apply.type='submit';form.append(apply);
+    form.addEventListener('submit',event=>{event.preventDefault();edit('updated',()=>{
+      const lower=bounds.region_lower_um.map(input=>Number(input.value)),upper=bounds.region_upper_um.map(input=>Number(input.value)),size=state.project.domain.counts_xyz.map((n,i)=>n*state.project.domain.spacing_um_xyz[i]);
+      if(lower.some((v,i)=>!Number.isFinite(v)||!Number.isFinite(upper[i])||v<0||v>=upper[i]||upper[i]>size[i]))throw new Error(t('invalidObservation'));
+      Object.assign(state.project.observation,{axis:Number(axis.value),region_lower_um:lower,region_upper_um:upper});
+    });});editor.append(form);observation.append(editor);
+    const seeds=el('input');seeds.type='text';seeds.value=state.seedList??'0, 1, 2';seeds.setAttribute('aria-label',t('seedList'));
+    seeds.addEventListener('input',()=>{state.seedList=seeds.value;});
+    const label=el('label','edit-row',t('seedList'));label.append(seeds);
+    const run=el('button','inspector-action',t('runSeeds'));run.disabled=Boolean(state.batch);
+    run.addEventListener('click',()=>startSeedBatch(seeds.value));
+    observation.append(label,el('p','empty-message',t('seedListHint')),run);
+  }
 }
 
 function duplicateBlock(id) {
@@ -644,6 +726,11 @@ function renderDiagnostics() {
       if (!run.eventsComplete) row.append(el('span', 'task-note', t('eventsExpired')));
       if (run.connection === 'lost') row.append(el('span', 'task-note', t(run.paused ? 'queryPaused' : 'connectionRetry')));
     }
+    if (run.status==='completed' && run.replay?.snapshots.at(-1)?.metrics) {
+      const label=el('label','comparison-choice',t('includeComparison')),checkbox=el('input');checkbox.type='checkbox';checkbox.checked=state.comparison.has(run.id);
+      checkbox.addEventListener('change',()=>{checkbox.checked?state.comparison.add(run.id):state.comparison.delete(run.id);renderComparisons();});label.prepend(checkbox);row.append(label);
+    }
+    for (const issue of run.task?.issues ?? []) row.append(el('span','error',`${issue.code}: ${issue.message}`));
     if (run.error) row.append(el('span', 'error', run.error === 'task.idempotency_window_expired' ? t('retryExpired') : run.error));
     const actions = el('div', 'task-actions');
     const action = (label, fn) => { const button = el('button', 'menu-button', t(label)); button.type = 'button'; button.addEventListener('click', fn); actions.append(button); };
@@ -658,8 +745,31 @@ function renderDiagnostics() {
   }
   $('task-recovery-warning').hidden = !taskStore.persistenceError && Boolean(taskStorage);
   $('task-output-note').hidden = !supportsTasks(state.capabilities, state.project);
-  $('task-output-note').textContent = t(state.project?.execution_profile === 'spatial-unbiased-v1' ? 'spatialTaskOutputScope' : 'taskOutputScope');
-  renderData();
+  $('task-output-note').textContent = t(isSpatial(state.project) ? 'spatialTaskOutputScope' : 'taskOutputScope');
+  renderComparisons();renderData();
+}
+
+function renderComparisons() {
+  let comparison=$('comparison-results');
+  if(!comparison){comparison=el('section','comparison-results');comparison.id='comparison-results';$('runs-pane').append(comparison);}
+  comparison.replaceChildren();
+  if(state.batch){const cancel=el('button','menu-button',t('stopSeedBatch'));cancel.addEventListener('click',()=>{const active=state.batch?.active;state.batch=null;if(active)taskStore.cancel(active);renderDiagnostics();});comparison.append(cancel);}
+  const selected=state.runs.filter(run=>state.comparison.has(run.id));
+  if(selected.length){
+    const heading=el('h3','',t('comparison'));comparison.append(heading);
+    try{
+      const variants=compareRuns(selected),output=el('div','result-data');renderComparison(output,variants,t);comparison.append(output);
+      const exportButton=el('button','menu-button',t('exportComparison'));
+      exportButton.addEventListener('click',()=>{
+        const rows=[['variant','version_lock','run_id','seed','group_id','statistic','n',...METRIC_KEYS]];
+        for(const variant of variants){
+          for(const run of variant.runs)for(const [group,values] of Object.entries(run.replay.snapshots.at(-1).metrics.by_group))rows.push([variant.label,JSON.stringify(variant.versionLock??{kind:'legacy-sync'}),run.id,run.submission?.execution.seed??run.project.random_seed,group,'run',1,...METRIC_KEYS.map(key=>values[key]??'')]);
+          for(const [group,stats] of Object.entries(variant.byGroup))for(const kind of ['mean','sd'])rows.push([variant.label,JSON.stringify(variant.versionLock??{kind:'legacy-sync'}),'',variant.seeds.join(' '),group,kind,variant.runs.length,...METRIC_KEYS.map(key=>stats[key][kind]??'')]);
+        }
+        download('comparison.csv',rows.map(row=>row.map(csvCell).join(',')).join('\n')+'\n','text/csv');
+      });comparison.prepend(exportButton);
+    }catch(error){comparison.append(el('p','task-note',t(error.message)));}
+  }
 }
 
 function selectRun(record) {
@@ -672,6 +782,11 @@ function selectRun(record) {
 function taskUpdated(record, records) {
   const previous = state.runs.find(run => run.localId === record.localId);
   state.runs = [...state.runs.filter(run => !run.localId), ...records];
+  if(state.batch?.active===record.localId && ['completed','failed','cancelled','interrupted','rejected','unavailable'].includes(record.status)) {
+    const batch=state.batch;batch.active=null;
+    if(record.status==='completed')queueMicrotask(()=>nextSeed(batch));
+    else state.batch=null;
+  }
   if (record.localId === state.latestTask && matchesDraft(record, state) && record.status !== previous?.status)
     status(record.status, {}, ['failed', 'rejected', 'unavailable'].includes(record.status));
   if (state.activeRun?.localId === record.localId) {
@@ -685,7 +800,26 @@ function taskUpdated(record, records) {
 }
 
 function renderData() { renderResultData($('data-pane'), state.replay, state.selectedCell, setFrame,
-  {empty:t('noResults'),cells:t('cells'),events:t('events'),frame:t('frame'),curve:t('cellCountHistory')}); }
+  {empty:t('noResults'),cells:t('cells'),events:t('events'),frame:t('frame'),curve:t('cellCountHistory')},
+  {t,project:state.activeRun?.project,definitions:state.registries.get(state.activeRun?.project?.execution_profile)?.observations??[]}); }
+
+function startSeedBatch(text) {
+  if(state.batch || !state.project || $('run-button').disabled || !supportsTasks(state.capabilities,state.project))return;
+  const seeds=text.split(/[\s,，]+/).filter(Boolean).map(Number);
+  if(!seeds.length||seeds.length>8||seeds.some(seed=>!Number.isSafeInteger(seed)||seed<0)||new Set(seeds).size!==seeds.length){status('invalidSeeds',{},true);return;}
+  try { taskStore.assertCapacity(seeds.length); } catch(error) { status('runFailed',{message:t(error.code)},true); return; }
+  const batch={seeds,records:new Set(),project:structuredClone(state.project),settings:structuredClone(state.settings),draftToken:state.draftToken,revision:state.revision,active:null};
+  state.batch=batch;nextSeed(batch);
+}
+async function nextSeed(batch) {
+  if(state.batch!==batch)return;
+  const seed=batch.seeds.shift();if(seed===undefined){state.batch=null;renderDiagnostics();return;}
+  try {
+    const submission=buildSubmission(state.capabilities,batch.project,{...batch.settings,seed},`${batch.draftToken}:${batch.revision}`);
+    const record=taskStore.create(submission,{draftToken:batch.draftToken,revision:batch.revision,idempotencyRetentionSeconds:taskCapability(state.capabilities,batch.project).limits.idempotency_retention_seconds});
+    batch.records.add(record.localId);batch.active=record.localId;state.latestTask=record.localId;showBottom('runs');renderDiagnostics();await taskStore.submit(record.localId);taskStore.start();
+  }catch(error){state.batch=null;status('runFailed',{message:t(error.code??error.message)},true);renderDiagnostics();}
+}
 
 async function checkProject() {
   if (!state.project || state.busy) return;
@@ -698,7 +832,7 @@ async function checkProject() {
     if (!state.checks.length) state.checks = [{code:'valid', message:t('checkPassed', result)}];
   } catch (error) {
     if (revision !== state.revision) return;
-    state.checks.push(error.issue ?? {code:'connection.failed',message:error.message});
+    state.checks.push(...(error.issues?.length ? error.issues : [error.issue ?? {code:'connection.failed',message:error.message}]));
   }
   $('diagnostics').hidden = false; showBottom('checks'); renderDiagnostics();
   status(state.checks[0]?.code === 'valid' ? 'checked' : 'checkFailed', {}, state.checks[0]?.code !== 'valid');
@@ -715,8 +849,14 @@ const findNode = id => state.project.graph.nodes.find(node => node.id === id);
 
 function parameterField(parent, node, manifest, name, definition) {
   const row = el('label', 'edit-row');
-  const input = el('input');
+  const input = el(definition.enum ? 'select' : 'input');
   const entry = node.parameters[name];
+  if (definition.enum) {
+    input.append(new Option(t('parameterMissing'), ''));
+    for (const value of definition.enum) input.append(new Option(String(value), value));
+    input.value = entry?.value ?? '';
+  }
+  else
   if (definition.type === 'boolean') { input.type = 'checkbox'; input.checked = entry?.value === true; }
   else if (definition.type === 'string') {
     input.type = 'text';
@@ -732,7 +872,12 @@ function parameterField(parent, node, manifest, name, definition) {
   input.setAttribute('aria-label', name);
   const label = definition.unit ? `${definition.label ?? name} [${definition.unit}]` : definition.label ?? name;
   row.append(el('span', '', label), input);
-  if (entry?.provenance) row.title = `${entry.provenance.kind} · ${entry.provenance.reference}`;
+  if (entry?.value === undefined) input.setAttribute('aria-description', t('parameterMissing'));
+  const evidence = el('details', 'parameter-evidence');
+  evidence.append(el('summary', '', t('parameterSource')));
+  evidence.append(el('p', '', entry?.provenance ? `${entry.provenance.kind} · ${entry.provenance.reference}` : t('parameterMissing')));
+  if (definition.description) evidence.append(el('p', '', definition.description));
+  if (definition.minimum !== undefined || definition.maximum !== undefined) evidence.append(el('p', '', `${t('range')}: ${definition.minimum ?? '−∞'} … ${definition.maximum ?? '∞'}`));
   input.addEventListener('change', () => {
     const raw = definition.type === 'boolean' ? input.checked : input.value;
     const id = node.id;
@@ -741,7 +886,7 @@ function parameterField(parent, node, manifest, name, definition) {
       if (problem) throw new Error(problem);
     }, { name });
   });
-  parent.append(row);
+  parent.append(row, evidence);
 }
 
 function ownerFor(manifest) {
@@ -832,7 +977,12 @@ function renderGraphSummary(root) {
   const missing = missingInputs(graph, state.modules);
   const check = section(root, t('checks'));
   const unavailable = unavailableModules(graph, state.modules);
-  if (!missing.length && !unavailable.length) check.append(el('p', 'empty-message', t('graphReady')));
+  const parameters = missingParameters(graph,state.modules);
+  if (!missing.length && !unavailable.length && !parameters.length) check.append(el('p', 'empty-message', t('graphReady')));
+  for (const item of parameters) {
+    const button = el('button','event-row warning',`${item.node} · ${item.parameter}: ${t('parameterMissing')}`);
+    button.addEventListener('click',()=>selectGraph({kind:'node',id:item.node})); check.append(button);
+  }
   for (const node of unavailable) {
     const button = el('button','event-row warning',node.id + ': ' + t('unknownModule'));
     button.addEventListener('click', () => selectGraph({kind:'node',id:node.id})); check.append(button);
@@ -935,6 +1085,8 @@ function renderInspector() {
         button.type = 'button';
         button.addEventListener('click', () => selectCell(event.child_id ?? event.cell_id));
         events.append(button);
+        const detail=currentSnapshot()?.lifecycle_details?.deaths?.find(death=>death.cell_id===event.cell_id&&event.type==='death');
+        if(detail){events.append(el('p','empty-message',t('deathRuleHint')),el('pre','parameter-record',JSON.stringify(detail,null,2)));}
       }
     }
   }
@@ -947,6 +1099,18 @@ function renderEvidence(root) {
   if (!manifest) { root.append(el('p','empty-message',t('selectModuleEvidence'))); return; }
   const identity=section(root,t('evidence'));kv(identity,t('maturity'),manifest.maturity ?? '—');kv(identity,t('scientificRole'),manifest.scientific_role ?? '—');kv(identity,t('scope'),manifest.scope);kv(identity,t('phase'),String(manifest.phase));
   root.append(el('p','empty-message',t('evidenceRule')));
+  renderModuleDocumentation(root, manifest, t);
+  const declaration=el('details','parameter-evidence');declaration.append(el('summary','',t('registeredDeclaration')),el('pre','',JSON.stringify(manifest.declaration??manifest,null,2)));root.append(declaration);
+  if (selectedNode) {
+    const values = section(root,t('parameterSource'));
+    for (const [name, definition] of Object.entries(manifest.parameters ?? {})) {
+      const record = selectedNode.parameters[name];
+      const detail = el('details','parameter-evidence');
+      detail.append(el('summary','',`${name} · ${record?.value ?? t('parameterMissing')} ${definition.unit ?? ''}`));
+      detail.append(el('pre','',record ? JSON.stringify(record,null,2) : t('parameterMissing')));
+      values.append(detail);
+    }
+  }
   const assumptions=section(root,t('description'));assumptions.append(el('p','empty-message',manifest.description ?? '—'));
   const params=section(root,t('parameters'));for(const [name,definition] of Object.entries(manifest.parameters ?? {})) kv(params,name,definition.unit ? `${definition.type} · ${definition.unit}` : definition.type);
 }
@@ -956,7 +1120,7 @@ function renderGraph() {
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);
   try {
     graphEditor.render(state.project.graph, state.modules, state.layout, state.graphSelection,
-      missingInputs(state.project.graph, state.modules));
+      [...missingInputs(state.project.graph, state.modules),...missingParameters(state.project.graph,state.modules)]);
   } catch (error) { status('runFailed', { message: error.message }, true); }
 }
 
@@ -1020,16 +1184,19 @@ function showGraphContext(selection, x, y) {
 function updateRunButton() {
   const pending = state.blocks.some(block => block.dirty);
   const missing = state.project ? missingInputs(state.project.graph, state.modules).length : 0;
+  const missingValues = state.project ? missingParameters(state.project.graph,state.modules).length : 0;
   const unavailable = state.project ? unavailableModules(state.project.graph, state.modules).length : 0;
   const unresolved = taskStore.list().some(run => matchesDraft(run, state) && ['submitting', 'submission_unknown'].includes(run.status));
-  $('run-button').disabled = state.busy || unresolved || pending || !state.project || missing > 0 || unavailable > 0;
+  $('run-button').disabled = state.busy || unresolved || pending || !state.project || missing > 0 || missingValues > 0 || unavailable > 0;
   $('run-button').title = state.busy ? t('running') : pending ? t('pending') : missing ? t('missingConnections') : '';
   if (unavailable) $('run-button').title = t('unknownModule');
+  if (missingValues) $('run-button').title = t('parameterMissing');
   if (unresolved) $('run-button').title = t('retrySubmission');
   $('check-button').disabled = state.busy || !state.project;
 }
 
 function renderAll() {
+  $('steps-input').max = String(stepLimit());
   if (!state.project) return;
   $('project-title').textContent = state.project.id + (fingerprint() !== state.saved ? ' •' : '');
   $('save-button').classList.toggle('modified', fingerprint() !== state.saved);
@@ -1049,7 +1216,7 @@ function renderAll() {
   const hasFields = state.replay?.snapshots.some(snapshot => Object.keys(snapshot.concentrations ?? {}).length);
   if (hasFields) $('result-banner').textContent = $('result-banner').textContent.replace(t('taskFramesOnly'),t('taskWithFields'));
   $('export-button').disabled = !state.replay;
-  $('population-tool').disabled = state.view !== 'space' || !availablePlaceables(state.modules,state.capabilities,state.objects).some(item => item.kind === 'population' && item.status === 'ready');
+  $('population-tool').disabled = state.view !== 'space' || !availablePlaceables(state.modules,state.capabilities,state.objects,state.project).some(item => item.kind === 'population' && item.status === 'ready');
   const transformable = state.view === 'space' && state.blocks.some(block => block.id === state.selectedBlock && !block.locked && objectForBlock(block,state.objects));
   for (const id of ['move-tool','scale-tool','rotate-tool']) $(id).disabled = !transformable;
   renderScene();
@@ -1081,7 +1248,7 @@ function setFrame(index) {
 async function executeProject(candidate) {
   if (state.busy) return false;
   const {dt_s: dt, steps} = state.settings;
-  if (!Number.isFinite(dt) || dt <= 0 || !Number.isInteger(steps) || steps < 1 || steps > 100) {
+  if (!Number.isFinite(dt) || dt <= 0 || !Number.isInteger(steps) || steps < 1 || steps > stepLimit()) {
     status('invalidControls', {}, true); return false;
   }
   stop();
@@ -1172,6 +1339,7 @@ async function loadProject(document) {
   state.modules = registry.modules; state.objects = registry.objects;
   state.activeObject = availablePlaceables(state.modules, state.capabilities, state.objects,loaded.project).find(item => item.status === 'ready')?.id ?? null;
   state.draftToken = crypto.randomUUID(); state.latestTask = null;
+  state.activeSpecies=null;
   Object.assign(state, loaded);
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);
   state.selectedBlock = loaded.blocks[0]?.id ?? null;
@@ -1199,13 +1367,13 @@ try {
       const object = availablePlaceables(state.modules,state.capabilities,state.objects,state.project).find(item => item.id === state.activeObject && item.status === 'ready' && item.kind !== 'population');
       if (!object || !state.project) return;
       edit('objectPlaced',() => {
-        state.selectedEnvironment = initializeEnvironmentObject(state.project,object,state.modules,point);
+        state.selectedEnvironment = initializeEnvironmentObject(state.project,object,state.modules,point,state.activeSpecies);
         state.selectedBlock = null;
         state.layout = autoLayout(state.project.graph,state.modules,state.layout);
       }); useTool('select');
     },
     placePopulation(point) {
-      if (!state.project || !availablePlaceables(state.modules,state.capabilities,state.objects).some(item => item.id === state.activeObject && item.kind === 'population' && item.status === 'ready')) return;
+      if (!state.project || !availablePlaceables(state.modules,state.capabilities,state.objects,state.project).some(item => item.id === state.activeObject && item.kind === 'population' && item.status === 'ready')) return;
       edit('blockPlaced', () => {
         const block = createBlock(state.project, point, state.blocks.map(item => item.id));
         block.object_type = state.activeObject;
@@ -1322,6 +1490,7 @@ $('mobile-properties').addEventListener('click', () => $('properties-tool').clic
 $('close-left').addEventListener('click', closeDocks);
 $('close-right').addEventListener('click', closeDocks);
 $('dock-backdrop').addEventListener('click', closeDocks);
+matchMedia('(min-width:961px)').addEventListener('change',event=>{if(event.matches)closeDocks();});
 document.addEventListener('click', event => { if (!event.target.closest('#context-menu')) $('context-menu').hidden = true; });
 document.addEventListener('keydown', event => {
   if (document.querySelector('dialog[open]')) return;
@@ -1356,7 +1525,7 @@ document.addEventListener('keydown', event => {
 
 for (const [id, key] of [['dt-input', 'dt_s'], ['steps-input', 'steps']]) $(id).addEventListener('change', () => {
   const value = Number($(id).value);
-  edit('updated', () => { if (!Number.isFinite(value) || value <= 0 || (key === 'steps' && (!Number.isInteger(value) || value > 100))) throw new Error(t('invalidControls')); state.settings[key] = value; });
+  edit('updated', () => { if (!Number.isFinite(value) || value <= 0 || (key === 'steps' && (!Number.isInteger(value) || value > stepLimit()))) throw new Error(t('invalidControls')); state.settings[key] = value; });
 });
 $('check-button').addEventListener('click', checkProject);
 $('log-button').addEventListener('click', () => showBottom('console'));
@@ -1368,6 +1537,16 @@ let fileWelcomeEpoch = null;
 let fileReadGeneration = 0;
 const replaceAllowed = () => !state.project || fingerprint() === state.saved || confirm(t('replaceDraft'));
 function refreshWelcome() {
+  let templates = $('welcome-templates');
+  if (!templates) { templates=el('div');templates.id='welcome-templates';$('welcome-spatial').after(templates); }
+  templates.replaceChildren();
+  for (const registry of state.registries.values()) for (const item of registry.templates ?? []) {
+    const button=el('button','start-command'); button.type='button';
+    const text=el('span'); text.append(el('strong','',item.label),el('small','',`${item.description} · ${t('exploratory')}`));
+    button.append(el('span','','◇'),text);
+    button.addEventListener('click',()=>loadWelcome(()=>kernel.request(`/api/examples/${encodeURIComponent(item.example_id)}`)));
+    templates.append(button);
+  }
   let recovery = false;
   try { recovery = Boolean(localStorage.getItem(RECOVERY_KEY)); } catch { /* storage unavailable */ }
   for (const button of $('welcome-dialog').querySelectorAll('.start-command')) button.disabled = welcomePending;
@@ -1484,6 +1663,9 @@ try {
   if (capabilities.execution_profiles?.includes('spatial-unbiased-v1')) {
     const spatialRegistry = registerCatalog(await kernel.request('/api/catalog?execution_profile=spatial-unbiased-v1'));
     state.registries.set('spatial-unbiased-v1',spatialRegistry);
+  }
+  if (capabilities.execution_profiles?.includes('chemotaxis-spatial-v1')) {
+    state.registries.set('chemotaxis-spatial-v1',registerCatalog(await kernel.request('/api/catalog?execution_profile=chemotaxis-spatial-v1')));
   }
   state.modules = registry.modules; state.objects = registry.objects;
   state.activeObject = availablePlaceables(state.modules, capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
