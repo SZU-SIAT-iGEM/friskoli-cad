@@ -1,6 +1,8 @@
 # 注册目录与工作区 0.3
 
-状态：N1 实现，2026-09-29。科学模型、异步任务服务和插件安装仍按后续阶段交付。
+本页保留 2026-09-29 N1 注册目录与 Workspace 0.3 的合同说明。**当前实施更新（2026-10-01）：** N2 [异步任务服务](task-service.md)、N3 [保守 PTS 链](protocol/pts-bulk-profile.md)及[空间 profile](protocol/spatial-profile.md)均已交付；M4 提供独立的 [checkpoint 文件与 CLI](checkpoint-files.md)。插件安装、完整趋化反馈及任务暂停/续算仍未开放。
+
+当前按 execution profile 分别提供 Catalog 0.1/0.2/0.3、Project 0.1–0.4 与 Task 0.1/0.2/0.3；具体支持组合由 capabilities 公布。下方 N1 版本表记录原阶段合同，不代表当前服务只有这些版本。
 
 ## 现在可以怎么使用
 
@@ -8,9 +10,9 @@
 
 也可以新建项目，在 Space 放置菌群块、设置数量/长度/直径/位置/体积/种子并点击“散布”。散布后生成稳定群组以及初始化、几何读取节点。这整个操作可撤销/重做。数据节点默认折叠，点击 + 展开端口；折叠状态、节点位置、对象类型和自动关联随工作区保存。重复散布不会重复添加读取节点；主动删除过的读取节点不会被悄悄补回。
 
-未计算的放置块仍是编辑输入，标为待散布，运行按钮会禁用。当前散布检查外廓和数量，但不保证菌体之间无重叠；碰撞与严格放置属于 N6。
+未计算的放置块仍是编辑输入，标为待散布，运行按钮会禁用。散布与运行检查按当前 profile 执行；`spatial-unbiased-v1` 已检查胶囊与墙、障碍及其他胶囊的接触，初始重叠会被拒绝。旧 profile 保持原先的空间语义，不能据此宣称已有相同碰撞能力。
 
-## 合同与版本
+## N1 原阶段合同与版本
 
 | 合同 | 本次状态 |
 | --- | --- |
@@ -19,11 +21,13 @@
 | Project 0.1.0 / 0.2.0 | 不自动升版，不更换参数或模块版本 |
 | Workspace 0.3.0 | 新保存格式；可读旧 0.1/0.2，新增对象关联和数据节点折叠 |
 | API 0.2.0 | 保留同步接口，capabilities 增加 catalog/workspace 支持列表 |
-| Task 0.1.0-draft.1 | [N2 草案](protocol/task-contract.md)，当前未实现 |
+| Task 0.1.0-draft.1 | N1 当时仅有草案；现已由 [N2 稳定合同 0.1.0](protocol/task-contract.md)及后续 profile 合同实现 |
 
-Catalog 内含原样 manifest、与执行实现核对过的说明 entries，以及对象 objects。条目声明 category、端口 shape/quantity/unit/entity、CPU 能力、world_access、数学/算法说明与证据引用。每条连接的 same_step/previous_step 仍由 Graph 明确记录；catalog 不重新解释它。execution_semantics 固定为 legacy-explicit-v1。
+Catalog 内含原样 manifest、与执行实现核对过的说明 entries，以及对象 objects。条目声明 category、端口 shape/quantity/unit/entity、CPU 能力、world_access、数学/算法说明与证据引用。每条连接的 same_step/previous_step 仍由 Graph 明确记录；catalog 不重新解释它。N1 Catalog 0.1 的 execution_semantics 为 `legacy-explicit-v1`；PTS 与空间 catalog 各自使用独立 profile，不修改旧图的语义。
 
 前端只支持已实现的 initializer adapter。N1 的 adapter 是 population.block@1；它消费后端声明的对象类型、属性字段和初始化/数据模块引用。新增同类对象或已受支持形状的计算模块无需改前端 ID 名单。新几何类别或新初始化算法仍需实现相应 adapter，未知 adapter 显示不可用。这里没有插件热加载、任意脚本执行或插件安装入口。
+
+空间 Catalog 0.3 另提供 `environment.node@1`，已登记轴对齐障碍、有限局部源及可降解材料盒。材料放置会检查并关联声明了 `material.degradation` role 的机制；对象是否可放置仍由当前 catalog 与 adapter 决定。纤维、MCP 和营养耦合生长没有因此实现，空间 profile 也不执行外部输入日程或分裂。
 
 ## 文件职责
 
@@ -60,5 +64,5 @@ LaTeX 使用固定版本 KaTeX 0.18.9 离线渲染，资源与 MIT 许可证随�
 
 - Python：目录完整性/引用、只读权限与源码声明、球极限、非均匀场采样、错误位置、旧帧逐值回归、HTTP 目录和离线资源。
 - JavaScript：动态登记、unsupported adapter、原子初始化、撤销/重做快照、保存重开、手改图不覆盖、未知模块、旧格式报告、离线 LaTeX。
-- 新 workspace Schema 与已有 Project 引用一起验证；N2 任务草案只测结构与正反例。
-- 浏览器与安装包的本轮实测结果见 PROGRESS；未执行的设备或操作不视为通过。
+- N1 当时将新 workspace Schema 与已有 Project 引用一起验证，Task 草案只测结构与正反例；后续真实 worker、任务取消及恢复查询见 [N2 验收](verification-n2.md)，空间与 M4 验收分别见[空间记录](verification-spatial.md)和[M4 记录](verification-m4.md)。
+- 最新源码与安装包验证见 [PROGRESS](../PROGRESS.md)；未执行的设备或操作不视为通过。

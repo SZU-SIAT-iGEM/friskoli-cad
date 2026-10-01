@@ -1,6 +1,8 @@
 # 数值运行与模块库规划
 
-状态：目标设计及现有能力分类。本轮不改变求解结果，没有提供实验数据的参数保持未知。文中不设置未经验证的菌株常数、阈值或性能承诺。
+状态：2026-09-29 目标设计，2026-10-01 更新实现分类。当前已实现固定种群 PTS、空间无偏运动/接触降解基线和 M4 保存恢复；本次文档更新不改变求解结果。没有实验依据的构造参数不视为已标定值，未提供的数据保持未知。
+
+2026-10-01 实施注记：legacy 使用 Project 0.1/0.2 与 Catalog/Task 0.1；`conservative-pts-bulk-v1` 使用 Project 0.3 与 Catalog/Task 0.2；`spatial-unbiased-v1` 使用 Project 0.4 与 Catalog/Task 0.3。下文通用生长、生命周期、日程和耦合求解设计不代表这些能力已经进入空间 profile；其当前执行顺序见[空间基线](../science/spatial-baseline.md)。
 
 ## 1. 模块的粒度
 
@@ -45,9 +47,11 @@ u 为单位长轴方向，中心到边界距离至少为半个 axis_extent。选
 
 ## 4. 时间推进与旧语义
 
-现有显式路线用旧通量推进环境，新位置刷新下一段采样/通量，分裂后有刷新规则。迁移时标识 legacy execution semantics 并保留回归；不能在旧项目上悄悄改时序。
+legacy 显式路线用旧通量推进环境，新位置刷新下一段采样/通量，分裂后有刷新规则。其语义继续由 `legacy-explicit-v1` 保留，不能在旧项目上悄悄改时序。
 
-新版本建议以保守显式分步法建立一个独立、可验证的 reference profile：
+当前固定 PTS 和空间 profile 已采用各自版本化的保守执行顺序。空间步按步初场生成 PTS 请求，结算接触降解和有限源释放，推进稳定扩散子步及共享摄取，再推进信号和无偏运动，最后一次提交。碰撞拒绝的运动区间保留区间起始姿态；其他数值或帧验证失败时，整步状态和 RNG 回滚。信号尚不驱动运动。
+
+以下保留更完整 reference profile 的目标步骤；外部日程、运动与生长耦合、生命周期及自适应重试仍需独立实现，不能套用为当前空间步的执行描述：
 
 1. 保存 t_n 已提交状态与 RNG；时间步不得跨越未处理的日程边界。
 2. 在时间边界施加外部事件，形成该步初始场和状态。
@@ -83,26 +87,31 @@ u 为单位长轴方向，中心到边界距离至少为半个 axis_extent。选
 
 ## 7. 基础模块库
 
-下表的“已有”来自当前 manifests/文档；“计划”尚未实现，本轮没有新增运行模块。
+下表按 2026-10-01 实现更新。各 profile 只接收自己的模块集合，不能把 legacy 的生长/分裂或日程模块接入空间 profile。数值参考机制通过测试不等于实验标定。
 
 | 类别 | 已有实现 | 计划补充及最小验证 |
 | --- | --- | --- |
 | 初始化 | `population.static`、固定 seed 散布 | 身份/几何提供者；同输入可复现、非法放置拒绝 |
-| 几何读取 | 胶囊状态、薄层检查 | 面积/体积/外廓/距离；球极限和未知值 |
-| 场库存 | `field.local_inventory`、`field.ideal_reservoir` | 初始分布、局部边界；有限与无限库存账 |
-| 输运 | `field.diffusion_no_flux` | 平流、其他边界另立算子；质量与收敛 |
-| 空间耦合 | `field.sample_*`、`field.deposit_*` | 梯度采样、表面/体场映射；线性场和匹配权重 |
-| 外部输入 | `source.scheduled_uniform_rate` | 局部源、脉冲、有限释放；事件时刻与库存 |
-| 摄取 | `uptake.linear` | 有依据的转运律、PTS 接口；接受通量一致 |
+| 几何读取 | legacy `geometry.capsule_readout`；PTS/空间 `pts.capsule_area`、两种容量规则 | 更完整几何与膜材料耦合；适用域和材料账 |
+| 场库存 | legacy 的局部/理想库存；PTS `bulk.finite_uniform`；空间 `field.diffusive_local` | 其他初始化与边界；不同机制分别验证守恒 |
+| 输运 | legacy 无通量扩散；空间带阻挡的局部扩散及稳定子步 | 平流、其他边界另立算子；质量与收敛 |
+| 空间耦合 | legacy 采样/沉积；空间 `field.sample_local` 的局部浓度与梯度 | 表面/体场映射及更高阶支持；线性场与匹配权重 |
+| 外部输入 | legacy `source.scheduled_uniform_rate`；空间 `source.finite_local` 有限局部释放 | 空间 controls/脉冲日程尚不支持；需事件时刻与库存验收 |
+| 摄取与信号 | legacy `uptake.linear`；PTS 请求、共享结算、胞内累计与 `signal.pts_accepted` | M5 信号驱动运动、MCP 感知/适应与独立对照 |
 | 控制/转换 | 图可表达延迟连接 | 单位转换、广播、delay、filter、持续阈值；初值/单位/作用域 |
-| 运动 | `motion.periodic_turn`、`motion.reflective_run` | 随机 run/tumble、受体映射；统计和边界对照 |
-| 生长/分裂 | `growth.linear_elongation`、`division.length_adder` | 营养/材料耦合；守恒、受阻与继承 |
-| 接触/表面 | 尚未完成 | 简单障碍、接触、表面酶、黏附脱附；不穿透与资源账 |
+| 运动 | legacy 定时转向/反射；空间 `motion.unbiased_run_tumble`、独立 RNG、碰撞保护 | 受体/信号到运动的映射；统计与趋化对照 |
+| 生长/分裂 | legacy `growth.linear_elongation`、`division.length_adder`；PTS/空间保持固定种群 | 营养/材料耦合；守恒、受阻与继承 |
+| 接触/表面 | 空间实体盒障碍、材料盒、接触降解与表面酶；耗尽后移除阻挡 | 连续侵蚀、接触力、黏附脱附等另行建模 |
+| 状态恢复 | M4 空间 checkpoint 文件、Python/CLI 恢复、严格版本锁及失败回滚 | N7 任务 pause/resume、环境迁移和新增机制状态映射 |
 | 生命周期 | 帧协议可表达事件 | 能量储备、死亡、残体；模型规则可追溯 |
 | 统计 | 数量曲线、逐帧数据表 | 到达、富集、停留、转化、谱系、守恒监视；手算小例子 |
 | 设计比较 | 尚未完成 | 候选枚举、对照、重复、扫描与敏感性；预算和指标定义 |
 
 候选生成、参数扫描和比较属于应用服务，不需要放在每个细胞每一步的机制图中。分析图可独立。先按真实 Friskoli 案例补齐所需基础模块，避免为凑库实现大量闲置功能。
+
+空间 Catalog 0.3 当前共 14 个模块：`pts.capsule_area`、`pts.capacity_rebuilt`、`pts.capacity_simplified`、`uptake.pts_request`、`signal.pts_accepted`、`space.axis_aligned_obstacle`、`source.finite_local`、`material.degradable_box`、`reaction.contact_degradation`、`surface.enzyme_activity`、`field.diffusive_local`、`field.sample_local`、`uptake.local_settlement`、`motion.unbiased_run_tumble`，版本均为 `1.0.0`。它们与固定 PTS 的 8 个模块集合分别登记。
+
+M4 [checkpoint 文件](../checkpoint-files.md)的外层格式为 `0.1.0`，内部为 `spatial-checkpoint/v2`，记录最新已提交状态而非整条历史轨迹。固定实体 ID、剩余随机事件时钟、RNG、场/有限来源/材料库存、动态掩码、模块状态和账本均随保存恢复。当前没有外部日程、出生/死亡事件或可变实体 ID；这些能力不能用空状态声称已经支持。可复现与回滚的实际检查见 [M4 验收](../verification-m4.md)，不将其当作科学标定。
 
 ## 8. 首个 Friskoli 科学包
 

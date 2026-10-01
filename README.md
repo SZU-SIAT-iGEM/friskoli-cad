@@ -20,6 +20,8 @@ Workflow 节点现由名称/ID、端口、参数摘要、数学式和状态组�
 
 **N3 空间基线：** `spatial-unbiased-v1` 使用 Project 0.4 / Catalog 0.3 / Task 0.3，注册障碍物、可降解底物和引诱物源。底物放置自动生成有删除约束的全局降解机制；显式表面酶与接触范围限制降解，产物和直接来源进入同一养分场，供 PTS 感知与摄取。胶囊检查胞体、器壁和实体碰撞，无偏 run/tumble 保存独立 RNG 和事件时钟；失败步骤整体回滚。浓度热图与耗尽材料显示由真实结果驱动。见[科学语义与限制](docs/science/spatial-baseline.md)、[版本化协议](docs/protocol/spatial-profile.md)和[本阶段验收](docs/verification-spatial.md)。Python checkpoint 仅面向本执行规则；任务暂停续算、信号驱动运动、MCP 独立引诱物对照与实验标定仍待后续。
 
+**M4 状态保存与恢复：** 空间运行可保存为包含冻结项目和完整状态的 JSON 文件，在新进程继续计算。新增 `python -m friskoli_cad.checkpoint` 入口、原子文件保存、严格恢复校验；失败重试保持原有 RNG 与时钟，保存帧间隔不改变计算。使用方法及状态范围见 [checkpoint 文件](docs/checkpoint-files.md)，验证结果见 [M4 验收](docs/verification-m4.md)。下一步是 M5 信号—运动与 PTS/MCP 对照；任务服务的暂停/续算继续属于 N7。
+
 启动窗口现采用紧凑命令列表，与工作区共用控件风格；关闭、恢复、导入错误与迟到请求处理已修正。浏览器交互、四尺寸与中英文检查见[启动界面验收](docs/verification-startup-ui.md)，其中明确列出实体设备等未测项。
 
 两份真实科学模型的首轮审查、确定缺陷修订与有出处的 Wiki 草稿已完成，阅读入口和独立源码仓库提交见[科学模型审查总览](docs/science/README.md)。N3 只迁入上述最小计算链，并保存来源提交和文件指纹；两套完整 ABM、参数标定与实验验证尚未交付。

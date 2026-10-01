@@ -47,6 +47,8 @@ PTS 示例只使用一个可溶物种 `nutrient`。实体底物降解后释放�
 
 Python 运行器有版本锁定的 JSON checkpoint，保存完整 RNG 与可恢复状态；任务服务仍未开放 pause/resume。前端保存的设计文件是初始条件，任务 frozen input 是本次运行的输入，两者均不能冒充运行中间态。
 
+2026-10-01 的 M4 增量提供[自包含文件及命令行恢复](../checkpoint-files.md)，并补齐帧检查器、最后一步碰撞诊断与库存账本一致性检查。连续/保存恢复、失败重试和输出帧频率的实际验收见 [M4 记录](../verification-m4.md)。当前固定种群不含外部日程或出生/死亡事件；这些能力后续接入时必须扩展完整状态映射。
+
 ## PTS 与 MCP 的后续对照
 
 PTS 案例关注有限养分的来源、实际摄取与信号。摄取率和信号相关有实验研究依据，但本项目当前采用的现象学 EI/CheA/CheY 方程及构造参数不因此成为已标定模型。[Somavanshi 等，2016，Sugar Influx Sensing by the Phosphotransferase System of Escherichia coli](https://journals.plos.org/plosbiology/article?id=10.1371/journal.pbio.2000074)。

@@ -1,6 +1,6 @@
 # Friskoli-CAD 工程设计总纲
 
-日期：2026-09-29。状态：**分阶段实施中；N0 文档已提交，N1 已实现注册目录与最小贯通流程**。总体目标仍为工程设计；已实现功能、实际验证和限制以 [PROGRESS](../../PROGRESS.md) 与[注册目录说明](../registry-contract.md)为准。异步任务合同为草案，不能当成已运行服务。
+初稿：2026-09-29；当前状态更新：2026-10-01。**N0–N2、N3 M0–M4 及空间无偏基线已实现，下一项为 M5 信号—运动与对照。**总体目标仍为工程设计，完整候选比较、原生设计包和标准发布尚未完成。实际功能、验证与限制见 [PROGRESS](../../PROGRESS.md)，当前顺序见[开发安排](../development-order.md)。
 
 ## 产品目标
 
@@ -23,7 +23,7 @@
 | 文档 | 解决的问题 |
 | --- | --- |
 | [产品与交互](product-and-interaction.md) | 启动方式、三工作区、设计比较、对象与图联动、多端交互 |
-| [专业工具界面参考](professional-ui-reference.md) | 用户截图研究、紧凑启动窗口、面板与控件的一致性；待实施 |
+| [专业工具界面参考](professional-ui-reference.md) | 用户截图研究、已完成的启动窗口/节点组件首轮改进及后续多端检查 |
 | [架构与文件结构](architecture-and-packages.md) | 状态所有权、依赖方向、目标目录、现有文件迁移 |
 | [协议与执行](contracts-and-execution.md) | 端口、注册、版本、编译、运行任务、帧与诊断结构 |
 | [数值与模块库](numerics-and-modules.md) | 时间推进、守恒、几何、约束、科学模块与性能边界 |
@@ -33,14 +33,14 @@
 
 ## 当前基线与适用顺序
 
-N0 规划时的基线分支为 `feat/protocol-replay-ui`、提交为 `d9c9713`；父提交 `25c5e58` 完成首版可编辑工作区。该次检查前工作区干净，历史验收为 Python 91 项、JavaScript 14 项。N0 只修改文档。随后在 `feat/registry-contracts` 实施 N1；本轮 Python 119 项、JavaScript 20 项测试通过，浏览器和安装包的检查方式及限制分别见[界面验证](../verification-n1-ui.md)与[安装包验证](../verification-n1-package.md)。未完成实体设备实测。
+N0 规划时的基线分支为 `feat/protocol-replay-ui`、提交为 `d9c9713`；父提交 `25c5e58` 完成首版可编辑工作区。该阶段验收为 Python 91 项、JavaScript 14 项。随后在 `feat/registry-contracts` 实施 N1–N3；各阶段验收分别保存，不能把早期数量当作当前完整测试结果。最新检查见 [M4 验收](../verification-m4.md)，浏览器与实体设备的限制仍按对应阶段记录。
 
-当前真实能力和格式以 [PROGRESS](../../PROGRESS.md)与[注册目录说明](../registry-contract.md)为准。N1 新增 Catalog `0.1.0`、工作区保存格式 `0.3.0`，并读取旧工作区 `0.1/0.2`。连接协议 `0.1.0`、项目 `0.1.0/0.2.0`、Local API `0.2.0` 保持原合同；[Workspace/API 0.2](../workspace-protocol-0.2.md)保留历史说明。
+工作区保存格式为 `0.3.0`，读取旧工作区 `0.1/0.2`；共享连接协议仍为 `0.1.0`。不同执行规则独立版本化：legacy 使用 Catalog/Task 0.1，固定 PTS 使用 Project 0.3 / Catalog/Task 0.2，空间无偏使用 Project 0.4 / Catalog/Task 0.3。详见[任务服务](../task-service.md)、[PTS profile](../protocol/pts-bulk-profile.md)与[空间 profile](../protocol/spatial-profile.md)。M4 [checkpoint 文件](../checkpoint-files.md)有独立格式，不替代设计文件或任务结果。
 
 本提案整合 `D:/Wu Shangru/Documents/WIKI/Friskoli-CAD.md`、`D:/Wu Shangru/Documents/WIKI/CAD.md` 和 2026-09-29 的用户描述。两份 WIKI 原文保持不变；其中的周期估计、功能设想与示例参数属于需求材料，不视为经过验证的技术事实。与旧路线冲突时，未来工作的优先级采用本设计集；旧文档保留已交付版本的行为说明。
 
 ## 下一项实际实现
 
-[N1](roadmap-and-acceptance.md#n1-类型合同与注册目录纵向样例) 已实现菌群、胶囊几何读取与浓度采样的注册目录、初始化、图绑定、公式说明与保存。[异步任务合同](../protocol/task-contract.md)目前为可校验草案，尚无对应任务服务。
+[N1](roadmap-and-acceptance.md#n1-类型合同与注册目录纵向样例) 注册目录、启动窗口首轮统一与 [N2 异步任务](../task-service.md)均已实现。N3 已具备有限养分、接受摄取信号、空间碰撞、无偏运动和完整状态恢复；motor bias 仍未控制运动。
 
-下一步先按用户新增的[专业工具界面参考](professional-ui-reference.md)改造启动窗口，再统一控件与面板，并分别验收；随后进入 N2 异步运行与状态管理。当前欢迎页的视觉尚未改造，功能测试通过不代表风格验收完成。目录按真实实现逐步调整，不预建整套空目录或批量移动未经迁移验证的代码。
+下一步按[开发安排的 M5 待办](../development-order.md#下一项m5)接信号—运动与感知/适应，分别建立 PTS、MCP 和无趋化对照，完成多 seed 指标与数值敏感性。任务级暂停续算和环境迁移继续留在 N7。界面、协议、数值与科学分别验收，目录随真实实现调整。

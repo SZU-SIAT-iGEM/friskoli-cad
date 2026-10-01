@@ -1,21 +1,27 @@
 # 协议与执行设计
 
-状态：工程草案。以下字段、路径和版本标签用于目标合同设计，**不能直接提交给当前 API，不表示生产 Schema 已升级**。N1 将它们转换成机器 Schema、正反样例和迁移测试。
+状态：2026-09-29 目标设计，2026-10-01 补充实施状态。N1 注册目录、N2 异步任务、N3 固定种群 PTS、空间无偏基线与 M4 checkpoint 已有实现。本文保留的扩展字段和示例草案不能直接提交给当前 API；实际请求以已发布 Schema 和各 profile 合同为准。
+
+2026-10-01 实施注记：M4 已提供[独立 checkpoint 文件与 CLI](../checkpoint-files.md)，外层 `checkpoint_file_version: 0.1.0` 包含冻结 Project 0.4 和内部 `spatial-checkpoint/v2`。它恢复独立空间运行；任务 pause/resume 与运行中环境迁移仍属于 N7。当前空间 profile 不含生长、分裂、死亡或外部 controls。
 
 ## 1. 协议族与兼容边界
 
 | 合同族 | 当前基线 | 下一步设计 |
 | --- | --- | --- |
 | 模块/图 | `protocol_version: 0.1.0` | 类型作用域、数学说明、读写集、实体对齐、求解语义，需要独立的新合同版本 |
-| Project | `project_version: 0.1.0/0.2.0` | 设计目标、对象实例、场初始化、机制图、观测及依赖锁 |
-| Workspace | `workspace_format_version: 0.2.0` | 不完整草稿与 UI 状态，语义数据与布局分离 |
-| Local API | `api_version: 0.2.0` | 能力协商、诊断集合、任务资源；同步 replay 保留受限兼容 |
-| Run metadata | 当前共享 `0.1.0` | 任务合同独立版本化，不与图协议混用 |
-| Frame/Replay/Result | Frame `0.1.0/0.2.0`、Replay/Result `0.1.0` | 分块、完整性、序号、字段与网格描述 |
+| Project | legacy `0.1.0/0.2.0`；固定 PTS `0.3.0`；空间 `0.4.0` | 设计目标、候选与更完整的机制/观测合同 |
+| Catalog / Task | legacy `0.1.0`；固定 PTS `0.2.0`；空间 `0.3.0` | 按 profile 精确协商，不把新版本应用到所有旧项目 |
+| Workspace | `workspace_format_version: 0.3.0`，兼容读取旧 `0.1/0.2` | 更完整的设计草稿与视图状态分离 |
+| Local API | 顶层 `api_version: 0.2.0`；已实现独立任务合同 | 更完整的诊断集合与能力扩展；同步 replay 保留受限兼容 |
+| Run metadata | 当前共享 `0.1.0` | 与已有独立 Task 合同继续分别版本化 |
+| Frame/Replay/Result | Frame `0.1.0/0.2.0`、Replay/Result `0.1.0`；任务已有完整帧分块，空间 Task 0.3 含场与库存 | 二进制数组、增量帧等另立合同 |
+| Checkpoint 文件 / 数值状态 | 文件 `0.1.0` / `spatial-checkpoint/v2`，仅空间 profile | 其他 profile 的状态合同与 N7 服务续算另行验收 |
 | Package / Plugin | 尚无完整安装合同 | 清单、依赖、实现与数据版本分别声明 |
-| Execution semantics | 现有显式时序 | 明写积分策略，旧运行不自动改义 |
+| Execution semantics | legacy、固定 PTS、空间三个独立 profile | 新机制明确积分策略，旧运行不自动改义 |
 
 现有多个 Schema 使用 `additionalProperties: false`，所以新增可选 metadata 也需要新版本或外置 sidecar，不能直接塞入旧合同。兼容使用 reader/adapter；旧结果按旧语义播放，不重新计算。旧模块无法证明的信息标 unknown，不宣称支持碰撞、GPU 或 checkpoint。改变方程、离散时序、随机过程或继承规则时，升级相应实现/执行语义版本。
+
+当前对应关系见[固定 PTS 合同](../protocol/pts-bulk-profile.md)、[空间合同](../protocol/spatial-profile.md)与[任务服务](../task-service.md)。空间 Task 0.3 已传输真实浓度场和有限对象库存，旧 Task 0.1/0.2 的输出约束保持不变。
 
 ## 2. 注册项合同
 
@@ -132,13 +138,15 @@ Same-step 依赖须可排序；代数环仅允许存在于声明收敛策略的�
 接受 → queued → running → completed
                  ├── failed
 queued → cancelled
-running → cancelling → cancelled（停于已提交步边界）
+running（cancel_requested=true）→ cancelled
 服务中断 → interrupted（保留 partial，重启后可查询）
 ```
 
-排队取消立即结束，运行取消在安全边界生效。完成与取消竞争以事务写入的终态为准；已完成结果不被后来取消抹除。worker 超时终止仅保留已提交块。
+排队取消立即结束；运行取消先设置 `cancel_requested=true`，没有独立 `cancelling` 状态。worker 在安全边界处理取消；强制终止时仅保留已公布的完整块。完成与取消竞争以事务写入的终态为准，已完成结果不被后来取消抹除。
 
-| 目标方法/路径 | 合同 |
+下表保留目标接口分工；其中 `/api/runs` 生命周期、幂等、取消、事件与结果块已实现。当前注册目录入口为 `GET /api/catalog`（可按 `execution_profile` 查询），没有 `/api/registry` 路由；`/api/validate` 的实际能力也须按已发布合同读取，不能据本草案假定全部多阶段检查都已开放。
+
+| 方法/路径或目标 | 合同 |
 | --- | --- |
 | `GET /api/capabilities` | 模式、合同版本、后端、资源限制、特性和 registry revision |
 | `GET /api/registry` | 按类别读取目录，完整清单可独立取得 |
@@ -152,17 +160,17 @@ running → cancelling → cancelled（停于已提交步边界）
 
 同键不同请求返回 409；幂等记录与任务绑定，过期/清理策略公开。初版状态轮询与游标拉取足够，验证断线查询后再按需加入 SSE。恢复连接只是查回任务，不代表恢复求解。
 
-checkpoint 需含模块状态、RNG、时钟、场/几何、ID 分配器、待发事件、日程位置和版本锁，并通过中断/不中断对照。暂停、续算是后续能力；未实现时禁用，不用播放暂停冒充。
+通用 checkpoint 目标需覆盖模块状态、RNG、时钟、场/几何、ID 分配器、待发事件、日程位置和版本锁，并通过中断/不中断对照。M4 已在固定种群空间 profile 保存全部现存状态，包括独立 RNG、剩余 tumble 时钟、动态阻挡、账本、帧检查器和最后一步碰撞诊断；该 profile 没有可变 ID 分配、生命周期事件或外部日程，非空 controls 在运行前拒绝。连续 50 步与保存 20 步后恢复 30 步及失败回滚的验证见 [M4 验收](../verification-m4.md)。任务服务的 pause/resume/checkpoint 能力仍为 false，播放暂停不改变求解状态。
 
 ## 8. Hash、修订与结果发布
 
 服务端计算可执行科学输入 hash，覆盖算法版本、参数、初始化、依赖锁、积分策略、seed 和输出计划；不含相机/面板。另存原提交文档 hash 和 edit revision。相同 hash 不保证不同硬件位级一致，还需记录库、实际 backend、精度和 RNG。
 
-规范化算法/版本须固定，明确 Unicode、数字、数组顺序、缺值和非有限值；前端以服务端 hash 为准，不能把当前 Python JSON 序列化冒充跨语言规范。
+规范化算法/版本须固定，明确 Unicode、数字、数组顺序、缺值和非有限值；前端以服务端 hash 为准。现有任务与 M4 文件摘要已使用 RFC 8785，严格拒绝重复 JSON 键及非法数值；文件实际写出的 JSON 字面量与计算摘要的规范化过程分别处理。
 
 结果 manifest 保存 run ID、输入/plan/registry hash、实际实现、seed、状态/完整性、模拟时间范围、帧/场/事件索引、指标定义、诊断与证据。帧声明 sequence、step index、time、grid revision、entity IDs；数组附 shape、dtype、轴序、单位、坐标、压缩和 checksum。
 
-初版全量关键帧分块保存，增量帧以后另立版本。JSON 保存清单和小数据；大数组选择已验证二进制容器（第一步可用无 pickle 的 NumPy 数组），浏览器传输附 typed-array 描述。先提交完整数值步，再写临时块并原子发布索引；完整 manifest 写成功后才标 completed。失败记录仍可为 partial，不进入默认设计比较。
+现有任务以 JSON 完整帧分块保存，先完成数值步，再写临时块并原子公布索引，完整 manifest 发布后才标 completed；失败记录可为 partial。空间 Task 0.3 的浓度数组也在 JSON 帧块中。大数组二进制容器、typed-array 传输及增量帧是后续目标，须分别验证和版本化，不能视为当前已支持。
 
 ## 9. 环境替换
 

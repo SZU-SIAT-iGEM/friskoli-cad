@@ -8,6 +8,11 @@
 `capabilities.task_profiles` 单独公布，按项目精确选择版本和锁。详见[新 profile](protocol/pts-bulk-profile.md)
 与[混合版本 OpenAPI](protocol/tasks-openapi-v0.2.json)；以下任务生命周期同样适用。
 
+当前还支持 `spatial-unbiased-v1` 的 Task 0.3，传输真实浓度场及有限对象库存，详见
+[空间 profile](protocol/spatial-profile.md)与[OpenAPI 0.3](protocol/tasks-openapi-v0.3.json)。
+M4 新增的 [checkpoint 文件与 CLI](checkpoint-files.md)恢复独立数值运行，不续接服务中的任务；
+服务能力中的 pause/resume/checkpoint 仍为 false，已中断任务仍保留 interrupted 状态。
+
 ## 启动与存放位置
 
 安装项目依赖后，从仓库根目录启动：
@@ -39,13 +44,13 @@ python -m friskoli_cad.replay_service --port 8765 --task-dir 'D:/Friskoli-runs'
 6. 浏览器保存有界的任务记录。重新打开时按任务 ID 查询；未知提交结果使用原键与原内容重试，超过幂等保留窗口不自动提交。
 
 断线恢复指恢复查询。服务重启时，旧 queued/running 任务标为 interrupted，并保留已公布的帧；
-当前不支持暂停、checkpoint 或从中断步骤继续计算。回放的播放/暂停只控制观看时间轴。
+任务 API 当前不支持暂停、生成 checkpoint 或从中断步骤继续计算；独立 Python 运行可使用 M4 文件入口保存恢复。回放的播放/暂停只控制观看时间轴。
 
 ## 输出边界
 
-N2 合同仅传递既有单菌体 frame，`include_fields` 固定为 false；异步 Results 不包含
-浓度场体素数组，也不据此生成空间热力图。前端明确提示这一点。旧同步 `/api/replay`
-仍返回其原有浓度场。场输出需要独立的版本化合同，不能将缺失数组填成零。
+Task 0.1/0.2 仅传递既有单菌体 frame，`include_fields` 固定为 false，其 Results 不生成
+缺少数值数组的空间热力图。空间 Task 0.3 可设置 true，输出真实浓度数组，并始终输出有限对象库存；
+前端按精确协商结果显示。旧同步 `/api/replay` 仍返回其支持的浓度场，不能将任何缺失数组填成零。
 
 块内容先写入临时文件并同步，再原子重命名；随后通过 SQLite 事务公布索引、事件、
 已提交步与状态。浏览器读取每块时验证字节数和 SHA-256，未公布的文件没有查询入口。
@@ -53,8 +58,9 @@ N2 合同仅传递既有单菌体 frame，`include_fields` 固定为 false；异
 Project.run.run_id 保留原值，仍用于既有 frame 关联。
 
 前端逐步保存帧，保留分裂等连续谱系事件。API 的降采样仅用于服务能够保证事件完整性的图；
-无法保留谱系的组合在接受任务前拒绝。最后一步始终输出。当前记录 seed，但已接入模块
-本身为确定性计算，provenance 明确 `rng.used=false`，不会把无随机机制声称为随机重复。
+无法保留谱系的组合在接受任务前拒绝。最后一步始终输出。legacy 和固定 PTS 的确定性模块记录
+`rng.used=false`；空间 profile 记录实际 execution seed、固定 RNG 算法，以及是否存在使用随机事件的非空菌群。
+不能把无随机机制声称为随机重复，也不能把保存帧间隔用作数值步长。
 
 ## 资源与错误
 

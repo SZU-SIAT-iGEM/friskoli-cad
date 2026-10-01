@@ -14,6 +14,8 @@ Complete chunks retain atomic publication and SHA-256 integrity checks; requeste
 
 `capabilities.task` retains the legacy task contract; `capabilities.task_profiles["spatial-unbiased-v1"]` advertises the new contract. Task pause, resume and checkpoint capabilities remain false. Python simulation checkpoint support does not imply a persisted service continuation API. Common errors use the explicit Task 0.1.0 Error reference. See [OpenAPI 0.3](tasks-openapi-v0.3.json).
 
+The separate [checkpoint file API and CLI](../checkpoint-files.md) wrap the frozen project and numerical checkpoint in a self-contained, bounded JSON document. This M4 entry point restores an independent simulation, preserving the actual execution seed and committed clock; it does not change the server task state machine or import checkpoint files through the project editor.
+
 
 ## Solid material and degradation
 

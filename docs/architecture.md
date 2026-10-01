@@ -27,4 +27,4 @@
 
 ## 仓库职责
 
-后续按实际实现建立 `protocol/`、`engine/`、`server/`、`web/`、`examples/` 与 `tests/`。每个目录只保存交付所需的内容。原型、实验数据和旧引擎继续留在各自目录；迁入通过 `CONTRIBUTING.md` 的检查。
+2026-10-01 当前代码位于 `src/friskoli_cad/`：`protocol/` 保存合同与校验，`engine/` 保存编译和数值状态，`science/` 保存选定科学方程及证据，`tasks/` 管理持久异步任务，`web/` 与 `examples/` 是随包资源。HTTP 入口仍为 `replay_service.py`，M4 命令行入口为 `checkpoint.py`，没有为目标架构额外建立空的 `server/` 目录。仓库根部 `tests/` 与 `examples/` 保存验证和开发示例。原型、实验数据和旧引擎留在各自目录；迁入通过 `CONTRIBUTING.md` 的检查。

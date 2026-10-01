@@ -1,6 +1,10 @@
 # 架构、状态与文件结构
 
-状态：目标结构；按职责迁移，不在本轮移动源码。架构选择是保留 Python/NumPy、现有 ES modules 与 Three.js，先解决合同与状态边界。
+状态：2026-09-29 目标结构，2026-10-01 补充实施状态。本次只更新文档，不移动源码。架构继续使用 Python/NumPy、ES modules 与 Three.js；下文分层及目标目录不等于当前物理文件布局。
+
+2026-10-01 实施注记：注册目录、异步任务 worker/SQLite 存储、固定 PTS 和空间执行器已分别落在 `registry.py`、`tasks/` 与 `engine/`。M4 增加 `engine/checkpoint_io.py` 和 `checkpoint.py` 的独立文件/CLI 入口，外层文件 0.1.0 包装冻结 Project 0.4 与内部 `spatial-checkpoint/v2`。当前没有通用 `application/`、`server/` 或 `plugin_api/` 层；图中的职责划分仍是演进目标。
+
+执行合同按 profile 分开：legacy 为 Project 0.1/0.2、Catalog/Task 0.1；固定 PTS 为 Project 0.3、Catalog/Task 0.2；空间为 Project 0.4、Catalog/Task 0.3。M4 不改变任务状态机，任务 pause/resume 和运行中环境迁移仍在 N7；空间 profile 不支持生长、分裂、死亡或外部 controls。实际状态见[空间合同](../protocol/spatial-profile.md)和[checkpoint 文件](../checkpoint-files.md)。
 
 ## 1. 四类职责及依赖
 
@@ -35,7 +39,7 @@ flowchart TD
 | RunSubmission / Run | 不可变输入、执行设置、任务状态、结果引用 | 不回写正在编辑的草稿 |
 | Result / Report | 已提交帧、指标、事件、日志、来源和完整性 | 不自行推算缺失的科学结果 |
 
-第一版把 ExperimentSpec 嵌在单一项目文档中即可，不必为了名字拆成多个服务或数据库。稳定 ID 和明确引用先于文件拆分。
+以上是领域职责目标，并非已逐项发布的数据类型。当前 Project、Workspace、CompiledPlan、任务 frozen input 和 Result 承担其中已实现的部分；DesignBrief/DesignCandidate、通用参数包依赖解析和报告体系仍需后续合同。第一版把 ExperimentSpec 嵌在单一项目文档中即可，不必为了名字拆成多个服务或数据库。稳定 ID 和明确引用先于文件拆分。
 
 ## 3. 注册目录分工
 
@@ -128,22 +132,25 @@ friskoli-cad/
 └── tools/                            # build-demo、check-package、release
 ```
 
-默认采用一个 Python 进程提供本地 UI/API，独立计算 worker 执行长任务，SQLite 保存任务与候选元数据，大数组放运行目录。先单 worker、有界队列；无需先搭分布式集群、在线社区或微服务。完整版首发为 Python 包 + 一键启动本地浏览器，打包安装器在发布阶段验证；桌面壳另行评估，不作为科学流程的前置。
+当前已有一个 Python 进程提供本地 UI/API、单 worker 有界队列、独立计算子进程及 SQLite 任务元数据，JSON 结果块保存在运行目录。候选元数据、二进制大数组格式和上图的目录拆分仍是目标。当前交付为 Python 包和本机浏览器服务；打包安装器及桌面壳另行评估，不作为科学流程的前置。
 
 ## 6. 当前文件如何处理
 
 | 现有文件 | 当前证据与处理 |
 | --- | --- |
 | `engine/compiler.py` | 已有确定性排序与延迟边；保留测试，通过 adapter 增加类型、状态和 device 计划 |
-| `engine/runtime.py` | 已有 World、ModuleRegistry、Simulation、回滚与生命周期；按职责渐进抽取，先保持导入入口 |
+| `engine/runtime.py` | 保留 legacy World、ModuleRegistry、Simulation 与生命周期；新 profile 通过独立运行器执行，不改旧语义 |
+| `engine/pts_runtime.py`、`engine/spatial_runtime.py` | 已实现固定 PTS 与空间 profile；空间统一提交场、材料库存、位姿、信号、时钟与 RNG，失败整步回滚 |
+| `engine/spatial_checkpoint.py`、`engine/checkpoint_io.py`、`checkpoint.py` | M4 数值状态、严格文件读取/原子保存及独立 CLI 恢复；不续接服务任务 |
 | `engine/modules.py` 与 `manifests/` | 保留全部已验收基础机制，补人类说明与来源；真实趋化模型单独包 |
-| `project.py` | 保留旧版读取；新 project compiler 显式展开对象/模板 |
-| `replay_service.py` | 目前集中静态文件、同步校验/求解/HTTP；新增 application/server 层，旧命令和受限 replay 继续可用 |
-| `web/app.mjs` | 当前单一 state 含项目、块、模块、结果、检查和运行；优先拆 stores、commands、transport，避免整页重写 |
+| `project.py` | 已按 Project 版本/profile 加载；对象几何以图参数为真值，不额外生成另一份实体状态 |
+| `registry.py` | 已生成按 profile 隔离的 Catalog；对象初始化声明、角色和适配器有明确校验；未提供通用插件安装器 |
+| `replay_service.py`、`tasks/` | 前者保留静态文件、同步与 HTTP 入口；后者已实现异步任务、worker、SQLite 和结果块；`application/server` 拆层仍是目标 |
+| `web/app.mjs`、`web/task-store.mjs` | 编辑输入与异步任务记录已分离，任务提交冻结输入；更完整 stores/commands 拆分仍按可见收益推进 |
 | `workspace.mjs`、`graph-edit.mjs`、`population.mjs` | 已有文件、图与散布逻辑；迁到明确职责时保留测试和兼容 export |
 | `scene3d.mjs`、`workflow.mjs` | 复用渲染与操作能力，输入改为经过注册适配的选择/对象模型 |
-| `replay.mjs`、`results.mjs` | 先抽成共享只读 viewer，再接任务分块结果和 compare |
-| `placeables.mjs`、`catalog.mjs` | 改为真正 registry 消费者，避免以固定科学对象名单判断能力 |
+| `replay.mjs`、`results.mjs` | 已读取任务分块结果；空间输出含真实场与有限对象库存；共享 Wiki viewer 及 compare 仍是后续目标 |
+| `placeables.mjs`、`catalog.mjs` | 已消费 Catalog 和受支持 initializer adapter；空间材料依赖全局降解角色，新 adapter 仍需实际实现 |
 
 只改目录而没有可见收益的搬迁延期。每次抽取同时保证旧示例可载入、旧数值结果可对照、当前界面仍可操作。
 

@@ -1,10 +1,12 @@
 # 科学模型审查与迁入
 
-更新：2026-09-30。两份来源模型已完成首轮代码/数学审查、确定缺陷修订、有限规模回归和独立复核。完整源码修订保存在相邻的 `friskoli-model-review` 仓库，原始目录与 ZIP 保留。CAD 已实现 M0–M3 最小 PTS 计算链；两套完整模型尚未全部迁入。
+更新：2026-10-01。两份来源模型已完成首轮代码/数学审查、确定缺陷修订、有限规模回归和独立复核。完整源码修订保存在相邻的 `friskoli-model-review` 仓库，原始目录与 ZIP 保留。CAD 已实现 M0–M3 最小 PTS 计算链、M4 状态恢复与空间无偏基线；两套完整模型尚未全部迁入。
 
 新增实现入口：[科学方程与参数证据](pts-minimal.md)、[共享库存结算](settlement.md)、[执行协议](../protocol/pts-bulk-profile.md)、[中文 Wiki](../wiki/models/pts-minimal.md)与[实际验收](../verification-n3.md)。CAD 包内保存选定来源文件的提交和 SHA、证据与固定条件 fixtures，运行不依赖外部模型目录。
 
 后续空间基线见[底物、养分场、接触降解与运动](spatial-baseline.md)：采用独立执行规则，包含注册实体、表面酶限速释放、局部守恒场及无偏随机运动。它没有完成完整 A/B 模型重现或 MCP 受体链。
+
+M4 的 [checkpoint 文件入口](../checkpoint-files.md) 和 [验收](../verification-m4.md) 已补齐；下一步按迁入计划完成 M5 信号—运动及 PTS/MCP/无趋化对照。数值复现不代替科学标定。
 
 ## 来源、修订与阅读入口
 

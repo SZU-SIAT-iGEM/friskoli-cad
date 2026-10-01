@@ -4,6 +4,8 @@
 
 **2026-09-30 实施更新：** M0–M3 已形成 8 类运行模块、共享库存结算和最小 PTS 示例；实际名称为 `conservative-pts-bulk-v1`，Project 0.3 / Catalog 0.2 / Task 0.2，未采用下文早期的 draft profile 名称。已实现范围与验收以[执行协议](../protocol/pts-bulk-profile.md)、[科学说明](pts-minimal.md)和[验收记录](../verification-n3.md)为准。下一步为 M4 / M5；完整两套模型、运动、生长及纤维尚未因此完成。
 
+**2026-10-01 M4 更新：** 上一轮空间基线已迁入独立 RNG、完整数值状态及无偏运动；本轮补齐严格恢复、自包含文件、原子保存和独立进程续算。M4 逐项对应、支持范围与使用方法见 [checkpoint 文件](../checkpoint-files.md)，实际检查见 [M4 验收](../verification-m4.md)。日程和生命周期在当前空间 profile 中明确不支持，不用占位状态宣称已经迁入。下一主线为 M5 信号—运动与对照；服务级暂停续算继续属于 N7。
+
 ## 1. 范围与证据
 
 - A：`D:/Wu Shangru/Documents/iGEM/model-A-rebuilt-v2`，逐文件核查，不修改来源。

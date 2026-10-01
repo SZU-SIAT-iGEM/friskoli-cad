@@ -18,6 +18,8 @@ NumPy 官方说明 PCG64 对固定 seed 保证相同的随机整数流，并说�
 
 原始随机整数流的可复现性不等同于整条浮点轨迹跨平台逐位一致。严格科学复现还应保存 Python、NumPy 构建、平台环境、项目参数与执行版本，固定同一环境。`log`、三角函数以及浮点累加可能受平台影响。
 
+M4 的[自包含文件入口](../checkpoint-files.md)在完整空间状态中保存这些 RNG 状态。2026-10-01 增量严格检查 RNG/walk 的字段和 JSON 数值类型，拒绝静默忽略未知字段或把布尔/字符串转换成朝向。原有合法随机序列与积分规则保持不变；系统级续算与回滚见 [M4 验收](../verification-m4.md)。
+
 ## 事务与碰撞接口
 
 在整个模拟步开始时调用 `candidate_streams = committed_streams.clone()`。对每个 cell 调用 `advance_random_walk(..., candidate_streams, node_id=..., group_id=..., cell_id=...)`，得到不可变的 proposal。所有碰撞、结算、数值和帧验证成功后，才一并替换 committed streams、cell state、位置和时间。失败时丢弃 candidate；再次从 committed clone 重试会得到相同抽样。`advance_random_walk` 会消费传入的实例，不能直接传 committed owner 进行可能失败的计算。
