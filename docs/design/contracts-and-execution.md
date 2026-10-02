@@ -1,10 +1,10 @@
 # 协议与执行设计
 
-状态：2026-09-29 目标设计，2026-10-01 补充实施状态。N1 注册目录、N2 异步任务、N3 固定 PTS、空间无偏基线、科学趋化与完整动态 checkpoint 已有实现。本文保留的扩展字段和示例草案不能直接提交给当前 API；实际请求以已发布 Schema 和各 profile 合同为准。
+状态：2026-09-29 目标设计，2026-10-02 更新当前合同。N1 注册目录、N2 异步任务、N3 固定 PTS、空间无偏基线、科学趋化与完整动态 checkpoint 已有实现，N4 设计和通用 Task 0.5 已接入。本文保留的扩展字段和示例草案不能直接提交给当前 API；实际请求以已发布 Schema 和各 profile 合同为准。未完成的合同与执行能力见[剩余工作清单](../remaining-work.md)。
 
 2026-10-01 实施注记：M4 已提供[独立 checkpoint 文件与 CLI](../checkpoint-files.md)，外层 `checkpoint_file_version: 0.1.0` 包含冻结 Project 0.4 和内部 `spatial-checkpoint/v2`。它恢复独立空间运行；任务 pause/resume 与运行中环境迁移仍属于 N7。当前空间 profile 不含生长、分裂、死亡或外部 controls。
 
-新增[科学合同](../protocol/chemotaxis-profile.md)采用 Project 0.5、Catalog/Task/Plan 0.4、Workspace 0.4 和 checkpoint 文件 0.2；25 个模块、六套普通图模板、观察器与死亡规则详情均已登记。下述旧空间 profile 的限制不应用到新科学 profile。
+N3 新增[科学合同](../protocol/chemotaxis-profile.md)，当时采用 Project 0.5、Catalog/Task/Plan 0.4、Workspace 0.4 和 checkpoint 文件 0.2；25 个模块、六套普通图模板、观察器与死亡规则详情均已登记。后续基础生存、N5 模板与来源分裂版本见[模块指南](../module-guide.md)，当前 Workspace 与任务合同见下表。下述旧空间 profile 的限制不应用到新科学 profile。
 
 ## 1. 协议族与兼容边界
 
@@ -12,11 +12,11 @@
 | --- | --- | --- |
 | 模块/图 | `protocol_version: 0.1.0` | 类型作用域、数学说明、读写集、实体对齐、求解语义，需要独立的新合同版本 |
 | Project | legacy `0.1.0/0.2.0`；固定 PTS `0.3.0`；空间 `0.4.0`；科学 `0.5.0` | 设计目标、候选与更完整的机制/观测合同 |
-| Catalog / Task | legacy `0.1.0`；固定 PTS `0.2.0`；空间 `0.3.0`；科学 `0.4.0` | 按 profile 精确协商，不把新版本应用到所有旧项目 |
-| Workspace | `workspace_format_version: 0.5.0`，兼容读取旧 `0.1–0.4` | 更完整的设计草稿与视图状态分离 |
+| Catalog / Task | legacy `0.1.0`；固定 PTS `0.2.0`；空间 `0.3.0`；科学 `0.4.0`；通用 Task `0.5.0` 单独协商 | 按 profile 精确协商，不把新版本应用到所有旧项目 |
+| Workspace | `workspace_format_version: 0.6.0`，兼容读取旧 `0.1–0.5` | 更完整的设计草稿与视图状态分离 |
 | Local API | 顶层 `api_version: 0.2.0`；已实现独立任务合同 | 更完整的诊断集合与能力扩展；同步 replay 保留受限兼容 |
 | Run metadata | 当前共享 `0.1.0` | 与已有独立 Task 合同继续分别版本化 |
-| Frame/Replay/Result | Frame `0.1.0/0.2.0`、Replay/Result `0.1.0`；任务已有完整帧分块，空间 Task 0.3 含场与库存 | 二进制数组、增量帧等另立合同 |
+| Frame/Replay/Result | Frame `0.1.0/0.2.0`、Replay/Result `0.1.0`；任务已有完整帧分块；Task 0.3/0.4 含场与库存，Task 0.5 支持预览与完整末帧 NPZ | 通用逐帧二进制数组、增量帧等另立合同 |
 | Checkpoint 文件 / 数值状态 | 空间文件 `0.1.0` / `spatial-checkpoint/v2`；科学文件 `0.2.0` / `chemotaxis-checkpoint/v1` | 其他 profile 的状态合同与 N7 服务续算另行验收 |
 | Package / Plugin | 尚无完整安装合同 | 清单、依赖、实现与数据版本分别声明 |
 | Execution semantics | legacy、固定 PTS、空间、科学趋化四个独立 profile | 新机制明确积分策略，旧运行不自动改义 |

@@ -1,6 +1,6 @@
 # Friskoli-CAD 工程设计总纲
 
-初稿：2026-09-29；当前状态更新：2026-10-01。**N0–N3 已实现，N4 首轮参数设计、候选比较与原生设计包已接入。**当前继续完善底盘/元件目录、结果约束和推荐；标准发布仍待 N5。实际功能、验证与限制见 [PROGRESS](../../PROGRESS.md)，当前顺序见[开发安排](../development-order.md)。
+初稿：2026-09-29；当前状态更新：2026-10-02。**N0–N3 已实现，N4 核心及多项修订已接入，当前进行 N5 完整模拟与主前端流程验收。**底盘/元件 assembly、分批比较、原生包、OMEX/显式 SBOL 子集和共享静态 viewer 已有实现；完整 10000 步尚未验收。实际功能、验证与限制见 [PROGRESS](../../PROGRESS.md)，顺序见[开发安排](../development-order.md)，逐项未完成计划见[剩余工作清单](../remaining-work.md)。
 
 ## 产品目标
 
@@ -22,6 +22,7 @@
 
 | 文档 | 解决的问题 |
 | --- | --- |
+| [剩余工作清单](../remaining-work.md) | 按当前基线去重的未实现项、待验收项、条件研究及完成条件 |
 | [产品与交互](product-and-interaction.md) | 启动方式、三工作区、设计比较、对象与图联动、多端交互 |
 | [专业工具界面参考](professional-ui-reference.md) | 用户截图研究、已完成的启动窗口/节点组件首轮改进及后续多端检查 |
 | [架构与文件结构](architecture-and-packages.md) | 状态所有权、依赖方向、目标目录、现有文件迁移 |
@@ -33,14 +34,14 @@
 
 ## 当前基线与适用顺序
 
-N0 规划时的基线分支为 `feat/protocol-replay-ui`、提交为 `d9c9713`；父提交 `25c5e58` 完成首版可编辑工作区。该阶段验收为 Python 91 项、JavaScript 14 项。随后在 `feat/registry-contracts` 实施 N1–N3；各阶段验收分别保存，不能把早期数量当作当前完整测试结果。最新检查见 [完整 N3 验收](../verification-n3-complete.md)，浏览器与实体设备的限制仍按对应阶段记录。
+N0 规划时的基线分支为 `feat/protocol-replay-ui`、提交为 `d9c9713`；父提交 `25c5e58` 完成首版可编辑工作区。该阶段验收为 Python 91 项、JavaScript 14 项。随后在 `feat/registry-contracts` 实施 N1–N3；各阶段验收分别保存，不能把早期数量当作当前完整测试结果。当前分支为 `feat/n4-design`，最新检查见 [N5 验收](../verification-n5-simulation.md)，浏览器与实体设备的限制仍按对应阶段记录。
 
-工作区保存格式为 `0.5.0`，读取旧工作区 `0.1–0.4`；共享连接协议仍为 `0.1.0`。不同执行规则独立版本化：legacy 使用 Catalog/Task 0.1，固定 PTS 使用 Project 0.3 / Catalog/Task 0.2，空间无偏使用 Project 0.4 / Catalog/Task 0.3。详见[任务服务](../task-service.md)、[PTS profile](../protocol/pts-bulk-profile.md)与[空间 profile](../protocol/spatial-profile.md)。M4 [checkpoint 文件](../checkpoint-files.md)有独立格式，不替代设计文件或任务结果。
+工作区保存格式为 `0.6.0`，读取旧工作区 `0.1–0.5`；共享连接协议仍为 `0.1.0`。不同执行规则独立版本化：legacy 使用 Catalog/Task 0.1，固定 PTS 使用 Project 0.3 / Catalog/Task 0.2，空间无偏使用 Project 0.4 / Catalog/Task 0.3，科学趋化使用 Project 0.5 / Catalog 0.4 / Task 0.4；通用 Task 0.5 的后端和场输出能力另行协商。详见[任务服务](../task-service.md)与[Task 0.5](../task-field-previews.md)。M4 [checkpoint 文件](../checkpoint-files.md)有独立格式，不替代设计文件或任务结果。
 
 本提案整合 `D:/Wu Shangru/Documents/WIKI/Friskoli-CAD.md`、`D:/Wu Shangru/Documents/WIKI/CAD.md` 和 2026-09-29 的用户描述。两份 WIKI 原文保持不变；其中的周期估计、功能设想与示例参数属于需求材料，不视为经过验证的技术事实。与旧路线冲突时，未来工作的优先级采用本设计集；旧文档保留已交付版本的行为说明。
 
-## 下一项实际实现
+## 当前推进
 
 [N1](roadmap-and-acceptance.md#n1-类型合同与注册目录纵向样例) 注册目录、启动窗口首轮统一与 [N2 异步任务](../task-service.md)均已实现。N3 已具备有限养分、信号驱动运动、A/B memory、reduced MCP、来源生理机制和动态生命周期的完整状态恢复。六套模板、参数证据和指标对应真实计算图。
 
-N4 参数扫描、候选和原生包已可操作，见[使用说明](../design-workflow.md)；继续按[开发安排](../development-order.md#当前n4)完善底盘元件、结果约束和推荐。任务级暂停续算和环境迁移继续留在 N7。界面、协议、数值与科学分别验收，目录随真实实现调整。
+N4 参数扫描、结果约束、assembly、分批比较和原生包已可操作，见[使用说明](../design-workflow.md)。继续按[开发安排](../development-order.md)完成 N5 真实大场景与完整用户流程；[剩余工作清单](../remaining-work.md)分别记录交互修订、插件/合同扩展和条件研究。任务级暂停续算和环境迁移继续留在 N7。界面、协议、数值与科学分别验收，目录随真实实现调整。

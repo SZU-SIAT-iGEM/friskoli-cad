@@ -1,10 +1,10 @@
 # 交付、整合包、标准与迁移
 
-状态：2026-09-29 目标交付设计，2026-10-01 更新当前能力。现有 Project/Workspace/Result JSON、任务冻结输入与结果块、统计 CSV，以及 M4 独立 checkpoint JSON 文件和 CLI；N4 首轮已提供原生 ZIP 设计包和 HTML/CSV 报告；模型整合包、插件安装器和外部标准适配器仍是目标。
+状态：2026-09-29 目标交付设计，2026-10-02 更新当前能力。现有 Project/Workspace/Result JSON、任务冻结输入与结果块、统计 CSV，以及 M4 独立 checkpoint JSON 文件和 CLI；N4 已提供原生 ZIP 设计包、HTML/CSV 报告与 biological assembly。OMEX、显式 SBOL Component 子集和共享静态 viewer 已实现；通用整合包/插件安装及更广标准适配仍待完成，详见[剩余工作清单](../remaining-work.md)。
 
 2026-10-01 实施注记：M4 文件外层为 `checkpoint_file_version: 0.1.0`，包含冻结 Project 0.4 和内部 `spatial-checkpoint/v2`。文件可在匹配代码/依赖环境的新进程恢复最新已提交状态，不包含此前整条轨迹，不携带可执行插件。它不经项目编辑器导入，也不续接任务服务的旧任务。具体命令、写入保护和兼容限制见[checkpoint 文件](../checkpoint-files.md)，验证见 [M4 验收](../verification-m4.md)。任务 pause/resume 与运行中环境迁移仍属 N7。
 
-完整 N3 增加科学 Project 0.5、Workspace 0.4、Task 0.4 与 checkpoint 文件 0.2。文件 0.2 包装动态科学状态，恢复入口和版本锁与旧文件一致；N4 首轮原生无损 ZIP 已实现，标准导出仍属 N5。见[科学合同](../protocol/chemotaxis-profile.md)。
+完整 N3 当时增加科学 Project 0.5、Workspace 0.4、Task 0.4 与 checkpoint 文件 0.2。文件 0.2 包装动态科学状态，恢复入口和版本锁与旧文件一致。当前 Workspace 保存为 0.6；通用 Task 0.5 与标准子集的范围分别见[场输出合同](../task-field-previews.md)和[标准支持说明](../standards-export.md)。
 
 ## 1. 三类包分开
 
@@ -90,7 +90,7 @@ friskoli-chemotaxis/
 
 ## 5. 本地版与 Wiki
 
-当前沿用 Python 包、本机服务和浏览器界面，已有独立 worker、SQLite 任务存储与 JSON 结果块；任务目录可显式指定，数据不写进源码。M4 文件由独立 CLI 或 Python 调用保存到调用者指定路径。安装器/桌面壳、通用二进制大数组交付及跨平台验证仍属后续工作，不先承诺未测系统。
+当前沿用 Python 包、本机服务和浏览器界面，已有独立 worker、SQLite 任务存储与 JSON 结果块；任务目录可显式指定，数据不写进源码。M4 文件由独立 CLI 或 Python 调用保存到调用者指定路径。完整末帧场已有独立 NPZ，通用逐帧二进制大数组交付仍待扩展。跨机器/平台发布验证尚未完成，安装器/桌面壳按发布需要评估，不先承诺未测系统。
 
 Wiki 构建只装共享 viewer、冻结 registry、公开模型说明和预计算结果。初始化入口仅从示例开始；无服务端时依然可浏览完整记录。所有字体、图标、数学渲染和必要脚本可本地打包，避免演示依赖现场联网；发布前检查大小、许可证和加载速度。
 
@@ -98,7 +98,7 @@ Wiki 构建只装共享 viewer、冻结 registry、公开模型说明和预计�
 
 ## 6. 旧格式迁移
 
-当前合同并存：legacy Project 0.1/0.2 对应 Catalog/Task 0.1，固定 PTS Project 0.3 对应 Catalog/Task 0.2，空间 Project 0.4 对应 Catalog/Task 0.3，科学 Project 0.5 对应 Catalog/Task 0.4。Workspace 当前保存为 0.4，兼容读取旧 0.1–0.3。选择新 profile 必须显式使用匹配合同；不会将旧项目的生长、分裂或 controls 自动移入另一种计算规则。以下是后续新增格式与包转换器仍需遵守的迁移要求。
+当前合同并存：legacy Project 0.1/0.2 对应 Catalog/Task 0.1，固定 PTS Project 0.3 对应 Catalog/Task 0.2，空间 Project 0.4 对应 Catalog/Task 0.3，科学 Project 0.5 对应 Catalog/Task 0.4；通用 Task 0.5 单独协商后端与场输出能力。Workspace 当前保存为 0.6，兼容读取旧 0.1–0.5。选择新 profile 必须显式使用匹配合同；不会将旧项目的生长、分裂或 controls 自动移入另一种计算规则。以下是后续新增格式与包转换器仍需遵守的迁移要求。
 
 1. 建立现有 project、workspace、graph、frames 和 result 的 fixtures，记录数值与已知限制。
 2. 新 reader 先识别格式族/版本，再由纯转换函数生成目标文档；保留原件与 migration report。
