@@ -57,8 +57,12 @@ def test_project_seed_is_required_safe_nonnegative_integer(seed):
 
 
 def test_preflight_rejects_excess_grid_before_runtime(monkeypatch):
+    from friskoli_cad.engine import spatial_runtime
+    def unexpected_allocation(*args, **kwargs):
+        pytest.fail("Oversized grid reached field allocation")
+    monkeypatch.setattr(spatial_runtime, "make_local_field_state", unexpected_allocation)
     doc = project()
-    doc["domain"]["counts_xyz"] = [10001, 1, 1]
+    doc["domain"]["counts_xyz"] = [spatial_runtime.MAX_VOXELS + 1, 1, 1]
     with pytest.raises(ProtocolError, match="spatial.resource_limit"):
         validate_project(doc, registry_for_profile(SPATIAL_PROFILE).manifests)
 

@@ -61,7 +61,7 @@ def _validator_record(validator):
         "alive": dict(validator.alive), "seen": sorted(validator.seen)}
 
 
-def _implementation_lock(registry):
+def _implementation_lock(registry, field_backend='numpy-cpu'):
     package = Path(__file__).resolve().parents[1]
     paths = [package / "project.py", package / "registry.py"]
     for directory in ("engine", "science", "protocol"):
@@ -80,7 +80,9 @@ def _implementation_lock(registry):
                 _reject('Cannot lock a registered degradation adapter without an inspectable source file')
             registered[mid + '@' + version] = {'module': adapter.__module__, 'qualname': qualified,
                 'source_sha256': hashlib.sha256(Path(source).read_bytes()).hexdigest()}
+    from .field_backend import backend_environment
     return {"source_sha256": source_hashes, "catalog_sha256": _hash(registry.catalog),
+            **({'backend_environment': backend_environment(field_backend)} if field_backend != 'numpy-cpu' else {}),
             'registered_adapter_sha256': registered,
             "numpy_version": np.__version__, "python_version": platform.python_version(),
             "machine": platform.machine(), "system": platform.system()}
@@ -101,7 +103,7 @@ def export_checkpoint(sim):
     if not isinstance(sim, SpatialSimulation):
         _reject("checkpoint requires SpatialSimulation")
     payload = {"version": CHECKPOINT_VERSION, "execution_profile": SPATIAL_PROFILE,
-        "project_sha256": _hash(sim.project), "implementation_lock": _implementation_lock(sim.registry),
+        "project_sha256": _hash(sim.project), "implementation_lock": _implementation_lock(sim.registry, sim.field_backend),
         "seed": sim.seed, "time_s": sim.time_s, "frame_index": sim.frame_index,
         "world": {gid: {"ids": list(group.ids), "positions_um": group.positions_um.tolist(),
                          "orientation_xyzw": group.orientation_xyzw.tolist()}
@@ -181,7 +183,8 @@ def _restore_fields(sim, payload, index, materials):
                                          max_values=MAX_VOXELS * MAX_SPECIES * 2)
     initial = sim.fields
     expected_mask = sim._geometry_for(materials)[1]
-    if (fields.grid != initial.grid or fields.blocked != expected_mask
+    if (fields.grid != initial.grid or not np.array_equal(fields.blocked, expected_mask)
+            or fields.backend != initial.backend
             or dict(fields.diffusivities_um2_s) != dict(initial.diffusivities_um2_s)
             or fields.revision != index):
         _reject("field grid/mask/species/diffusivity/revision differs from project or clock")
@@ -389,10 +392,13 @@ def restore_checkpoint(project, payload, registry=None):
         seed = payload['seed']
         if type(seed) is not int or not 0 <= seed <= 9007199254740991:
             _reject('checkpoint execution seed must be a nonnegative safe integer')
-        sim = simulation_from_project(project, registry, seed=seed)
+        backend = payload.get('local_fields', {}).get('backend', 'numpy-cpu')
+        if backend not in ('numpy-cpu', 'numpy-cupy-cuda'):
+            _reject('unsupported field backend')
+        sim = simulation_from_project(project, registry, seed=seed, field_backend=backend)
         if not isinstance(sim, SpatialSimulation):
             _reject("project is not a spatial simulation")
-        if payload["implementation_lock"] != _implementation_lock(sim.registry):
+        if payload["implementation_lock"] != _implementation_lock(sim.registry, sim.field_backend):
             _reject("checkpoint implementation lock mismatch (source/catalog/NumPy/Python/platform)")
         index, time = payload["frame_index"], payload["time_s"]
         if type(index) is not int or index < 0:

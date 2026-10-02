@@ -87,17 +87,24 @@ def _point_segment_sq(p: np.ndarray, a: np.ndarray, b: np.ndarray) -> float:
     return float(residual @ residual)
 
 
+def _cross3(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Fixed 3D cross product; preserve NumPy scalar operation ordering."""
+    return np.array((a[1] * b[2] - a[2] * b[1],
+                     a[2] * b[0] - a[0] * b[2],
+                     a[0] * b[1] - a[1] * b[0]))
+
+
 def _segment_distance(a: np.ndarray, b: np.ndarray, c: np.ndarray, d: np.ndarray) -> float:
     # The quadratic minimum lies on a boundary or at an interior stationary point.
     candidates = [_point_segment_sq(a, c, d), _point_segment_sq(b, c, d),
                   _point_segment_sq(c, a, b), _point_segment_sq(d, a, b)]
     u, v, w = b - a, d - c, a - c
-    cross = np.cross(u, v)
+    cross = _cross3(u, v)
     denominator = float(cross @ cross)
     if denominator > 0:
         # Cross products avoid subtracting almost equal aa*bb and ab*ab.
-        s = float(np.cross(v, w) @ cross / denominator)
-        t = float(np.cross(u, w) @ cross / denominator)
+        s = float(_cross3(v, w) @ cross / denominator)
+        t = float(_cross3(u, w) @ cross / denominator)
         if 0 <= s <= 1 and 0 <= t <= 1:
             residual = w + s * u - t * v
             candidates.append(float(residual @ residual))
@@ -258,7 +265,7 @@ def _certify(gap: Callable[[float], float], speed: float, tolerance: float,
 def guard_motion(
     start: Sequence[Capsule], end: Sequence[Capsule], *, extent_um: Sequence[float],
     obstacles: Sequence[BoxObstacle] = (), geometry: str = "volume",
-    tolerance_um: float = 1e-9, max_subdivisions: int = 256,
+    tolerance_um: float = 1e-9, max_subdivisions: int = 256, use_broad_phase: bool = True,
 ) -> GuardResult:
     """Accept entire safe paths or freeze entire proposals, resolving conflicts together.
 
@@ -274,6 +281,8 @@ def guard_motion(
         raise ValueError("tolerance_um must be finite and positive")
     if isinstance(max_subdivisions, bool) or not isinstance(max_subdivisions, Integral) or max_subdivisions < 1:
         raise ValueError("max_subdivisions must be a positive integer evaluation budget")
+    if type(use_broad_phase) is not bool:
+        raise ValueError("use_broad_phase must be boolean")
     start, end, obstacles = tuple(start), tuple(end), tuple(obstacles)
     first, last = {c.cell_id: c for c in start}, {c.cell_id: c for c in end}
     if len(first) != len(start) or len(last) != len(end) or first.keys() != last.keys():
@@ -291,15 +300,41 @@ def guard_motion(
                  *(abs(v) for b in obstacles for v in b.lower_um + b.upper_um)])
     if tolerance < 128 * np.finfo(float).eps * scale:
         raise ValueError("tolerance_um too small for coordinate scale")
+    # A capsule is contained in the sphere of radius total_length / 2 about
+    # its center, regardless of orientation. A separated coordinate alone is
+    # a lower bound on Euclidean center distance. Inflate the threshold for
+    # floating-point subtraction/rounding; uncertain pairs use exact geometry.
+    rounding_margin = 512 * np.finfo(float).eps * scale
+    radii = np.asarray([first[cid].length_um / 2 for cid in ids])
+    centers = np.asarray([first[cid].position_um for cid in ids]).reshape(-1, 3)
+    def far_pairs(points, inflation):
+        if not use_broad_phase:
+            return np.zeros((len(ids), len(ids)), dtype=bool)
+        threshold = radii[:, None] + radii[None, :] + inflation[:, None] + inflation[None, :] + tolerance + rounding_margin
+        # O(N^2) cheap comparisons replace O(N^2) expensive segment distances.
+        # Avoid an N x N x 3 temporary; peak workspace is a few N x N arrays.
+        far = np.zeros((len(ids), len(ids)), dtype=bool)
+        for axis in range(3):
+            far |= np.abs(points[:, None, axis] - points[None, :, axis]) > threshold
+        return far
+    initial_far = far_pairs(centers, np.zeros(len(ids)))
+    def far_box(center, radius, box, inflation=0.):
+        if not use_broad_phase:
+            return False
+        padding = radius + inflation + tolerance + rounding_margin
+        return any(center[k] < box.lower_um[k] - padding or center[k] > box.upper_um[k] + padding for k in range(3))
     initial = []
     for i, id_ in enumerate(ids):
         body = first[id_]
         if capsule_wall_gap(body, extent) < -tolerance:
             initial.append(Contact((id_,), "wall", "domain", "initial_overlap"))
         for box in obstacles:
+            if far_box(body.position_um, body.length_um / 2, box):
+                continue
             if capsule_box_gap(body, box) < -tolerance:
                 initial.append(Contact((id_,), "obstacle", box.obstacle_id, "initial_overlap"))
-        for other in ids[i + 1:]:
+        for j in np.flatnonzero(~initial_far[i, i + 1:]) + i + 1:
+            other = ids[j]
             if capsule_gap(body, first[other]) < -tolerance:
                 initial.append(Contact((id_, other), "cell", other, "initial_overlap"))
     if initial:
@@ -309,6 +344,12 @@ def guard_motion(
     evaluations = 0
     while True:
         paths = {id_: _Path(first[id_], first[id_] if id_ in blocked else last[id_]) for id_ in ids}
+        # Only skip pairs whose lower bound proves that the OLD certifier's
+        # first midpoint test would succeed. A merely disjoint swept AABB can
+        # otherwise hide its budget_exhausted/numerically_uncertain diagnosis.
+        midpoints = np.asarray([paths[cid].origin + .5 * paths[cid].delta for cid in ids]).reshape(-1, 3)
+        half_bounds = np.asarray([paths[cid].bound / 2 for cid in ids])
+        motion_far = far_pairs(midpoints, half_bounds)
         new_blocked: set[StableID] = set()
 
         def check(cell_ids, kind, target_id, gap, speed):
@@ -324,8 +365,11 @@ def guard_motion(
             if path.moving:
                 check((id_,), "wall", "domain", lambda t: capsule_wall_gap(path.at(t), extent), path.bound)
                 for box in obstacles:
+                    if far_box(midpoints[i], radii[i], box, half_bounds[i]):
+                        continue
                     check((id_,), "obstacle", box.obstacle_id, lambda t: capsule_box_gap(path.at(t), box), path.bound)
-            for other in ids[i + 1:]:
+            for j in np.flatnonzero(~motion_far[i, i + 1:]) + i + 1:
+                other = ids[j]
                 second = paths[other]
                 if path.moving or second.moving:
                     check((id_, other), "cell", other, lambda t: capsule_gap(path.at(t), second.at(t)), path.bound + second.bound)

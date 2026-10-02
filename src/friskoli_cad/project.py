@@ -93,10 +93,11 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
         path = "/" + "/".join(str(part) for part in error.absolute_path)
         _fail("project.schema", path, error.message)
     if version in ("0.4.0", "0.5.0"):
+        from friskoli_cad.engine.spatial_runtime import MAX_CELLS, MAX_VOXELS, MAX_SPECIES
         cells = sum(len(group["ids"]) for group in document["groups"].values())
         voxels = math.prod(document["domain"]["counts_xyz"])
-        if cells > 256 or voxels > 10000 or len(document["species"]) > 8:
-            _fail("spatial.resource_limit", "/", "spatial profile supports at most 256 cells, 10000 voxels and 8 species")
+        if cells > MAX_CELLS or voxels > MAX_VOXELS or len(document["species"]) > MAX_SPECIES:
+            _fail("spatial.resource_limit", "/", f"spatial profile supports at most {MAX_CELLS} cells, {MAX_VOXELS} voxels and {MAX_SPECIES} species; task admission applies a separate memory budget")
     graph, run = document["graph"], document["run"]
     validate_graph(graph, manifests)
     validate_run_metadata(run, graph, manifests)
@@ -156,13 +157,15 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
             _fail("project.control_time", f"/controls/{schedule_id}", "changes must precede the repeat boundary")
 
 
-def simulation_from_project(document: Mapping[str, object], registry=None, *, seed=None):
+def simulation_from_project(document: Mapping[str, object], registry=None, *, seed=None, field_backend='numpy-cpu'):
     """Build a simulation from a complete snapshot; old graph-only callers remain valid."""
     from friskoli_cad.engine import CapsuleGeometry, CellGroup, GridDomain, Simulation, SimulationError, World, default_registry
 
     from friskoli_cad.engine.profiles import registry_for_project
     registry = registry_for_project(document) if registry is None else registry
     validate_project(document, registry.manifests, registry=registry)
+    if document['project_version'] not in ('0.4.0', '0.5.0') and field_backend != 'numpy-cpu':
+        _fail('project.backend', '/', 'This execution profile supports only numpy-cpu')
     domain = document["domain"]
     nx, ny, nz = domain["counts_xyz"]
     dx, dy, dz = domain["spacing_um_xyz"]
@@ -210,10 +213,10 @@ def simulation_from_project(document: Mapping[str, object], registry=None, *, se
     world = World(grid, groups, initial, controls)
     if document["project_version"] == "0.5.0":
         from friskoli_cad.engine.chemotaxis_runtime import ChemotaxisSimulation
-        return ChemotaxisSimulation(world, document, registry, seed=seed)
+        return ChemotaxisSimulation(world, document, registry, seed=seed, field_backend=field_backend)
     if document["project_version"] == "0.4.0":
         from friskoli_cad.engine.spatial_runtime import SpatialSimulation
-        return SpatialSimulation(world, document, registry, seed=seed)
+        return SpatialSimulation(world, document, registry, seed=seed, field_backend=field_backend)
     if document["project_version"] == "0.3.0":
         from friskoli_cad.engine.pts_runtime import PTSSimulation
         return PTSSimulation(world, document, registry)

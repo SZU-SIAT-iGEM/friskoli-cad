@@ -27,7 +27,7 @@ from .random_streams import RandomStreams
 from .random_walk import RandomWalkParameters, RandomWalkState, advance_random_walk
 from .runtime import CellGroup, World, SimulationError, Snapshot
 
-MAX_CELLS, MAX_VOXELS, MAX_SPECIES = 256, 10_000, 8
+MAX_CELLS, MAX_VOXELS, MAX_SPECIES = 256, 256**3, 8
 MAX_TUMBLES, MAX_MOTION_PAIRS = 2048, 2_000_000
 
 
@@ -158,7 +158,10 @@ class SpatialSimulation:
             self.project['species'][n.parameters['species'].value]['initial_concentration']['value'],
             n.parameters['diffusivity_um2_s'].value) for n in self._field_nodes.values()]
 
-    def __init__(self, world, project, registry, *, seed=None):
+    def __init__(self, world, project, registry, *, seed=None, field_backend='numpy-cpu'):
+        from .field_backend import validate_backend
+        validate_backend(field_backend)
+        self.field_backend = field_backend
         self._validate_project(project, registry)
         self.project, self.run = deepcopy(project), deepcopy(project['run'])
         self.world, self.registry = world, registry
@@ -179,7 +182,8 @@ class SpatialSimulation:
             _xyz(n, 'lower'), _xyz(n, 'upper'), n.parameters['initial_molecules'].value) for n in self._material_nodes.values()})
         self.material_ledger = MappingProxyType({})
         # Validate even initially exhausted material bounds before omitting them.
-        make_local_field_state(world.grid, [], obstacles=[SolidAABB(_xyz(n, 'lower'), _xyz(n, 'upper')) for n in obstacle_nodes])
+        make_local_field_state(world.grid, [], obstacles=[SolidAABB(_xyz(n, 'lower'), _xyz(n, 'upper')) for n in obstacle_nodes],
+                               max_voxels=MAX_VOXELS, max_values=MAX_VOXELS)
         self.obstacles, _ = self._geometry_for(self.materials)
         active_nodes = list(self._fixed_obstacle_nodes) + [n for n in self._material_nodes.values() if self.materials[n.id].remaining_molecules > 0]
         fields = self._initial_field_species()
@@ -188,7 +192,7 @@ class SpatialSimulation:
             n.parameters['release_rate'].value) for n in self._source_nodes.values()]
         self.fields = make_local_field_state(world.grid, fields, sources=sources,
             obstacles=[SolidAABB(_xyz(n, 'lower'), _xyz(n, 'upper')) for n in active_nodes],
-            max_voxels=MAX_VOXELS, max_values=MAX_VOXELS * MAX_SPECIES * 2)
+            max_voxels=MAX_VOXELS, max_values=MAX_VOXELS * MAX_SPECIES * 2, backend=field_backend)
         capsules = self._capsules(world)
         try:
             self._guard(capsules, capsules)
@@ -233,9 +237,14 @@ class SpatialSimulation:
     def _geometry_for(self, materials):
         """Partial materials keep their box; exhausted boxes disappear at commit."""
         nodes = list(self._fixed_obstacle_nodes) + [n for n in self._material_nodes.values() if materials[n.id].remaining_molecules > 0]
+        key = tuple((n.id, _xyz(n, 'lower'), _xyz(n, 'upper')) for n in nodes)
+        if getattr(self, '_geometry_cache', None) is not None and self._geometry_cache[0] == key:
+            return self._geometry_cache[1]
         obstacles = tuple(BoxObstacle(n.owner_id, _xyz(n, 'lower'), _xyz(n, 'upper')) for n in nodes)
         mask = make_local_field_state(self.world.grid, [],
-            obstacles=[SolidAABB(_xyz(n, 'lower'), _xyz(n, 'upper')) for n in nodes], max_voxels=MAX_VOXELS).blocked
+            obstacles=[SolidAABB(_xyz(n, 'lower'), _xyz(n, 'upper')) for n in nodes],
+            max_voxels=MAX_VOXELS, max_values=MAX_VOXELS).blocked
+        self._geometry_cache = key, (obstacles, mask)
         return obstacles, mask
 
     def _prepare(self):
@@ -277,6 +286,10 @@ class SpatialSimulation:
                 inputs = {name: outputs[b.source_node][b.source_port] for name, b in n.inputs.items()}
                 value = {'requested_flux': pts.pts_request(inputs['concentration'], inputs['functional_copies'],
                           p['turnover_s'].value, p['half_saturation_um'].value)}
+            elif m == 'uptake.saturating_request':
+                binding = n.inputs['concentration']
+                value = {'requested_flux': pts.pts_request(outputs[binding.source_node][binding.source_port],
+                          p['maximum_flux_molecules_s'].value, 1., p['half_saturation_um'].value)}
             else:
                 raise SimulationError('spatial.module', f'Unsupported spatial mechanism {m}')
             outputs[nid] = value
@@ -471,7 +484,8 @@ class SpatialSimulation:
                         'shape': 'capsule', 'length_um': geom.length_um, 'diameter_um': geom.diameter_um}, 'channels': channels})
         frame = {'protocol_version': '0.1.0', 'frame_version': '0.2.0', 'run_id': self.run['run_id'],
                  'frame_index': index, 'time_s': time, 'cells': cells, 'events': []}
-        concentrations = copy_concentrations(fields)
+        # Dense storage has immutable bytes ownership; snapshots can safely share it.
+        concentrations = {s: np.asarray(v).reshape(world.grid.shape) for s, v in fields.concentrations_uM.items()}
         for value in concentrations.values():
             value.setflags(write=False)
         materials = self.materials if materials is None else materials

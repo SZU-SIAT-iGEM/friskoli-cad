@@ -146,14 +146,14 @@ class ChemotaxisSimulation(SpatialSimulation):
     MOTION_MODULE_IDS = ('motion.hazard_run_tumble', 'motion.unbiased_run_tumble')
     FIELD_MODULE_IDS = ('field.diffusive_local', 'field.ideal_local_reservoir')
 
-    def __init__(self, world, project, registry, *, seed=None):
+    def __init__(self, world, project, registry, *, seed=None, field_backend='numpy-cpu'):
         self.supply_totals = {}
         self.uptake_totals = {}
         self.physiology_ledger = {}
         self.next_cell_index = 0
         self.last_dt_s = 0.
         self.dead_material = {}
-        super().__init__(world, project, registry, seed=seed)
+        super().__init__(world, project, registry, seed=seed, field_backend=field_backend)
         self.uptake_totals = {n.id: 0. for n in self.plan.nodes if n.module_id == 'uptake.local_settlement'}
         from .observations import initial_observation
         self.observation_state = initial_observation(self.project, self.current.cell_frame)
@@ -174,7 +174,7 @@ class ChemotaxisSimulation(SpatialSimulation):
         result = []
         grid = self.world.grid
         _, blocked = self._geometry_for(self.materials)
-        z, y, x = np.indices(grid.shape)
+        z, y, x = np.ogrid[:grid.shape[0], :grid.shape[1], :grid.shape[2]]
         coordinates = ((x + .5) * grid.dx_um, (y + .5) * grid.dy_um, (z + .5) * grid.dz_um)
         for node in self._field_nodes.values():
             species = node.parameters['species'].value
@@ -185,7 +185,7 @@ class ChemotaxisSimulation(SpatialSimulation):
                 initial = np.full(grid.shape, float(initial))
                 for i, axis in enumerate('xyz'):
                     key = f'gradient_{axis}_um_per_um'
-                    if key in node.parameters:
+                    if key in node.parameters and node.parameters[key].value != 0:
                         initial += node.parameters[key].value * (coordinates[i] - grid.extent_um[i] / 2)
                 initial[np.asarray(blocked).reshape(grid.shape)] = 0.
             result.append(FieldSpecies(species, initial, diffusion))

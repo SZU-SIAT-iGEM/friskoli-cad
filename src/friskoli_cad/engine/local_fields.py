@@ -1,7 +1,7 @@
 """Pure, finite-inventory local fields on an aligned, impermeable voxel grid.
 
-Reference splitting: release -> diffuse -> sample -> shared uptake. All public
-snapshots own immutable tuples; a caller commits only by replacing its state.
+Reference splitting: release -> diffuse -> sample -> shared uptake. Public
+snapshots own immutable tuples or arrays; commit replaces the state.
 """
 from __future__ import annotations
 
@@ -16,7 +16,23 @@ import numpy as np
 
 from .diffusion import explicit_no_flux_limit
 from .runtime import GridDomain, SimulationError
-from .settlement import InventorySnapshot, SettlementError, propose_settlement
+
+ARRAY_THRESHOLD = 10_000
+
+
+class FrozenGridArray(np.ndarray):
+    """Compact immutable storage backed by bytes, so writeability cannot reset."""
+    def __new__(cls, values, dtype=float):
+        array = np.ascontiguousarray(values, dtype=dtype).reshape(-1)
+        return np.frombuffer(array.tobytes(), dtype=array.dtype).view(cls)
+
+
+def _stored_values(grid, values, *, boolean=False):
+    if grid.voxel_count <= ARRAY_THRESHOLD:
+        return tuple(bool(v) if boolean else float(v) for v in np.asarray(values).flat)
+    if isinstance(values, FrozenGridArray):
+        return values
+    return FrozenGridArray(values, bool if boolean else float)
 
 
 def _fail(message: str) -> None:
@@ -81,32 +97,42 @@ class SolidAABB:
 @dataclass(frozen=True)
 class LocalFieldState:
     grid: GridDomain
-    concentrations_uM: Mapping[str, tuple[float, ...]]
+    concentrations_uM: Mapping[str, Sequence[float]]
     diffusivities_um2_s: Mapping[str, float]
     sources: tuple[LocalSource, ...]
-    blocked: tuple[bool, ...]
+    blocked: Sequence[bool]
     revision: int = 0
+    backend: str = 'numpy-cpu'
 
     def __post_init__(self) -> None:
         if not isinstance(self.grid, GridDomain) or type(self.revision) is not int or self.revision < 0:
             _fail("state needs GridDomain and nonnegative integer revision")
-        if len(self.blocked) != self.grid.voxel_count or any(type(v) is not bool for v in self.blocked):
+        if self.backend not in ('numpy-cpu', 'numpy-cupy-cuda'):
+            _fail('unknown field backend')
+        dense = self.grid.voxel_count > ARRAY_THRESHOLD
+        mask = np.asarray(self.blocked)
+        if len(self.blocked) != self.grid.voxel_count or (mask.dtype != np.bool_ if dense else any(type(v) is not bool for v in self.blocked)):
             _fail("blocked mask must contain one boolean per voxel")
         if set(self.concentrations_uM) != set(self.diffusivities_um2_s):
             _fail("field/diffusivity species must match")
         for species, values in self.concentrations_uM.items():
             if not isinstance(species, str) or not species or len(values) != self.grid.voxel_count:
                 _fail("state fields need species IDs and exactly one value per voxel")
-            for value, blocked in zip(values, self.blocked):
-                value = _number(value, "state concentration")
-                if blocked and value != 0:
-                    _fail("obstacle voxels cannot contain concentration")
+            if dense:
+                array = np.asarray(values, dtype=float)
+                if not np.isfinite(array).all() or np.any(array < 0) or np.any(array[mask] != 0):
+                    _fail('state concentration must be finite, nonnegative and zero inside obstacles')
+            else:
+                for value, blocked in zip(values, self.blocked):
+                    value = _number(value, "state concentration")
+                    if blocked and value != 0:
+                        _fail("obstacle voxels cannot contain concentration")
             _number(self.diffusivities_um2_s[species], "diffusivity_um2_s")
         object.__setattr__(self, "concentrations_uM", MappingProxyType(
-            {key: tuple(value) for key, value in self.concentrations_uM.items()}))
+            {key: _stored_values(self.grid, value) for key, value in self.concentrations_uM.items()}))
         object.__setattr__(self, "diffusivities_um2_s", MappingProxyType(dict(self.diffusivities_um2_s)))
         object.__setattr__(self, "sources", tuple(self.sources))
-        object.__setattr__(self, "blocked", tuple(self.blocked))
+        object.__setattr__(self, "blocked", _stored_values(self.grid, self.blocked, boolean=True))
 
 
 @dataclass(frozen=True)
@@ -128,6 +154,7 @@ class FieldLedger:
     field_after_molecules: float
     conservation_residual_molecules: float
     conservation_bound_molecules: float
+    representability_shortfall_molecules: float = 0.
 
 
 @dataclass(frozen=True)
@@ -148,22 +175,32 @@ def _source_indices(grid: GridDomain, source: LocalSource, blocked: np.ndarray) 
     if source.radius_um == 0:
         return np.asarray([center_index], dtype=np.int64)
     # Select voxel centers, retaining the center's voxel for sub-grid radii.
-    z, y, x = np.ogrid[:grid.nz, :grid.ny, :grid.nx]
-    with np.errstate(over="ignore"):
+    # Source support is local. Never allocate an entire domain per source.
+    counts = np.array((grid.nx, grid.ny, grid.nz))
+    spacing = np.array((grid.dx_um, grid.dy_um, grid.dz_um))
+    with np.errstate(over='ignore'):
+        lower = np.floor(np.clip((np.asarray(source.center_um)-source.radius_um)/spacing-.5, 0, counts)).astype(int)
+        upper = np.ceil(np.clip((np.asarray(source.center_um)+source.radius_um)/spacing+.5, 0, counts)).astype(int)
+    upper = np.minimum(counts, upper+1)
+    z, y, x = np.ogrid[lower[2]:upper[2], lower[1]:upper[1], lower[0]:upper[0]]
+    # A squared distance underflow is safely inside the source, not lost mass.
+    with np.errstate(over="ignore", under="ignore"):
         distance = (((x + .5) * grid.dx_um - source.center_um[0]) / source.radius_um) ** 2
         distance = distance + (((y + .5) * grid.dy_um - source.center_um[1]) / source.radius_um) ** 2
         distance = distance + (((z + .5) * grid.dz_um - source.center_um[2]) / source.radius_um) ** 2
         support = distance <= 1
-    support.flat[center_index] = True
-    if np.any(support & blocked):
+    iz, iy, ix = np.nonzero(support)
+    indices = np.unique(np.append(((iz+lower[2])*grid.ny+iy+lower[1])*grid.nx+ix+lower[0],center_index))
+    if np.any(blocked.flat[indices]):
         _fail(f"source {source.id} support intersects solid obstacle")
-    return np.flatnonzero(support)
+    return indices
 
 
 def make_local_field_state(
     grid: GridDomain, species: Sequence[FieldSpecies], *,
     sources: Sequence[LocalSource] = (), obstacles: Sequence[SolidAABB] = (),
     max_voxels: int = 250_000, max_values: int = 1_000_000,
+    backend: str = 'numpy-cpu',
 ) -> LocalFieldState:
     """Validate sizes before allocating. Scalar initial values apply to fluid only."""
     if not isinstance(grid, GridDomain):
@@ -208,7 +245,7 @@ def make_local_field_state(
         if not np.isfinite(initial).all() or np.any(initial < 0) or np.any(field[blocked] != 0):
             _fail("initial field must be finite, nonnegative and zero in obstacles")
         _mass(field, factor)
-        fields[entry.id] = tuple(float(v) for v in field.flat)
+        fields[entry.id] = _stored_values(grid, field)
     seen = set()
     for source in sources:
         if not isinstance(source, LocalSource) or source.id in seen or source.species not in fields:
@@ -216,7 +253,7 @@ def make_local_field_state(
         seen.add(source.id)
         _source_indices(grid, source, blocked)
     _source_total(sources)
-    return LocalFieldState(grid, fields, diffusivities, tuple(sources), tuple(bool(v) for v in blocked.flat))
+    return LocalFieldState(grid, fields, diffusivities, tuple(sources), _stored_values(grid, blocked, boolean=True), backend=backend)
 
 
 def copy_concentrations(state: LocalFieldState) -> dict[str, np.ndarray]:
@@ -230,8 +267,9 @@ def local_field_state_to_dict(state: LocalFieldState) -> dict:
     return {"format": "local_fields/v1", "grid": {
         "geometry": grid.geometry, "nx": grid.nx, "ny": grid.ny, "nz": grid.nz,
         "dx_um": grid.dx_um, "dy_um": grid.dy_um, "dz_um": grid.dz_um},
-        "concentrations_uM": {s: list(v) for s, v in state.concentrations_uM.items()},
-        "diffusivities_um2_s": dict(state.diffusivities_um2_s), "blocked": list(state.blocked),
+        "concentrations_uM": {s: np.asarray(v).tolist() for s, v in state.concentrations_uM.items()},
+        "diffusivities_um2_s": dict(state.diffusivities_um2_s), "blocked": np.asarray(state.blocked).tolist(),
+        **({'backend':state.backend} if state.backend != 'numpy-cpu' else {}),
         "revision": state.revision, "sources": [dict(id=s.id, species=s.species,
             center_um=list(s.center_um), radius_um=s.radius_um, remaining_molecules=s.remaining_molecules,
             release_rate_molecules_s=s.release_rate_molecules_s) for s in state.sources]}
@@ -250,7 +288,7 @@ def local_field_state_from_dict(data: Mapping, *, max_voxels: int = 250_000,
         if grid.voxel_count * max(1, len(fields) + len(sources)) > _budget(max_values, "max_values"):
             _fail("checkpoint exceeds max_values")
         state = LocalFieldState(grid, fields, coefficients, tuple(LocalSource(**s) for s in sources),
-                                data["blocked"], data["revision"])
+                                data["blocked"], data["revision"], data.get('backend','numpy-cpu'))
         blocked = np.asarray(state.blocked).reshape(grid.shape)
         seen = set()
         for source in state.sources:
@@ -286,9 +324,13 @@ def _positions(state: LocalFieldState, positions_um: Sequence[Sequence[float]]) 
 def sample_local_fields(state: LocalFieldState, positions_um: Sequence[Sequence[float]]) -> FieldSamples:
     """Containing-voxel samples, with reflective ghost values for gradients."""
     indices, blocked = _positions(state, positions_um)
+    return _sample_arrays(state.grid, state.concentrations_uM, indices, blocked)
+
+
+def _sample_arrays(grid, fields, indices, blocked):
+    """Read private work arrays without manufacturing another full snapshot."""
     concentrations, gradients = {}, {}
-    grid = state.grid
-    for species, flat in state.concentrations_uM.items():
+    for species, flat in fields.items():
         field = np.asarray(flat).reshape(grid.shape)
         concentrations[species] = tuple(float(field.flat[i]) for i in indices)
         rows = []
@@ -309,6 +351,16 @@ def sample_local_fields(state: LocalFieldState, positions_um: Sequence[Sequence[
 
 
 def _mass(field: np.ndarray, factor: float) -> float:
+    if field.size > ARRAY_THRESHOLD:
+        amounts = np.asarray(field).reshape(-1) * factor
+        if not np.isfinite(amounts).all() or np.any((field.reshape(-1)>0) & (amounts==0)):
+            _fail('field inventory conversion is not representable')
+        # Pairwise block reductions plus compensated summation of block totals.
+        complete=amounts.size//1024*1024
+        result=math.fsum((*np.sum(amounts[:complete].reshape(-1,1024),axis=1), math.fsum(amounts[complete:])))
+        if not math.isfinite(result):
+            _fail('field inventory is not finite')
+        return result
     try:
         amounts = []
         for value in field.flat:
@@ -346,6 +398,56 @@ def _audit_transfer(before: float, after: float, transferred: float, factor: flo
         _fail("material transfer exceeds float64 transfer-relative precision budget")
 
 
+def _floor_nonnegative(value: Fraction) -> float:
+    result = float(value)
+    return math.nextafter(result, 0.) if Fraction(result) > value else result
+
+
+def _voxel_uptake(concentration, factor, fluxes, dt):
+    """Proportional uptake capped by the field's representable debit.
+
+    A request is not accepted until its field debit can be represented within
+    the existing transfer budget. Unfulfilled amount stays in the same voxel.
+    No precision exception, time-step retry or artificial nutrient pool is used.
+    """
+    before, conversion = Fraction(float(concentration)), Fraction(float(factor))
+    stock = before * conversion
+    requests = tuple(float(flux) * dt for flux in fluxes)
+    if any(not math.isfinite(value) for value in requests):
+        _fail('uptake flux * dt overflows')
+    demand = sum(map(Fraction, requests), Fraction())
+    if not demand or not stock:
+        return concentration, (0.,) * len(requests), 0.
+    scale = min(Fraction(1), stock / demand)
+    ideal = tuple(_floor_nonnegative(Fraction(value) * scale) for value in requests)
+    ideal_total = sum(map(Fraction, ideal), Fraction())
+    if not ideal_total:
+        return concentration, ideal, 0.
+    # Preserve the ordinary reference path when its unit conversion already
+    # satisfies the strict material-transfer budget.
+    legacy_stock = float(concentration) * factor
+    remaining = max(0., float(Fraction(legacy_stock) - ideal_total))
+    candidate = 0. if demand >= stock else remaining / factor
+    actual = (before - Fraction(candidate)) * conversion
+    accepted_total = math.fsum(ideal)
+    bound = Fraction(1e-10 * accepted_total + 8 * math.ulp(accepted_total))
+    if 0 <= candidate < concentration and abs(actual - Fraction(accepted_total)) <= bound:
+        return candidate, ideal, 0.
+    # Round the exact remaining concentration upward: a quantized debit must
+    # never exceed the ideal request or remove nutrient that was not accepted.
+    target = before - ideal_total / conversion
+    candidate = float(target)
+    if Fraction(candidate) < target:
+        candidate = math.nextafter(candidate, math.inf)
+    actual = (before - Fraction(candidate)) * conversion
+    if not 0 <= actual <= ideal_total or not 0 <= candidate <= concentration:
+        _fail('representable uptake plan exceeds its available inventory')
+    accepted = tuple(_floor_nonnegative(Fraction(value) * actual / ideal_total) for value in ideal)
+    _audit_transfer(concentration, candidate, -math.fsum(accepted), factor)
+    shortfall = float(ideal_total - sum(map(Fraction, accepted), Fraction()))
+    return candidate, accepted, shortfall
+
+
 def _diffuse(field: np.ndarray, grid: GridDomain, diffusion: float, dt: float, blocked: np.ndarray) -> np.ndarray:
     rate = np.zeros(grid.shape)
     for axis, spacing in ((2, grid.dx_um), (1, grid.dy_um), (0, grid.dz_um)):
@@ -369,7 +471,7 @@ def propose_local_field_step(
     state: LocalFieldState, dt_s: float, *, cell_ids: Sequence[str | int] = (),
     positions_um: Sequence[Sequence[float]] = (),
     requested_uptake_molecules_s: Mapping[str, Sequence[float]] | None = None,
-    max_substeps: int = 10_000, max_work_items: int = 20_000_000,
+    max_substeps: int = 10_000, max_work_items: int = 2_000_000_000,
 ) -> LocalFieldProposal:
     """Propose a full step without modifying inputs; no uptake is implicit.
 
@@ -438,38 +540,30 @@ def propose_local_field_step(
     for species in fields:
         release = math.fsum(released_by_source[s.id] for s in state.sources if s.species == species)
         _audit_stage(before_mass[species], release, release_mass[species], len(state.sources) + 1, "source-to-field release")
-    for _ in range(substeps):
+    if state.backend == 'numpy-cupy-cuda':
+        from .field_backend import diffuse_cuda
         for species, field in fields.items():
-            fields[species] = _diffuse(field, state.grid, state.diffusivities_um2_s[species], dt / substeps, blocked)
+            fields[species] = diffuse_cuda(field,state.grid,state.diffusivities_um2_s[species],dt,blocked,substeps)
+    else:
+        for _ in range(substeps):
+            for species, field in fields.items():
+                fields[species] = _diffuse(field, state.grid, state.diffusivities_um2_s[species], dt / substeps, blocked)
     diffused_mass = {s: _mass(f, factor) for s, f in fields.items()}
     for species in fields:
         _audit_stage(release_mass[species], 0., diffused_mass[species], substeps, "diffusion")
-    sampled_state = LocalFieldState(state.grid, {s: tuple(f.flat) for s, f in fields.items()},
-                                    state.diffusivities_um2_s, tuple(new_sources), state.blocked, state.revision + 1)
-    samples = sample_local_fields(sampled_state, positions_um)
+    samples = _sample_arrays(state.grid, fields, indices, blocked)
     accepted = {s: [0.] * len(cell_ids) for s in fields}
+    numerical_shortfalls = {s: [] for s in fields}
     groups: dict[int, list[int]] = {}
     for cell_index, voxel_index in enumerate(indices):
         groups.setdefault(int(voxel_index), []).append(cell_index)
     for species, fluxes in requests.items():
         for voxel, members in groups.items():
-            stock = float(fields[species].flat[voxel]) * factor
-            snapshot = InventorySnapshot(species, (voxel,), (stock,), owner_id="local_fields")
-            try:
-                settlement = propose_settlement(snapshot, cell_ids=tuple(cell_ids[i] for i in members),
-                    support_cell_ids=tuple(cell_ids[i] for i in members), support_weights=((1.,),) * len(members),
-                    requested_flux=tuple(fluxes[i] for i in members), dt_s=dt, policy="proportional")
-            except SettlementError as exc:
-                raise SimulationError("local_fields.uptake", str(exc)) from exc
-            # A zero debit cannot change the field through a unit round-trip.
-            if settlement.ledger.total_accepted == 0:
-                continue
-            new_concentration = settlement.after.amounts[0] / factor
-            if settlement.ledger.total_accepted and new_concentration == fields[species].flat[voxel]:
-                _fail("field cannot represent uptake subtraction")
-            _audit_transfer(fields[species].flat[voxel], new_concentration, -settlement.ledger.total_accepted, factor)
+            new_concentration, amounts, shortfall = _voxel_uptake(
+                float(fields[species].flat[voxel]), factor, tuple(fluxes[i] for i in members), dt)
+            numerical_shortfalls[species].append(shortfall)
             fields[species].flat[voxel] = new_concentration
-            for index, amount in zip(members, settlement.accepted_amount):
+            for index, amount in zip(members, amounts):
                 accepted[species][index] = amount
     ledgers = {}
     for species, field in fields.items():
@@ -485,8 +579,9 @@ def propose_local_field_step(
         if not math.isfinite(bound) or abs(residual) > bound:
             _fail("source/field/uptake conservation ledger exceeds roundoff bound")
         ledgers[species] = FieldLedger(before_mass[species], source_before, source_after, released,
-            release_mass[species], diffused_mass[species], consumed, after_mass, residual, bound)
-    after = LocalFieldState(state.grid, {s: tuple(float(v) for v in f.flat) for s, f in fields.items()},
-                            state.diffusivities_um2_s, tuple(new_sources), state.blocked, state.revision + 1)
+            release_mass[species], diffused_mass[species], consumed, after_mass, residual, bound,
+            math.fsum(numerical_shortfalls[species]))
+    after = LocalFieldState(state.grid, {s: _stored_values(state.grid,f) for s, f in fields.items()},
+                            state.diffusivities_um2_s, tuple(new_sources), state.blocked, state.revision + 1, state.backend)
     return LocalFieldProposal(state, after, samples, MappingProxyType({s: tuple(v) for s, v in accepted.items()}),
                               MappingProxyType(ledgers), MappingProxyType(released_by_source), substeps)

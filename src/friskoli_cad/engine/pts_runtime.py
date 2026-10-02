@@ -110,7 +110,14 @@ def _freeze(nested):
     for node_id, values in nested.items():
         frozen = {}
         for name, value in values.items():
-            array = np.asarray(value, dtype=float).copy()
+            array = np.asarray(value, dtype=float)
+            owner = array
+            while isinstance(owner, np.ndarray) and owner.base is not None:
+                owner = owner.base
+            # Dense fields already own immutable bytes; never duplicate them for
+            # graph output, state and snapshots. Mutable owners still get a copy.
+            if not isinstance(owner, bytes):
+                array = array.copy()
             if not np.isfinite(array).all():
                 raise SimulationError("profile.number", f"{node_id}.{name} is not finite")
             array.setflags(write=False)
