@@ -63,7 +63,7 @@ def _parameter(nodes, registry, node_id, parameter, path):
 
 
 def _settings(settings):
-    _object(settings, ('dt_s', 'steps'), ('frame_every_steps', 'include_fields', 'seed'), '/settings')
+    _object(settings, ('dt_s', 'steps'), ('frame_every_steps', 'include_fields', 'seed', 'backend', 'field_stride_xyz', 'include_final_fields'), '/settings')
     result = deepcopy(settings)
     if _number(result['dt_s'], '/settings/dt_s') <= 0:
         _fail('dt_s must be positive', '/settings/dt_s')
@@ -77,6 +77,13 @@ def _settings(settings):
         _fail('frame_every_steps must be an integer in [1, 10000]', '/settings/frame_every_steps')
     if type(result['include_fields']) is not bool:
         _fail('include_fields must be boolean', '/settings/include_fields')
+    if 'backend' in result and result['backend'] not in ('numpy-cpu', 'numpy-cupy-cuda'):
+        _fail('Unknown execution backend', '/settings/backend')
+    if 'include_final_fields' in result and type(result['include_final_fields']) is not bool:
+        _fail('include_final_fields must be boolean', '/settings/include_final_fields')
+    stride = result.get('field_stride_xyz', [1, 1, 1])
+    if type(stride) is not list or len(stride) != 3 or any(type(v) is not int or v < 1 for v in stride):
+        _fail('field_stride_xyz requires three positive integers', '/settings/field_stride_xyz')
     if 'seed' in result and (type(result['seed']) is not int or not 0 <= result['seed'] <= 2**53 - 1):
         _fail('seed must be a nonnegative safe integer', '/settings/seed')
     return result
@@ -188,25 +195,36 @@ def validate_design_brief(project, brief, registry=None):
 
 
 def _prepare(project, settings):
-    # Local import avoids a dependency cycle when the HTTP service imports designs.
-    from friskoli_cad.replay_service import prepare_project
-    return prepare_project(project, dt_s=settings['dt_s'], steps=settings['steps'], validation_only=True)
+    # Static task admission validation never allocates an entire simulation per
+    # candidate, and does not inherit the synchronous viewer's output limits.
+    from friskoli_cad.project import validate_project
+    from friskoli_cad.tasks.metadata import compiled_plan
+    registry = registry_for_project(project)
+    validate_project(project, registry.manifests, registry=registry)
+    if any(n % s for n, s in zip(project['domain']['counts_xyz'], settings.get('field_stride_xyz', [1, 1, 1]))):
+        _fail('Each field stride must divide its grid count', '/settings/field_stride_xyz')
+    return compiled_plan(project, registry)
 
 
-def _resource_estimate(project, settings, registry):
+def _resource_estimate(project, settings, registry, limits=None):
     from friskoli_cad.tasks.metadata import estimate
     from friskoli_cad.tasks.service import TaskLimits
-    limits = TaskLimits()
-    budget = estimate({'project': project, 'execution': {'steps': settings['steps']},
+    limits = limits or TaskLimits()
+    submission = {'task_contract_version': '0.5.0' if any(k in settings for k in ('backend', 'field_stride_xyz', 'include_final_fields')) else '0.4.0',
+        'project': project, 'execution': {'steps': settings['steps']},
         'output_plan': {'observables': list(project['run']['channels']),
-            'frame_every_steps': settings['frame_every_steps'], 'include_fields': settings['include_fields']}}, registry)
+            'frame_every_steps': settings['frame_every_steps'], 'include_fields': settings['include_fields'],
+            'field_stride_xyz': settings.get('field_stride_xyz', [1, 1, 1]),
+            'include_final_fields': settings.get('include_final_fields', False)}}
+    budget = estimate(submission, registry)
     reasons = []
     for field, limit in (('cells', 'cells'), ('voxels', 'voxels'), ('steps', 'steps'),
                          ('memory_bytes', 'estimated_memory_bytes'), ('output_bytes', 'output_bytes')):
         if budget[field] > getattr(limits, limit):
             reasons.append(f'Estimated {field} {budget[field]} exceeds TaskLimits {getattr(limits, limit)}')
     frames = 1 + settings['steps'] // settings['frame_every_steps'] + int(settings['steps'] % settings['frame_every_steps'] != 0)
-    if budget['output_bytes'] // frames > limits.chunk_bytes:
+    from friskoli_cad.tasks.artifacts import final_field_estimate
+    if (budget['output_bytes'] - final_field_estimate(submission)) // frames > limits.chunk_bytes:
         reasons.append(f'Estimated complete frame exceeds TaskLimits chunk_bytes {limits.chunk_bytes}')
     return budget, reasons
 
@@ -256,7 +274,7 @@ def _control(baseline, brief):
         'explanation': 'Unscanned baseline with fixed motor bias 0.5, matching the N3 control template. Fields, populations, observations and motility parameters are unchanged; exploration constraints apply only to candidates.'}
 
 
-def generate_design(project, settings, brief):
+def generate_design(project, settings, brief, *, task_limits=None):
     """Enumerate and preflight candidates without advancing the numerical simulation."""
     if type(project) is not dict or project.get('project_version') != '0.5.0' or project.get('execution_profile') != CHEMOTAXIS_PROFILE:
         _fail('Design requires a scientific Project 0.5', '/project')
@@ -296,7 +314,7 @@ def generate_design(project, settings, brief):
                 penalty += constraint.get('weight', 1.) * violation
         if not math.isfinite(penalty):
             reasons.append('Soft constraint penalty exceeds finite numeric range')
-        resource, resource_reasons = _resource_estimate(candidate, settings, registry)
+        resource, resource_reasons = _resource_estimate(candidate, settings, registry, task_limits)
         reasons.extend(resource_reasons)
         if not reasons:
             try:
@@ -313,7 +331,7 @@ def generate_design(project, settings, brief):
     feasible = len(candidates)
     if feasible:
         control = _control(baseline, brief)
-        resource, reasons = _resource_estimate(control['project'], settings, registry)
+        resource, reasons = _resource_estimate(control['project'], settings, registry, task_limits)
         if reasons:
             _fail('Fixed control exceeds task resources: ' + '; '.join(reasons), '/control', 'design.budget')
         try:

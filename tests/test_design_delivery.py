@@ -130,6 +130,26 @@ def test_duplicate_seed_excludes_all_duplicates_and_separate_locks_do_not_pool(p
     assert all(r['sample_sd'] == '' and r['status_or_reason'] == 'insufficient_repeats' for r in summaries)
 
 
+def test_failed_attempt_keeps_original_exclusion_while_retry_counts_once(payload):
+    failed=run_for(payload);failed.update(id='failed-attempt',status='failed',completeness='partial',replay=None)
+    payload['runs']=[failed,run_for(payload),run_for(payload,1,5.)]
+    summary=first_summary(payload)
+    assert summary['n']=='2' and float(summary['mean'])==4.
+    exported=rows(payload)
+    assert sum(r['status_or_reason']=='failed_partial_or_incomplete' for r in exported)==1
+    assert not any(r['status_or_reason']=='duplicate_seed' for r in exported)
+    assert import_design_package(export_design_package(payload))==payload
+
+
+def test_duplicate_success_preserves_specific_bad_record_reason(payload):
+    bad=run_for(payload);bad['replay']['snapshots'][-1]['frame']['time_s']=.01
+    payload['runs']=[bad,run_for(payload)]
+    report=rows(payload)
+    assert first_summary(payload)['n']=='0'
+    assert any(r['status_or_reason']=='incomplete_endpoint' for r in report)
+    assert any(r['status_or_reason']=='duplicate_seed' for r in report)
+
+
 def test_html_escapes_and_csv_neutralizes_formula_names(payload):
     payload['design']['brief']['name'] = '</title><script>alert(1)</script>'
     payload['design']['candidates'][0]['name'] = ' \t=HYPERLINK("evil")'

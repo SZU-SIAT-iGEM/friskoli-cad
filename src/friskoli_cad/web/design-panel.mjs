@@ -1,6 +1,14 @@
 import {currentLanguage,t} from './i18n.mjs';
 const text=(en,zh)=>currentLanguage()==='zh-CN'?zh:en;
 const el=(tag,value='',className='')=>{const n=document.createElement(tag);n.textContent=value;n.className=className;return n;};
+const batchPreferenceKey=design=>`friskoli-design-batch:${design.id}`;
+export function restoreDesignBatchOptions(design,storage){
+  let saved;try{saved=JSON.parse(storage?.getItem(batchPreferenceKey(design))??'null');}catch{}
+  return {candidateId:design.candidates.some(c=>c.id===saved?.candidateId)?saved.candidateId:'',seed:saved?.seed!==''&&saved?.seed!==undefined&&design.brief.seeds.includes(Number(saved.seed))?String(saved.seed):'',batchSize:Number.isSafeInteger(saved?.batchSize)&&saved.batchSize>=1&&saved.batchSize<=8?saved.batchSize:4};
+}
+export function persistDesignBatchOptions(design,options,storage){
+  try{storage?.setItem(batchPreferenceKey(design),JSON.stringify(options));return true;}catch{return false;}
+}
 export function numericDesignParameters(project,modules){
   return (project?.graph.nodes??[]).flatMap(node=>Object.entries(node.parameters).filter(([key,p])=>{
     const def=modules.get(`${node.module_id}@${node.module_version}`)?.parameters[key];return ['number','integer'].includes(def?.type)&&!def.enum&&Number.isFinite(p.value);
@@ -8,7 +16,23 @@ export function numericDesignParameters(project,modules){
 }
 export function designRunQueue(design){
   if(!design?.candidates?.some(c=>c.kind==='candidate'))throw new Error('No feasible candidates');
-  return design.candidates.flatMap(candidate=>design.brief.seeds.map(seed=>({project:structuredClone(candidate.project),seed,design_ref:{design_id:design.id,candidate_id:candidate.id,candidate_name:candidate.name}})));
+  return design.candidates.flatMap(candidate=>design.brief.seeds.map(seed=>{const project=structuredClone(candidate.project);if(Object.hasOwn(project,'random_seed'))project.random_seed=seed;return {project,seed,design_ref:{design_id:design.id,candidate_id:candidate.id,candidate_name:candidate.name}};}));
+}
+export function planDesignBatch(design,runs=[],{candidateIds=null,seeds=null,batchSize=4}={}){
+  if(!Number.isSafeInteger(batchSize)||batchSize<1||batchSize>8)throw Error('Batch size must be between 1 and 8');
+  if(!design.candidates.some(c=>c.kind==='candidate'))return {queue:[],eligible:0,remainingAfterBatch:0,missing:0,completed:0,active:0,total:0};
+  const candidates=new Set(candidateIds??design.candidates.map(c=>c.id)),selectedSeeds=new Set(seeds??design.brief.seeds);
+  if([...candidates].some(id=>!design.candidates.some(c=>c.id===id))||[...selectedSeeds].some(seed=>!design.brief.seeds.includes(seed)))throw Error('Selection is outside the frozen design');
+  const planned=designRunQueue(design),matching=runs.filter(r=>r.design_ref?.design_id===design.id);
+  const successful=new Set(),active=new Set();
+  for(const run of matching){const token=JSON.stringify([run.design_ref.candidate_id,run.submission?.execution?.seed??run.settings?.seed]);
+    if(run.status==='completed'&&run.completeness==='complete')successful.add(token);
+    else if(!['failed','cancelled','interrupted','rejected','unavailable'].includes(run.status))active.add(token);
+  }
+  const missing=planned.filter(item=>{const token=JSON.stringify([item.design_ref.candidate_id,item.seed]);return !successful.has(token)&&!active.has(token);});
+  const selected=missing.filter(item=>candidates.has(item.design_ref.candidate_id)&&selectedSeeds.has(item.seed));
+  return {queue:selected.slice(0,batchSize),eligible:selected.length,remainingAfterBatch:selected.length-Math.min(batchSize,selected.length),
+    missing:missing.length,completed:successful.size,active:active.size,total:planned.length};
 }
 export function designPackagePayload(state,workspace,registry){return {package_version:'0.1.0',design:structuredClone(state.design),workspace,runs:structuredClone(state.runs.filter(r=>r.design_ref?.design_id===state.design?.id)),registry};}
 export function defaultAssemblyMetadata(project,groupId){
@@ -56,12 +80,18 @@ export function renderDesignEvaluation(root,evaluation){
   }
   table.append(body);scroll.append(table);panel.append(scroll);
   if(evaluation.limitations?.length){const details=el('details'),summary=el('summary',text('Evaluation limitations / original notes','评价限制 / 原始说明'));details.append(summary);for(const note of evaluation.limitations)details.append(el('p',note,'task-note'));panel.append(details);}
+  for(const candidate of evaluation.candidates??[]){
+    if(!candidate.excluded_attempts?.length)continue;
+    const details=el('details');details.append(el('summary',`${candidate.name} · ${text('Earlier attempts','历史尝试')}`));
+    for(const attempt of candidate.excluded_attempts)details.append(el('p',`${attempt.run_id} · seed ${attempt.seed} · ${attempt.status} · ${attempt.reason}${attempt.superseded_by_complete_repeat?text(' · a complete repeat is available',' · 已有完整重复'):''}`,'task-note'));
+    panel.append(details);
+  }
   root.append(panel);
 }
 export function renderDesignPanel(root,state,actions){
   root.replaceChildren();
   const heading=el('header','', 'design-heading');heading.append(el('h2',text('Design & compare','设计与比较')),el('p',text('Define a parameter scan from the current project. Generated candidates preserve the actual mechanism graph.','基于当前项目定义参数扫描。候选保留实际机制图。')));root.append(heading);
-  const toolbar=el('div','','design-actions');const button=(parent,en,zh,fn,disabled=false)=>{const b=el('button',text(en,zh),'inspector-action');b.type='button';b.disabled=disabled;b.addEventListener('click',()=>Promise.resolve(fn()).catch(actions.error));parent.append(b);return b;};
+  const toolbar=el('div','','design-actions');const button=(parent,en,zh,fn,disabled=false)=>{const b=el('button',text(en,zh),'inspector-action');b.type='button';b.disabled=disabled;b.addEventListener('click',()=>Promise.resolve().then(fn).catch(actions.error));parent.append(b);return b;};
   button(toolbar,'Import .friskoli','导入 .friskoli',actions.import);root.append(toolbar);
   if(state.project?.execution_profile!=='chemotaxis-spatial-v1'){root.append(el('p',text('Open an N3 chemotaxis template to start a design.','先打开 N3 趋化模板再建立设计。')));return;}
   const groupIds=Object.keys(state.project.groups??{});
@@ -70,9 +100,9 @@ export function renderDesignPanel(root,state,actions){
     const draft=state.assemblyDraft??=({...structuredClone(fallback),group_id:groupIds[0],provenance_kind:fallback.provenance.kind,provenance_reference:fallback.provenance.reference});
     if(!groupIds.includes(draft.group_id))draft.group_id=groupIds[0];
     draft.provenance??=structuredClone(fallback.provenance);
-    const panel=el('details','design-assemblies');panel.open=true;panel.append(el('summary',text('Biological chassis / component assembly','生物底盘 / 元件 assembly')));
+    const panel=el('details','','design-assemblies');panel.open=true;panel.append(el('summary',text('Biological chassis / component assembly','生物底盘 / 元件 assembly')));
     panel.append(el('p',text('A reusable assembly contains one population and its owned workflow branch. External environment providers are checked when it is applied.','可复用 assembly 包含一个菌群及其所属 workflow 分支；应用时会检查外部环境提供者。'),'task-note'));
-    const fields=el('div','design-assembly-form');
+    const fields=el('div','','design-assembly-form');
     const field=(label,key,type='text')=>{const row=el('label','','design-field');row.append(el('span',label));const input=document.createElement('input');input.type=type;input.value=draft[key]??'';input.required=true;input.addEventListener('change',()=>{draft[key]=input.value;});row.append(input);fields.append(row);return input;};
     const choice=(label,key,options)=>{const row=el('label','','design-field');row.append(el('span',label));const select=document.createElement('select');for(const [value,name] of options)select.append(new Option(name,value));select.value=draft[key]??options[0][0];select.addEventListener('change',()=>{draft[key]=select.value;});row.append(select);fields.append(row);return select;};
     choice(text('Population','菌群'), 'group_id', groupIds.map(id=>[id,id]));
@@ -82,7 +112,7 @@ export function renderDesignPanel(root,state,actions){
     choice(text('Provenance kind','来源类型'),'provenance_kind',[['user',text('User','用户')],['example',text('Example','示例')],['literature',text('Literature','文献')],['measurement',text('Measurement','测量')],['calibration',text('Calibration','标定')]]);
     field(text('Provenance reference','来源说明'),'provenance_reference');
     // Keep the compact form flat for keyboard and small-screen use, then rebuild the nested contract on submit.
-    panel.append(fields);const actionsRow=el('div','design-actions');
+    panel.append(fields);const actionsRow=el('div','','design-actions');
     const metadata=()=>({id:draft.id,name:draft.name,version:draft.version,kind:draft.kind,biological_role:draft.biological_role,provenance:{kind:draft.provenance_kind??draft.provenance?.kind??'user',reference:draft.provenance_reference??draft.provenance?.reference??''}});
     button(actionsRow,'Export biological assembly','导出生物 assembly',()=>actions.exportAssembly({groupId:draft.group_id,metadata:metadata()}),Boolean(state.assemblyBusy));
     const fileInput=document.createElement('input');fileInput.type='file';fileInput.accept='.json,.assembly,.friskoli-assembly.json';fileInput.hidden=true;fileInput.addEventListener('change',()=>{const file=fileInput.files?.[0];if(file)actions.importAssembly(file,draft.group_id).catch(actions.error);fileInput.value='';});panel.append(fileInput);
@@ -136,7 +166,7 @@ export function renderDesignPanel(root,state,actions){
   }
   const generate=el('button',text('Generate candidates','生成候选'),'run-button');generate.type='submit';generate.disabled=Boolean(state.batch||state.designBusy);form.append(generate);
   if(state.designNotice)root.append(el('p',state.designNotice,'task-note'));
-  if(state.designImported)root.append(el('p',text('Imported run history is read-only in this tab. Keep the .friskoli package to reopen these records after refresh.','导入的运行历史在当前标签页中只读显示。刷新后请重新打开 .friskoli 包；请保留原包。'),'task-note'));
+  if(state.designImported)root.append(el('p',text('Imported history is read-only. A saved browser archive can restore it after refresh; keep the original package as a portable backup.','导入历史只读。已保存的浏览器归档可在刷新后恢复；原生包仍应保留为可携带备份。'),'task-note'));
   if(state.designError)root.append(el('p',state.designError,'error'));
   if(!state.design)return;
   const design=state.design,result=el('section','','design-results');root.append(result);result.append(el('h3',`${design.brief.name} · ${design.id}`));
@@ -145,15 +175,34 @@ export function renderDesignPanel(root,state,actions){
   if(Number.isFinite(design.budget.max_memory_bytes)&&Number.isFinite(design.budget.total_output_bytes))result.append(el('p',`${text('Estimated peak memory','预计峰值内存')}: ${(design.budget.max_memory_bytes/1048576).toFixed(1)} MiB · ${text('Estimated total output','预计总输出')}: ${(design.budget.total_output_bytes/1048576).toFixed(1)} MiB`));
   if(design.budget.feasible_candidate_count<2)result.append(el('p',text('Fewer than two feasible candidates. This design cannot support a candidate recommendation.','可行候选不足两项，本设计无法支持候选推荐。'),'task-note'));
   const actionsRow=el('div','','design-actions');result.append(actionsRow);
-  const runs=state.runs.filter(r=>r.design_ref?.design_id===design.id);const completed=runs.filter(r=>r.status==='completed').length;
+  const runs=state.runs.filter(r=>r.design_ref?.design_id===design.id);const completed=planDesignBatch(design,runs).completed;
   result.append(el('p',`${text('Completed','已完成')}: ${completed}/${design.budget.total_runs}${state.designBatchStatus?' · '+state.designBatchStatus:''}`));
-  button(actionsRow,'Run all candidates × seeds','运行全部候选 × seed',actions.run,Boolean(state.batch||state.designBusy||!design.candidates.some(c=>c.kind==='candidate')||runs.length));
+  let preferenceStorage;try{preferenceStorage=globalThis.localStorage;}catch{}
+  if(state.designBatchOptionsId!==design.id){state.designBatchOptions=restoreDesignBatchOptions(design,preferenceStorage);state.designBatchOptionsId=design.id;}
+  const batchOptions=state.designBatchOptions;
+  const saveBatchOptions=()=>{persistDesignBatchOptions(design,batchOptions,preferenceStorage);actions.render();};
+  if(batchOptions.candidateId&&!design.candidates.some(c=>c.id===batchOptions.candidateId))batchOptions.candidateId='';
+  if(batchOptions.seed!==''&&batchOptions.seed!==undefined&&!design.brief.seeds.includes(Number(batchOptions.seed)))batchOptions.seed='';
+  const candidateSelect=el('select');candidateSelect.add(new Option(text('All candidates and control','全部候选及对照'),''));for(const c of design.candidates)candidateSelect.add(new Option(c.name,c.id));candidateSelect.value=batchOptions.candidateId??'';candidateSelect.addEventListener('change',()=>{batchOptions.candidateId=candidateSelect.value;saveBatchOptions();});
+  const seedSelect=el('select');seedSelect.add(new Option(text('All planned seeds','全部计划 seed'),''));for(const seed of design.brief.seeds)seedSelect.add(new Option(String(seed),String(seed)));seedSelect.value=batchOptions.seed??'';seedSelect.addEventListener('change',()=>{batchOptions.seed=seedSelect.value;saveBatchOptions();});
+  const batchInput=el('input');batchInput.type='number';batchInput.min='1';batchInput.max='8';batchInput.value=batchOptions.batchSize??4;batchInput.addEventListener('change',()=>{batchOptions.batchSize=Number(batchInput.value);saveBatchOptions();});
+  for(const [label,control] of [[text('Candidate selection','候选选择'),candidateSelect],[text('Seed selection','seed 选择'),seedSelect],[text('Runs per batch (1–8)','每批运行数（1–8）'),batchInput]]){const row=el('label',label,'design-field');control.setAttribute('aria-label',label);row.append(control);result.append(row);}
+  const selection={candidateIds:batchOptions.candidateId?[batchOptions.candidateId]:null,seeds:batchOptions.seed!==''&&batchOptions.seed!==undefined?[Number(batchOptions.seed)]:null,batchSize:batchOptions.batchSize??4};
+  let plan;try{plan=planDesignBatch(design,runs,selection);}catch(error){result.append(el('p',error.message,'error'));}
+  result.append(el('p',plan?`${text('Eligible missing/failed repeats','可继续的缺失/失败重复')}: ${plan.eligible} · ${text('This batch','本批')}: ${plan.queue.length} · ${text('Remaining after this batch','本批后剩余')}: ${plan.remainingAfterBatch}`:''));
+  button(actionsRow,'Continue selected missing/failed runs','继续所选缺失/失败运行',()=>actions.run(selection),Boolean(state.batch||state.designBusy||!plan?.queue.length));
   if(state.batch?.designId===design.id)button(actionsRow,'Stop batch','停止批次',actions.stop);
   button(actionsRow,'Compare completed runs','比较已完成运行',actions.compare,completed<2);
   button(actionsRow,state.designEvaluating?'Evaluating…':'Evaluate results',state.designEvaluating?'评价中…':'评价结果',actions.evaluate,Boolean(state.batch||state.designBusy||state.designEvaluating));
   button(actionsRow,'Export .friskoli','导出 .friskoli',()=>actions.export('package'));
   button(actionsRow,'Clear exported design history','清理已导出的设计历史',actions.clear,Boolean(state.batch)||!runs.length);
   button(actionsRow,'HTML report','HTML 报告',()=>actions.export('html'));button(actionsRow,'CSV report','CSV 报告',()=>actions.export('csv'));
+  const formats=el('details','','standard-export');formats.append(el('summary',text('Standard exchange','标准交换')));
+  formats.append(el('p',text('OMEX preserves the native design and a loss report. It does not claim an executable SBML/SED-ML simulation.','OMEX 保存原生设计和格式损失报告，不声明包含可执行的 SBML/SED-ML 仿真。'),'task-note'));
+  button(formats,'Export OMEX','导出 OMEX',()=>actions.export('omex'),Boolean(state.designExporting));
+  button(formats,'Download loss report','下载损失报告',()=>actions.export('loss-report'),Boolean(state.designExporting));
+  formats.append(el('p',text('SBOL3 Component export requires explicit biological identities and evidence; use the documented CLI or API with a component source file. Sequence and SBML/SED-ML mappings are not available in this version.','SBOL3 Component 导出需要明确的生物标识与证据，请通过文档中的 CLI 或 API 提供元件来源文件。本版尚无序列和 SBML/SED-ML 映射。'),'task-note'));
+  result.append(formats);
   if(state.designEvaluation?.design_id===design.id)renderDesignEvaluation(result,state.designEvaluation);
   for(const candidate of design.candidates){const card=el('article','','design-candidate');card.append(el('h4',`${candidate.name} · ${candidate.id}`),el('p',`${candidate.kind} · ${candidate.explanation} · ${text('soft penalty','软约束惩罚')}: ${candidate.soft_penalty}`));const ul=el('ul');for(const o of candidate.overrides)ul.append(el('li',`${o.node_id}.${o.parameter} → ${o.value} ${o.unit??''}`));card.append(ul);const own=runs.filter(r=>r.design_ref.candidate_id===candidate.id);for(const run of own){const b=button(card,`${run.settings?.seed??run.submission?.execution.seed}: ${t(run.status)} · ${run.id}`,`${run.settings?.seed??run.submission?.execution.seed}: ${t(run.status)} · ${run.id}`,()=>actions.view(run),!run.replay);b.classList.add('design-run');}button(card,'Open candidate graph','查看候选图',()=>actions.open(candidate));result.append(card);}
   if(design.excluded.length){result.append(el('h3',text('Excluded candidates','已排除候选')));for(const c of design.excluded)result.append(el('p',`${c.name} · ${c.id}: ${c.reasons.join('; ')}`));}

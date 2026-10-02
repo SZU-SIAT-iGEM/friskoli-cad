@@ -2,6 +2,7 @@
 import { TASK_CONTRACT_VERSION } from './kernel-client.mjs';
 import { normalizeReplay } from './replay.mjs';
 import { validateMetrics } from './metrics.mjs';
+import {fieldDisplayDomain} from './field-slice.mjs';
 
 export const TASK_STORAGE_KEY = 'friskoli.tasks.v1';
 export const TERMINAL_TASK_STATES = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
@@ -20,8 +21,10 @@ const digestKeys = ['document_sha256', 'scientific_sha256', 'registry_sha256', '
 const sameInput = (a, b) => ['document_sha256', 'scientific_sha256', 'registry_sha256', 'plan_sha256', 'edit_revision']
   .every(key => a?.[key] === b?.[key]);
 
-const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0', '0.3.0', '0.4.0']);
+const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0', '0.3.0', '0.4.0', '0.5.0']);
 export function taskCapability(capabilities, project) {
+  const extended=capabilities?.task_profiles?.[project?.execution_profile];
+  if(((project?.execution_profile==='chemotaxis-spatial-v1'&&project.project_version==='0.5.0')||(project?.execution_profile==='spatial-unbiased-v1'&&project.project_version==='0.4.0'))&&extended?.task_contract_versions?.includes('0.5.0')&&extended.execution?.semantics===project.execution_profile)return {...extended,task_contract_version:'0.5.0'};
   if (project?.execution_profile === 'chemotaxis-spatial-v1' && project.project_version === '0.5.0') {
     const task = capabilities?.task_profiles?.[project.execution_profile];
     return task?.task_contract_version === '0.4.0' && task.execution?.semantics === project.execution_profile ? task : null;
@@ -59,12 +62,18 @@ export function buildSubmission(capabilities, project, settings, editRevision, r
   const seed = settings.seed ?? (spatial ? project.random_seed : execution.default_seed);
   if (spatial && settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw failure('task.invalid_output_plan');
   if (!Number.isSafeInteger(seed) || seed < 0) throw failure('task.invalid_seed');
-  const stride = task.task_contract_version === '0.4.0' ? (settings.frame_every_steps ?? 1) : 1;
+  const stride = ['0.4.0','0.5.0'].includes(task.task_contract_version) ? (settings.frame_every_steps ?? 1) : 1;
   if (!Number.isSafeInteger(stride) || stride < 1 || stride > 10000) throw failure('task.invalid_output_plan');
+  const modern=task.task_contract_version==='0.5.0',backend=settings.backend??execution.backend;
+  if(!(modern?execution.available_backends??[execution.backend]:[execution.backend]).includes(backend))throw failure('task.unsupported_backend');
+  const fieldStride=settings.field_stride_xyz??[1,1,1];
+  if(modern&&(!Array.isArray(fieldStride)||fieldStride.length!==3||fieldStride.some((s,i)=>!Number.isSafeInteger(s)||s<1||project.domain.counts_xyz[i]%s!==0)))throw failure('task.invalid_field_stride');
+  if(modern&&settings.include_final_fields!==undefined&&typeof settings.include_final_fields!=='boolean')throw failure('task.invalid_output_plan');
   return immutable({task_contract_version:task.task_contract_version, request_id:requestId,
     edit_revision:String(editRevision), project, version_lock:lock,
-    execution:{semantics:execution.semantics, backend:execution.backend, dt_s:settings.dt_s, steps:settings.steps, seed},
-    output_plan:{frame_every_steps:stride, observables:Object.keys(project.run.channels), include_fields:spatial ? (settings.include_fields ?? true) : false}});
+    execution:{semantics:execution.semantics, backend, dt_s:settings.dt_s, steps:settings.steps, seed},
+    output_plan:{frame_every_steps:stride, observables:Object.keys(project.run.channels), include_fields:spatial ? (settings.include_fields ?? true) : false,
+      ...(modern?{field_stride_xyz:fieldStride,include_final_fields:settings.include_final_fields??false}:{})}});
 }
 
 export async function preflightSubmission(client, capabilities, project, settings, editRevision) {
@@ -77,14 +86,14 @@ export async function preflightSubmission(client, capabilities, project, setting
 // A field-enabled result must carry the complete active species set in every committed frame.
 function taskFields(item, submission) {
   if (!submission.output_plan.include_fields) return {};
-  if (!['0.3.0','0.4.0'].includes(submission.task_contract_version)) throw failure('task.unsupported_fields');
+  if (!['0.3.0','0.4.0','0.5.0'].includes(submission.task_contract_version)) throw failure('task.unsupported_fields');
   const fields = item.concentrations;
   const expected = new Set(submission.project.graph.nodes.filter(node => ['field.diffusive_local','field.ideal_local_reservoir'].includes(node.module_id))
     .map(node => node.parameters.species.value));
   if (!fields || Array.isArray(fields) || typeof fields !== 'object' || Object.keys(fields).length !== expected.size ||
       [...expected].some(name => !Object.hasOwn(fields, name))) throw failure('task.fields_missing');
-  const [nx, ny, nz] = submission.project.domain.counts_xyz;
   for (const field of Object.values(fields)) {
+    const [nx,ny,nz]=fieldDisplayDomain(field,submission.project.domain,{required:submission.task_contract_version==='0.5.0',stride:submission.output_plan.field_stride_xyz??[1,1,1]}).counts_xyz;
     if (!field || field.unit !== 'uM' || !Array.isArray(field.values_zyx) || field.values_zyx.length !== nz ||
         field.values_zyx.some(layer => !Array.isArray(layer) || layer.length !== ny ||
           layer.some(row => !Array.isArray(row) || row.length !== nx ||
@@ -94,7 +103,7 @@ function taskFields(item, submission) {
 }
 
 function taskObjects(item, submission) {
-  if (!['0.3.0','0.4.0'].includes(submission.task_contract_version)) return {};
+  if (!['0.3.0','0.4.0','0.5.0'].includes(submission.task_contract_version)) return {};
   const expected = new Map(submission.project.graph.nodes
     .filter(node => ['material.degradable_box', 'source.finite_local'].includes(node.module_id))
     .map(node => [node.id, node]));
@@ -111,7 +120,7 @@ function taskObjects(item, submission) {
 }
 
 export function validateTaskLifecycle(item, submission) {
-  if(submission.task_contract_version!=='0.4.0')return {};
+  if(!['0.4.0','0.5.0'].includes(submission.task_contract_version)||(submission.task_contract_version==='0.5.0'&&submission.project.execution_profile!=='chemotaxis-spatial-v1'))return {};
   const details=item.lifecycle_details;
   if(details?.lifecycle_version!=='0.1.0'||!Array.isArray(details.deaths)||details.deaths.some(death=>
     !['cell_id','group_id','node_id','module_id','policy'].every(key=>typeof death[key]==='string'&&death[key])||
@@ -122,7 +131,7 @@ export function validateTaskLifecycle(item, submission) {
   if(details.deaths.length!==deaths.length||new Set(details.deaths.map(d=>JSON.stringify([d.cell_id,d.time_s]))).size!==deaths.length)throw failure('task.invalid_lifecycle_details');
   for(const death of details.deaths){
     const node=submission.project.graph.nodes.find(node=>node.id===death.node_id);
-    if(!node||node.module_id!=='life.health_balance'||death.module_id!==node.module_id||node.owner.kind!=='population'||node.owner.id!==death.group_id||node.parameters.policy?.value!==death.policy||death.random_draw>=death.probability)throw failure('task.invalid_lifecycle_details');
+    if(!node||!['life.health_balance','life.starvation_hazard'].includes(node.module_id)||death.module_id!==node.module_id||node.owner.kind!=='population'||node.owner.id!==death.group_id||node.parameters.policy?.value!==death.policy||(node.module_id==='life.starvation_hazard'&&death.policy!=='reserve_starvation')||death.random_draw>=death.probability)throw failure('task.invalid_lifecycle_details');
   }
   return {lifecycle_details:details};
 }
@@ -150,7 +159,7 @@ function validateTask(task, record) {
 
 // Immutable records are replaced, never patched in place; subscribers cannot alter frozen submissions.
 export class TaskStore {
-  constructor(client, {storage = null, now = Date.now, newId = identity, maxRecords = 12, maxBytes = 2 * 1024 * 1024,
+  constructor(client, {storage = null, now = Date.now, newId = identity, maxRecords = 64, maxBytes = 16 * 1024 * 1024,
     maxErrors = 3, pollMs = 1000, onChange = () => {}, isProtected = () => false} = {}) {
     this.client = client; this.storage = storage; this.now = now; this.newId = newId;
     this.maxRecords = maxRecords; this.maxBytes = maxBytes; this.maxErrors = maxErrors; this.pollMs = pollMs;
@@ -168,7 +177,8 @@ export class TaskStore {
     try {
       const text = JSON.stringify({version:1, records:this.storedRecords()});
       if (new TextEncoder().encode(text).length > this.maxBytes) throw failure('task.storage_limit');
-      this.storage?.setItem(TASK_STORAGE_KEY, text); this.persistenceError = null;
+      const write=this.storage?.setItem(TASK_STORAGE_KEY, text); this.persistenceError = null;
+      if(write?.then)write.catch(error=>{this.persistenceError=error.message;});
     } catch (error) { this.persistenceError = error.message; if (strict) throw error; }
   }
   notify(record) { this.persist(); this.onChange(record, this.list()); }
@@ -182,7 +192,8 @@ export class TaskStore {
       const saved = JSON.parse(this.storage?.getItem(TASK_STORAGE_KEY) ?? 'null');
       if (!saved || saved.version !== 1 || !Array.isArray(saved.records)) return [];
       if (new TextEncoder().encode(JSON.stringify(saved)).length > this.maxBytes) throw failure('task.storage_limit');
-      for (const item of saved.records.slice(-this.maxRecords)) {
+      if(saved.records.length>this.maxRecords)throw failure('task.history_full');
+      for (const item of saved.records) {
         if (!item || typeof item.localId !== 'string' || typeof item.idempotencyKey !== 'string' ||
             !supportedVersions.has(item.submission?.task_contract_version) || !item.submission.project?.run ||
             !Number.isFinite(item.createdAt) || !Number.isSafeInteger(item.cursor) || item.cursor < 0 ||
@@ -204,6 +215,19 @@ export class TaskStore {
     return candidates;
   }
   assertCapacity(count = 1) { this.evictionPlan(count); }
+  assertBatchCapacity(submissions) {
+    this.assertCapacity(submissions.length);
+    const projected={version:1,records:[...this.storedRecords(),...submissions.map(submission=>({submission,
+      localId:'request-'+ '0'.repeat(36),idempotencyKey:'friskoli-'+ '0'.repeat(36),design_ref:{design_id:'0'.repeat(128),candidate_id:'0'.repeat(128),candidate_name:'0'.repeat(256)}}))]};
+    // Reserve 8 KiB per record for subsequent task status/locks/events cursor metadata.
+    const projectedBytes=new TextEncoder().encode(JSON.stringify(projected)).length+8192*(this.records.size+submissions.length);
+    if(projectedBytes>this.maxBytes)throw failure('task.storage_limit');
+    return {records:this.records.size+submissions.length,bytes:projectedBytes};
+  }
+  async flushPersistence() {
+    try { await this.storage?.flush?.();this.persistenceError=null; }
+    catch(error){this.persistenceError=error.message;throw error;}
+  }
   create(submission, {draftToken, revision, idempotencyRetentionSeconds, design_ref}) {
     if (this.list().some(r => matchesDraft(r, {draftToken, revision}) &&
         ['submitting', 'submission_unknown'].includes(r.status))) throw failure('task.unresolved_submission');
@@ -262,11 +286,16 @@ export class TaskStore {
       return this.replace(id, {paused:true, error:'task.idempotency_window_expired', connection:'lost', status:'submission_unknown'});
     }
     this.inflight.add(id);
+    let sent=false;
     try {
+      // An accepted-or-unknown task must never reach the server before its exact
+      // request bytes and idempotency key are committed to durable storage.
+      if(this.storage?.flush)await this.flushPersistence();
       // Retrying uses the exact accepted-or-unknown bytes, including the first request_id.
+      sent=true;
       const task = await this.client.submitTask(record.submission, record.idempotencyKey);
       this.applyTask(id, task); this.replace(id, {failures:0, paused:false});
-    } catch (error) { this.fault(id, error, true); }
+    } catch (error) { this.fault(id, error, true);if(!sent)this.persistenceError=error.message; }
     finally { this.inflight.delete(id); }
     return this.get(id);
   }
@@ -348,7 +377,7 @@ export class TaskStore {
       execution:{task_contract_version:record.submission.task_contract_version, task_run_id:record.runId, request_id:record.submission.request_id,
         status:manifest.status, completeness:manifest.completeness, include_fields:record.submission.output_plan.include_fields, input_snapshot:manifest.input_snapshot},
       snapshots:frames.map(item => ({frame:item.frame, concentrations:taskFields(item, record.submission), ...taskObjects(item, record.submission),...validateTaskLifecycle(item,record.submission),
-        ...(record.submission.task_contract_version === '0.4.0' ? {metrics:validateMetrics(item.metrics,record.project)} : {})}))});
+        ...(record.project.execution_profile==='chemotaxis-spatial-v1'&&['0.4.0','0.5.0'].includes(record.submission.task_contract_version) ? {metrics:validateMetrics(item.metrics,record.project)} : {})}))});
     this.replace(id, {manifest, replay});
   }
   async poll(id) {

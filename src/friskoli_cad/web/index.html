@@ -15,11 +15,15 @@
   <div class="app">
     <header class="menubar">
       <div class="brand"><img src="/assets/friskoli.svg" alt="Friskoli"><span class="brand-rule"></span><img class="cad-mark" src="/assets/cad.svg" alt="CAD"></div>
-      <button id="open-button" class="menu-button" type="button" data-i18n="open">Open</button>
-      <button id="new-button" class="menu-button" type="button" data-i18n="new">New</button>
-      <button id="save-button" class="menu-button" type="button" data-i18n="save">Save</button>
-      <button id="undo-button" class="menu-button" type="button" data-i18n="undo" title="Ctrl+Z" disabled>Undo</button>
-      <button id="redo-button" class="menu-button" type="button" data-i18n="redo" title="Ctrl+Shift+Z" disabled>Redo</button>
+      <nav class="application-menus" aria-label="Application menus">
+        <div class="application-menu"><button type="button" class="menu-button" data-menu-trigger="file" aria-haspopup="true" aria-expanded="false">File</button><div class="application-dropdown" id="menu-file" hidden>
+          <button id="new-button" type="button" data-i18n="new">New</button><button id="open-button" type="button" data-i18n="open">Open</button><button type="button" data-command="save-button" data-i18n="save">Save</button><button id="export-button" type="button" data-i18n="export" disabled>Export</button>
+        </div></div>
+        <div class="application-menu"><button type="button" class="menu-button" data-menu-trigger="edit" aria-haspopup="true" aria-expanded="false">Edit</button><div class="application-dropdown" id="menu-edit" hidden><button type="button" data-command="undo-button" data-i18n="undo">Undo</button><button type="button" data-command="redo-button" data-i18n="redo">Redo</button><button type="button" data-command="settings-button" data-i18n="settings">Settings</button></div></div>
+        <div class="application-menu"><button type="button" class="menu-button" data-menu-trigger="view" aria-haspopup="true" aria-expanded="false">View</button><div class="application-dropdown" id="menu-view" hidden><button type="button" data-command="fit-button" data-i18n="fit">Fit</button><button type="button" data-command="objects-tool" data-i18n="objects">Objects</button><button type="button" data-command="properties-tool" data-i18n="properties">Properties</button><button type="button" data-command="log-button" data-i18n="log">Log</button></div></div>
+        <div class="application-menu"><button type="button" class="menu-button" data-menu-trigger="help" aria-haspopup="true" aria-expanded="false">Help</button><div class="application-dropdown" id="menu-help" hidden><button id="shortcut-help" type="button">Keyboard &amp; navigation</button></div></div>
+      </nav>
+      <button id="save-button" class="menu-button top-save" type="button" data-i18n="save">Save</button>
       <span class="project-title" id="project-title">—</span>
       <button id="settings-button" class="menu-button" type="button" data-i18n="settings">Settings</button>
     </header>
@@ -27,11 +31,11 @@
       <nav class="workspace-tabs" aria-label="Workspace">
         <button type="button" class="active" data-view="space" data-i18n="space">Space</button>
         <button type="button" data-view="workflow" data-i18n="workflow">Workflow</button>
-        <button type="button" data-view="design" data-i18n="design">Design</button>
         <button type="button" data-view="results" data-i18n="results">Results</button>
+        <button type="button" data-view="design" data-i18n="design">Design</button>
       </nav>
+      <div class="history-tools"><button id="undo-button" class="menu-button" type="button" data-i18n="undo" title="Ctrl+Z" disabled>Undo</button><button id="redo-button" class="menu-button" type="button" data-i18n="redo" title="Ctrl+Shift+Z" disabled>Redo</button></div>
       <div class="run-tools">
-        <button id="export-button" class="menu-button" type="button" data-i18n="export" disabled>Export</button>
         <button id="check-button" class="menu-button" type="button" data-i18n="checks" disabled>Checks</button>
         <label><span data-i18n="step">Step</span><input id="dt-input" type="number" min="0.000001" step="any" value="0.5" aria-label="Time step in seconds"><span>s</span></label>
         <label><span data-i18n="steps">Steps</span><input id="steps-input" type="number" min="1" max="10000" step="1" value="8" aria-label="Number of steps"></label>
@@ -42,10 +46,6 @@
       <aside class="toolrail" aria-label="Design tools">
         <button id="select-tool" class="active" type="button" title="Select" aria-label="Select">↖</button>
         <button id="population-tool" type="button" title="Place population" aria-label="Place population">◌</button>
-        <button id="move-tool" type="button" title="Move (W)" aria-label="Move population volume">✥</button>
-        <button id="rotate-tool" type="button" title="Rotate (E)" aria-label="Rotate population volume">↻</button>
-        <button id="scale-tool" type="button" title="Scale (E)" aria-label="Scale population volume">⤡</button>
-        <button id="snap-tool" type="button" title="Snap to grid" aria-label="Snap to grid" aria-pressed="false">#</button>
         <button id="measure-tool" type="button" title="Measure (M)" aria-label="Measure distance">⟷</button>
         <button id="hand-tool" type="button" title="Pan (H)" aria-label="Pan camera"></button>
         <button id="orbit-tool" type="button" title="Orbit (O)" aria-label="Orbit camera"></button>
@@ -70,10 +70,18 @@
           <div id="scene-annotations" class="scene-annotations"></div>
           <div id="empty-results" class="empty-results" hidden data-i18n="noResults">Run a project to inspect its results.</div>
           <div id="result-banner" class="result-banner" hidden></div>
+          <div id="transform-tools" class="transform-tools" role="group" aria-label="Object transforms">
+        <button id="move-tool" type="button" title="Move (W)" aria-label="Move selection" data-i18n-aria="moveSelection">✥</button>
+        <button id="rotate-tool" type="button" title="Rotate (E)" aria-label="Rotate selection" data-i18n-aria="rotateSelection">↻</button>
+        <button id="scale-tool" type="button" title="Scale (R)" aria-label="Scale selection" data-i18n-aria="scaleSelection">⤡</button>
+        <button id="snap-tool" type="button" title="Snap to grid" aria-label="Snap to grid" aria-pressed="false">#</button>
+          </div>
           <div class="view-controls" id="view-controls">
             <select id="camera-select" aria-label="Camera view"><option value="perspective" data-i18n="perspective">Perspective</option><option value="orthographic" data-i18n="orthographic">Orthographic</option><option value="top" data-i18n="top">Top · XY</option><option value="front" data-i18n="front">Front · XZ</option><option value="right" data-i18n="right">Right · YZ</option></select>
             <select id="field-select" aria-label="Concentration field"><option value="" data-i18n="noField">No field</option></select>
-            <select id="slice-select" aria-label="Concentration field Z plane"></select>
+            <select id="field-plane" aria-label="Concentration section plane"><option value="z">XY</option><option value="y">XZ</option><option value="x">YZ</option></select>
+            <select id="slice-select" aria-label="Concentration section position"></select>
+            <output id="field-range" aria-label="Concentration color scale"></output>
           </div>
           <div class="viewport-bottom"><span id="view-readout">—</span><span id="measure-readout" class="measure-readout"></span><div class="zoom-controls"><button id="zoom-out" type="button" aria-label="Zoom out">−</button><button id="fit-button" type="button" data-i18n="fit">Fit</button><button id="zoom-in" type="button" aria-label="Zoom in">+</button></div></div>
           <div id="design-view" class="design-view" hidden></div>
@@ -86,6 +94,7 @@
           <div id="event-track" class="event-track"></div>
         </section>
         <section id="diagnostics" class="diagnostics" hidden>
+          <div class="resize-handle resize-bottom" id="resize-bottom" role="separator" tabindex="0" aria-label="Resize diagnostics panel" aria-orientation="horizontal"></div>
           <div class="dock-tabs"><button data-bottom="checks" data-i18n="checks">Checks</button><button data-bottom="runs" data-i18n="runs">Runs</button><button data-bottom="console" data-i18n="log">Log</button><button data-bottom="data" data-i18n="data">Data</button><button id="diagnostics-close" aria-label="Close diagnostics">×</button></div>
           <div id="data-pane" class="diagnostic-scroll" hidden></div><div id="checks-pane" class="diagnostic-scroll"><ol id="checks-list"></ol></div>
           <div id="runs-pane" class="diagnostic-scroll" hidden><p id="task-output-note" class="task-note" data-i18n="taskOutputScope" hidden></p><p id="task-recovery-warning" class="task-note error" data-i18n="taskRecoveryFailed" hidden></p><ol id="runs-list"></ol></div>
@@ -93,7 +102,7 @@
         </section>
       </section>
       <div class="resize-handle resize-right" id="resize-right" role="separator" tabindex="0" aria-label="Resize properties panel" aria-orientation="vertical"></div><aside class="right-dock dock" id="right-dock"><div class="dock-tabs"><button class="active" type="button" data-inspector="properties" data-i18n="properties">Properties</button><button type="button" data-inspector="evidence" data-i18n="evidence">Evidence</button><button class="dock-close" id="close-right" type="button" aria-label="Close properties">×</button></div><div id="inspector" class="dock-scroll"></div></aside>
-      <div class="resize-handle resize-bottom" id="resize-bottom" role="separator" tabindex="0" aria-label="Resize diagnostics panel" aria-orientation="horizontal"></div><button id="dock-backdrop" class="dock-backdrop" type="button" aria-label="Close panel" hidden></button>
+      <button id="dock-backdrop" class="dock-backdrop" type="button" aria-label="Close panel" hidden></button>
     </main>
     <footer class="statusbar"><span class="status-dot"></span><span id="status-message" role="status" aria-live="polite">Loading…</span><span class="status-spacer"></span><span id="status-count"></span><span id="status-version"></span><button id="mobile-objects" class="mobile-dock-button" data-i18n="objects">Objects</button><button id="mobile-properties" class="mobile-dock-button" data-i18n="properties">Properties</button><button id="log-button" class="status-button" type="button" data-i18n="log">Log</button></footer>
   </div>
@@ -126,5 +135,6 @@
   <datalist id="species-options"></datalist>
   <div id="settings-overlay" class="settings-overlay" hidden><div class="settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-heading"><div class="dialog-head"><h2 id="settings-heading" data-i18n="settings">Settings</h2><button id="settings-close" type="button" aria-label="Close settings">×</button></div><label for="language-select" data-i18n="language">Interface language</label><select id="language-select"><option value="en">English</option><option value="zh-CN">中文</option></select></div></div>
   <script type="module" src="/app.mjs"></script>
+  <script type="module" src="/menus.mjs"></script>
 </body>
 </html>

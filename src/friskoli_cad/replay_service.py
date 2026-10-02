@@ -48,10 +48,16 @@ STATIC_FILES = {
     "/vendor/katex/katex.mjs": ("vendor/katex/katex.mjs", "text/javascript; charset=utf-8"),
     "/vendor/katex/katex.min.css": ("vendor/katex/katex.min.css", "text/css; charset=utf-8"),
     "/panels.mjs": ("panels.mjs", "text/javascript; charset=utf-8"),
+    "/menus.mjs": ("menus.mjs", "text/javascript; charset=utf-8"),
+    "/workflow-layout.mjs": ("workflow-layout.mjs", "text/javascript; charset=utf-8"),
+    "/assembly-library.mjs": ("assembly-library.mjs", "text/javascript; charset=utf-8"),
+    "/field-slice.mjs": ("field-slice.mjs", "text/javascript; charset=utf-8"),
     "/results.mjs": ("results.mjs", "text/javascript; charset=utf-8"),
     "/workspace.mjs": ("workspace.mjs", "text/javascript; charset=utf-8"),
     "/kernel-client.mjs": ("kernel-client.mjs", "text/javascript; charset=utf-8"),
     "/task-store.mjs": ("task-store.mjs", "text/javascript; charset=utf-8"),
+    "/task-persistence.mjs": ("task-persistence.mjs", "text/javascript; charset=utf-8"),
+    "/ui-guidance.mjs": ("ui-guidance.mjs", "text/javascript; charset=utf-8"),
     "/": ("index.html", "text/html; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
     "/app.mjs": ("app.mjs", "text/javascript; charset=utf-8"),
@@ -204,7 +210,8 @@ class ReplayHandler(BaseHTTPRequestHandler):
 
     def _post_design(self, path: str, query: str) -> None:
         """Designs are data. Generation and file import never submit solver jobs."""
-        routes = {"/api/design/generate", "/api/design/export", "/api/design/import", "/api/design/report", "/api/design/evaluate"}
+        from friskoli_cad.standards_export import StandardsExportError
+        routes = {"/api/design/generate", "/api/design/export", "/api/design/import", "/api/design/report", "/api/design/evaluate", "/api/design/standards"}
         try:
             maximum = MAX_REQUEST_BYTES if path.endswith("/generate") else MAX_DESIGN_REQUEST_BYTES
             body = strict_json_loads(self._task_body(maximum))
@@ -217,10 +224,19 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 from friskoli_cad.design import generate_design
                 if set(body) != {"project", "settings", "brief"}:
                     raise ValueError("Generation requires project, settings and brief")
-                self._json(200, generate_design(body["project"], body["settings"], body["brief"]))
+                self._json(200, generate_design(body["project"], body["settings"], body["brief"],
+                    task_limits=getattr(getattr(self.server, "task_service", None), "limits", None)))
             elif path.endswith("/evaluate"):
                 from friskoli_cad.design_evaluation import evaluate_design
                 self._json(200, evaluate_design(body))
+            elif path.endswith("/standards"):
+                from friskoli_cad.standards_export import export_standard_payload
+                if not {"payload", "format"} <= set(body) or set(body) - {"payload", "format", "components"} or not isinstance(body["format"], str):
+                    raise ValueError("Standards export requires payload, format and optional explicit components")
+                if "components" in body and body["components"] is None:
+                    raise ValueError("Omit components when absent; explicit components must be a nonempty array")
+                output, media, filename = export_standard_payload(body["payload"], body["format"], body.get("components"))
+                self._send(200, output, media, {"Content-Disposition": f'attachment; filename="{filename}"'})
             elif path.endswith("/export"):
                 from friskoli_cad.design_delivery import export_design_package
                 self._send(200, export_design_package(body), "application/zip",
@@ -239,6 +255,11 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 mime = "text/html" if body["format"] == "html" else "text/csv"
                 self._send(200, render(body["payload"]).encode("utf-8"), mime + "; charset=utf-8",
                            {"Content-Disposition": f'attachment; filename="design-report.{body["format"]}"'})
+        except StandardsExportError as error:
+            response = {"error": {"code": error.code, "message": str(error)}}
+            if error.report is not None:
+                response["loss_report"] = error.report
+            self._json(error.status, response)
         except TaskError as error:
             self._task_error(error)
         except TaskValidationError as error:
@@ -251,11 +272,16 @@ class ReplayHandler(BaseHTTPRequestHandler):
             body = strict_json_loads(self._task_body(MAX_REQUEST_BYTES))
             if not isinstance(body, dict) or query:
                 raise ValueError("Assembly request must be an object without query parameters")
-            from friskoli_cad.biological_assemblies import extract_assembly, apply_assembly
+            from friskoli_cad.biological_assemblies import extract_assembly, apply_assembly, validate_assembly
             if path == "/api/assemblies/extract":
                 if set(body) != {"project", "group_id", "metadata"}:
                     raise ValueError("Extraction requires project, group_id and metadata")
                 self._json(200, extract_assembly(body["project"], body["group_id"], body["metadata"]))
+            elif path == "/api/assemblies/validate":
+                if set(body) != {"assembly"}:
+                    raise ValueError("Validation requires one assembly")
+                validate_assembly(body["assembly"])
+                self._json(200, body["assembly"])
             elif path == "/api/assemblies/apply":
                 if not {"project", "group_id", "assembly"} <= set(body) or set(body) - {"project", "group_id", "assembly", "bindings"}:
                     raise ValueError("Application requires project, group_id, assembly and optional bindings")
@@ -296,10 +322,10 @@ class ReplayHandler(BaseHTTPRequestHandler):
     def _get_task(self, path: str, query: str) -> None:
         try:
             service = self._task_service()
-            match = re.fullmatch(r"/api/runs/([A-Za-z0-9_-]{1,128})(?:/(input|events|result|chunks/([A-Za-z0-9_-]{1,128})))?", path)
+            match = re.fullmatch(r"/api/runs/([A-Za-z0-9_-]{1,128})(?:/(input|events|result|chunks/([A-Za-z0-9_-]{1,128})|artifacts/(final_fields)))?", path)
             if match is None:
                 raise TaskError(404, "task.not_found", "unknown task resource")
-            run_id, resource, chunk_id = match.groups()
+            run_id, resource, chunk_id, artifact_id = match.groups()
             if resource == "events":
                 try:
                     params = parse_qs(query, keep_blank_values=True, strict_parsing=True) if query else {}
@@ -320,6 +346,19 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 result = service.input(run_id)
             elif resource == "result":
                 result = service.manifest(run_id)
+            elif artifact_id is not None:
+                artifact_path, metadata = service.artifact(run_id, artifact_id)
+                with artifact_path.open("rb") as stream:
+                    self.send_response(200)
+                    self.send_header("Content-Type", metadata["media_type"])
+                    self.send_header("Content-Length", str(metadata["bytes"]))
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Disposition", 'attachment; filename="final-fields.npz"')
+                    self.send_header("ETag", '"' + metadata["sha256"] + '"')
+                    self.end_headers()
+                    for block in iter(lambda: stream.read(1024 * 1024), b""):
+                        self.wfile.write(block)
+                return
             else:
                 self._send(200, service.chunk(run_id, chunk_id), "application/json; charset=utf-8")
                 return
@@ -371,10 +410,10 @@ class ReplayHandler(BaseHTTPRequestHandler):
         elif path == "/api/examples/registry-readout":
             self._send(200, files("friskoli_cad").joinpath("examples", "registry_readout.project.json").read_bytes(),
                        "application/json; charset=utf-8")
-        elif path.startswith('/api/examples/chemotaxis-'):
-            from friskoli_cad.engine.chemotaxis_templates import EXAMPLES
+        elif path.startswith(('/api/examples/chemotaxis-', '/api/examples/foundation-', '/api/examples/n5-')):
+            from friskoli_cad.engine.chemotaxis_templates import REGISTERED_EXAMPLES
             key = path.rsplit('/', 1)[-1]
-            if key not in EXAMPLES:
+            if key not in REGISTERED_EXAMPLES:
                 self._json(404, {'error': {'code': 'example.not_found', 'message': 'Unknown scientific example'}})
             else:
                 self._send(200, files('friskoli_cad').joinpath('examples', key.replace('-', '_') + '.project.json').read_bytes(),
@@ -398,6 +437,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 return
             self._json(200, registry_for_profile(profile[0]).catalog)
         elif path == "/api/capabilities":
+            from friskoli_cad.standards_export import standards_capabilities
             capabilities = {
                 "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0"],
                 "catalog_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"], "execution_semantics": "legacy-explicit-v1",
@@ -405,7 +445,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 "design": {"design_version": "0.2.0", "design_versions": ["0.1.0", "0.2.0"],
                            "evaluation_version": "0.1.0", "package_version": "0.1.0",
                            "execution_profiles": [CHEMOTAXIS_PROFILE], "max_runs": 32,
-                           "request_bytes": MAX_DESIGN_REQUEST_BYTES},
+                           "request_bytes": MAX_DESIGN_REQUEST_BYTES, "standards": standards_capabilities()},
                 "biological_assemblies": {"assembly_versions": ["0.1.0"], "extract": True, "apply": True},
                 "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"], "replay_versions": ["0.1.0"],
                 "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
@@ -426,6 +466,9 @@ class ReplayHandler(BaseHTTPRequestHandler):
                                                   SPATIAL_PROFILE: service.capabilities(SPATIAL_PROFILE),
                                                   CHEMOTAXIS_PROFILE: service.capabilities(CHEMOTAXIS_PROFILE)}
             self._json(200, capabilities)
+        elif path == "/api/assemblies":
+            from friskoli_cad.assembly_library import official_assemblies
+            self._json(200, {"library_version": "0.1.0", "assemblies": official_assemblies()})
         elif path in STATIC_FILES:
             filename, content_type = STATIC_FILES[path]
             body = files("friskoli_cad").joinpath("web", filename).read_bytes()
@@ -524,10 +567,20 @@ def main() -> None:
     parser.add_argument("--sync-only", action="store_true", help="serve only the legacy synchronous API")
     parser.add_argument("--task-wall-time-s", type=_positive_seconds, default=1800,
                         help="asynchronous task wall-time limit in seconds (default: 1800; ignored with --sync-only)")
+    parser.add_argument("--task-voxels", type=_positive_seconds, default=262144,
+                        help="maximum computation voxels per task (default: 262144)")
+    parser.add_argument("--task-memory-mib", type=_positive_seconds, default=512,
+                        help="estimated/actual worker RAM limit in MiB (default: 512)")
+    parser.add_argument("--task-output-mib", type=_positive_seconds, default=128,
+                        help="total JSON and final field artifact budget in MiB (default: 128)")
+    parser.add_argument("--task-chunk-mib", type=_positive_seconds, default=4,
+                        help="single JSON frame budget in MiB (default: 4)")
     arguments = parser.parse_args()
     server = ReplayServer(("127.0.0.1", arguments.port),
                           task_directory=None if arguments.sync_only else arguments.task_dir,
-                          task_limits=None if arguments.sync_only else TaskLimits(wall_time_s=arguments.task_wall_time_s))
+                          task_limits=None if arguments.sync_only else TaskLimits(wall_time_s=arguments.task_wall_time_s,
+                              voxels=arguments.task_voxels, estimated_memory_bytes=arguments.task_memory_mib * 1024 * 1024,
+                              output_bytes=arguments.task_output_mib * 1024 * 1024, chunk_bytes=arguments.task_chunk_mib * 1024 * 1024))
     print(f"Friskoli-CAD replay: http://127.0.0.1:{server.server_port}", flush=True)
     try:
         server.serve_forever()

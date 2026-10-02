@@ -183,3 +183,23 @@ def test_returned_design_matches_registered_schemas_with_long_id():
     validator.validate(result)
     assert len({c['project']['id'] for c in result['candidates']}) == 3
     assert all(len(c['id']) <= 256 for c in result['candidates'])
+
+def test_task05_settings_preserved_and_full_field_budget_uses_configured_limits():
+    from friskoli_cad.tasks import TaskLimits
+    project = make_example('chemotaxis-pts-a')
+    project['domain'].update(geometry='volume', counts_xyz=[256]*3, spacing_um_xyz=[.5]*3)
+    config = {'dt_s': .001, 'steps': 2, 'backend': 'numpy-cpu', 'field_stride_xyz': [8]*3,
+              'include_fields': True, 'include_final_fields': True, 'frame_every_steps': 2}
+    limits = TaskLimits(voxels=256**3, estimated_memory_bytes=2*1024**3, output_bytes=1024**3)
+    result = generate_design(project, config, brief(), task_limits=limits)
+    assert len(result['candidates']) == 3
+    assert result['settings'] == config
+    assert result['budget']['max_memory_bytes'] < 2*1024**3
+    assert result['budget']['resource_estimates'][0]['output_bytes'] > 256**3*8
+    assert result['candidates'][0]['project']['domain']['counts_xyz'] == [256]*3
+
+
+@pytest.mark.parametrize('change', [{'backend': 'automatic'}, {'field_stride_xyz': [2, 0, 1]},
+    {'field_stride_xyz': [1, 1]}, {'field_stride_xyz': [True, 1, 1]}, {'include_final_fields': 1}])
+def test_task05_bad_design_settings_rejected(change):
+    with pytest.raises(DesignError): generate_design(make_example(), {**settings(), **change}, brief())

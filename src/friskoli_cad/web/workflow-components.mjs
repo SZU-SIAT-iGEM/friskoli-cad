@@ -2,7 +2,7 @@ import katex from './vendor/katex/katex.mjs';
 
 // Presentation only. Graph mutations and history remain the editor/store's responsibility.
 export const NODE_WIDTH = 250;
-export const NODE_HEAD = 108;
+export const NODE_HEAD = 88;
 export const portRowHeight = coarse => coarse ? 44 : 28;
 export const element = (tag, className = '', text = '') => {
   const item = document.createElement(tag);
@@ -58,6 +58,8 @@ export function createNodeShell(node, {position, geometry, selected, language}) 
   card.setAttribute('role', 'group');
   card.setAttribute('aria-label', `${moduleName(node.manifest, language)} · ${node.id}`);
   card.dataset.node = node.id;
+  card.dataset.scope = node.manifest.scope ?? "module";
+  card.dataset.category = node.manifest.declaration?.category ?? node.manifest.scope ?? "module";
   card.classList.toggle('unavailable-module', Boolean(node.manifest.unavailable));
   Object.assign(card.style, {left:`${position.x}px`, top:`${position.y}px`, width:`${geometry.width}px`, height:`${geometry.height}px`});
   return card;

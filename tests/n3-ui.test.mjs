@@ -18,6 +18,11 @@ test('scientific defaults require a declaration; numeric minima and ambiguous sp
 });
 
 const metric=(value=1)=>({metric_version:'0.1.0',observation_id:template.observation.id,by_group:Object.fromEntries(Object.entries(template.groups).map(([id,g])=>[id,{initial_count:g.ids.length,live_count:g.ids.length,mean_displacement_um:value,region_fraction:.5,ever_arrived_fraction:.5,mean_residence_s:value}]))});
+test('radial saved metrics retain configured centers, radii and founder denominators',()=>{
+ const p=structuredClone(template);p.observation.radial_center_um=[100,50,1];p.observation.radial_radii_um=[1];
+ const values=metric();for(const group of Object.values(values.by_group))group.radial={center_um:[100,50,1],mean_distance_um:12,mean_inward_displacement_um:-2,live_founder_count:group.live_count,live_descendant_count:0,shells:[{radius_um:1,live_count:0,live_fraction:0,volume_enrichment:0,founder_ever_arrived_fraction:0,founder_mean_residence_s:0,founder_mean_first_arrival_s:null}]};
+ assert.equal(validateMetrics(values,p),values);const bad=structuredClone(values);Object.values(bad.by_group)[0].radial.shells[0].radius_um=2;assert.throws(()=>validateMetrics(bad,p),/invalid_radial/);
+});
 function record(seed,value=1){return{id:`r${seed}`,project:structuredClone(template),settings:{seed,dt_s:.05,steps:200},status:'completed',replay:{snapshots:[{frame:{frame_index:200,time_s:10},metrics:metric(value)}]}};}
 test('N3 workspace saves as current workspace with profile, observation and sparse output settings intact',()=>{
   const state=readWorkspace(template);state.settings={dt_s:.05,steps:200,frame_every_steps:7,include_fields:false};

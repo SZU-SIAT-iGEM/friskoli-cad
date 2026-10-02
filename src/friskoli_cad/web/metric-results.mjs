@@ -1,5 +1,6 @@
 // Read-only projections of recorded observables; no solver work belongs here.
 import { METRIC_KEYS } from './metrics.mjs';
+import {currentLanguage} from './i18n.mjs';
 const el=(tag,text='',className='')=>{const node=document.createElement(tag);node.textContent=text;node.className=className;return node;};
 const fmt=value=>Number.isFinite(value)?Number(value.toPrecision(5)).toString():'—';
 const COLORS=['#67d4b4','#79b8ff','#f3ba78','#d0a1ed','#ed8199','#cedc79'];
@@ -23,6 +24,20 @@ function table(root,headers,rows) {
   const body=table.createTBody();for(const cells of rows){const row=body.insertRow();for(const value of cells)row.insertCell().textContent=String(value);}
   const scroll=el('div','','result-table-scroll');scroll.tabIndex=0;scroll.append(table);root.append(scroll);
 }
+export function renderRadialMetrics(root,snapshots){
+  const groups=Object.entries(snapshots.at(-1)?.metrics?.by_group??{}).filter(([,value])=>value.radial);
+  if(!groups.length)return;
+  const text=(en,zh)=>currentLanguage()==='zh-CN'?zh:en;
+  root.append(el('h3',text('Radial observations · saved solver values','径向观测 · 已保存的求解器数值')));
+  root.append(el('p',text('Each radius describes a cumulative sphere. Enrichment divides its live-cell fraction by its domain-volume fraction. Arrival and residence are recorded at numerical steps, not inferred from playback frames.','每个半径表示累积球体。富集倍数为球内存活菌比例除以该球占计算域的体积比例。到达与停留按数值步记录，不从播放帧推算。'),'task-note'));
+  for(const [key,en,zh] of [['mean_distance_um','Mean distance to center [µm]','平均中心距离 [µm]'],['mean_inward_displacement_um','Mean inward displacement · surviving founders [µm]','平均向心位移 · 存活初始菌 [µm]']])metricChart(root,text(en,zh),groups.map(([group])=>({label:group,points:snapshots.map(s=>[s.frame.time_s,s.metrics?.by_group[group]?.radial?.[key]??null])})));
+  const radii=[...new Set(groups.flatMap(([,v])=>v.radial.shells.map(s=>s.radius_um)))].sort((a,b)=>a-b);
+  for(const radius of radii){
+    for(const [key,en,zh] of [['volume_enrichment','Volume enrichment','体积富集倍数'],['founder_ever_arrived_fraction','Founder arrival fraction','初始菌曾到达比例']])metricChart(root,`${text(en,zh)} · R ≤ ${fmt(radius)} µm`,groups.map(([group])=>({label:group,points:snapshots.map(s=>[s.frame.time_s,s.metrics?.by_group[group]?.radial?.shells.find(shell=>shell.radius_um===radius)?.[key]??null])})));
+  }
+  table(root,[text('Population','菌群'),text('Center [µm]','中心 [µm]'),text('Live founders','存活初始菌'),text('Live descendants','存活后代'),text('Mean distance [µm]','平均距离 [µm]'),text('Mean inward displacement [µm]','平均向心位移 [µm]')],groups.map(([group,{radial:r}])=>[group,r.center_um.map(fmt).join(', '),r.live_founder_count,r.live_descendant_count,fmt(r.mean_distance_um),fmt(r.mean_inward_displacement_um)]));
+  table(root,[text('Population','菌群'),'R ≤ [µm]',text('Live count','存活菌数'),text('Live fraction','存活菌比例'),text('Volume enrichment','体积富集倍数'),text('Founder arrival fraction','初始菌曾到达比例'),text('Founder residence [s]','初始菌平均停留 [s]'),text('First arrival · arrived founders [s]','首次到达 · 已到达初始菌 [s]')],groups.flatMap(([group,{radial:r}])=>r.shells.map(s=>[group,...['radius_um','live_count','live_fraction','volume_enrichment','founder_ever_arrived_fraction','founder_mean_residence_s','founder_mean_first_arrival_s'].map(k=>fmt(s[k]))])));
+}
 export function renderMetrics(root,replay,selectedId,t,project,definitions=[]) {
   const snapshots=replay.snapshots,metrics=snapshots.at(-1).metrics;
   if(metrics) {
@@ -32,6 +47,7 @@ export function renderMetrics(root,replay,selectedId,t,project,definitions=[]) {
     if(project?.observation) details.append(el('pre',JSON.stringify(project.observation,null,2),'parameter-record'));
     for(const definition of definitions) details.append(el('p',`${definition.label} [${definition.unit}] · ${definition.description}`));
     root.append(details);
+    renderRadialMetrics(root,snapshots);
     for(const key of METRIC_KEYS.slice(2)) metricChart(root,t(key),Object.keys(metrics.by_group).map(group=>({label:group,points:snapshots.map(s=>[s.frame.time_s,s.metrics?.by_group[group]?.[key]??null])})));
     table(root,[t('population'),...METRIC_KEYS.map(t)],Object.entries(metrics.by_group).map(([group,values])=>[group,...METRIC_KEYS.map(k=>fmt(values[k]))]));
     root.append(el('p',`${t('lastPublishedTime')}: ${fmt(snapshots.at(-1).frame.time_s)} s`,'task-note'));

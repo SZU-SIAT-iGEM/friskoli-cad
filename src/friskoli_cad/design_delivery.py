@@ -300,12 +300,10 @@ def _run_reason(run, design, candidates):
     candidate = candidates.get(ref.get('candidate_id'))
     if candidate is None:
         return 'unknown_candidate'
-    if run.get('status') != 'completed' or run.get('completeness') != 'complete':
-        return 'failed_partial_or_incomplete'
     for holder in (run.get('task'), run.get('manifest'), (run.get('replay') or {}).get('execution')):
         if isinstance(holder, dict):
             complete = holder.get('completeness', (holder.get('result') or {}).get('completeness'))
-            if holder.get('status', 'completed') != 'completed' or complete not in (None, 'complete'):
+            if holder.get('status', run.get('status')) != run.get('status') or (complete is not None and complete != run.get('completeness')):
                 return 'inconsistent_result_status'
     submission = run.get('submission') or {}
     project = run.get('project')
@@ -321,6 +319,11 @@ def _run_reason(run, design, candidates):
             return 'settings_mismatch'
     for key, default in (('frame_every_steps', 1), ('include_fields', True)):
         if output.get(key) != settings.get(key, default) or actual.get(key) != output.get(key):
+            return 'settings_mismatch'
+    if execution.get('backend', 'numpy-cpu') != settings.get('backend', 'numpy-cpu') or actual.get('backend', 'numpy-cpu') != execution.get('backend', 'numpy-cpu'):
+        return 'settings_mismatch'
+    for key, default in (('field_stride_xyz', [1, 1, 1]), ('include_final_fields', False)):
+        if output.get(key, default) != settings.get(key, default) or actual.get(key, default) != output.get(key, default):
             return 'settings_mismatch'
     seed = execution.get('seed')
     if (type(seed) is not int or seed not in design['brief']['seeds']
@@ -342,6 +345,10 @@ def _run_reason(run, design, candidates):
             or set(observables) != set(channels)
             or actual_observables != observables):
         return 'observation_channels_mismatch'
+    # Even unsuccessful attempts must retain coherent frozen inputs and locks.
+    # A later retry must not hide a malformed earlier record behind its status.
+    if run.get('status') != 'completed' or run.get('completeness') != 'complete':
+        return 'failed_partial_or_incomplete'
     snapshots = (run.get('replay') or {}).get('snapshots')
     if not isinstance(snapshots, list) or not snapshots or not isinstance(snapshots[-1], dict):
         return 'missing_result'
@@ -389,18 +396,22 @@ def _report(data):
         if reason is None:
             record['value'] = run['replay']['snapshots'][-1]['metrics']['by_group'][design['brief']['goal']['group_id']][design['brief']['goal']['metric']]
         records.append(record)
-    # A seed identifies one repeat for a candidate.  Count every record,
-    # including a failed/partial one, so a second record cannot make an
-    # otherwise valid result look complete merely because the first record was
-    # rejected for a different reason.
-    repeated = Counter((r['candidate_id'], r['seed']) for r in records
+    # Failed attempts remain visible but are not successful repeats. Count all
+    # claims of complete success (including malformed ones); neither an invalid
+    # successful claim nor two successful attempts can be hidden by a retry.
+    repeated = Counter((r['candidate_id'], r['seed']) for r, run in zip(records, data['runs'], strict=True)
                        if r['design_id'] == design['id'] and r['candidate_id'] in candidates
-                       and r['seed'] is not None)
+                       and r['seed'] is not None and run.get('status') == 'completed'
+                       and run.get('completeness') == 'complete')
     for row in records:
         if (row['design_id'] == design['id'] and row['candidate_id'] in candidates
                 and row['seed'] is not None
                 and repeated[row['candidate_id'], row['seed']] > 1):
-            row['reason'], row['value'] = 'duplicate_seed', None
+            row['duplicate_seed'] = True
+            # Keep the specific malformed-record reason rather than replacing
+            # it with the less informative duplicate label.
+            if row['reason'] is None:
+                row['reason'], row['value'] = 'duplicate_seed', None
     grouped = defaultdict(list)
     for row in records:
         if row['reason'] is None:

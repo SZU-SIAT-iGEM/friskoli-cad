@@ -142,3 +142,59 @@ def test_invalid_result_contracts_rejected_for_generation_and_import(payload, ch
         generate_design(payload['design']['baseline_project'], payload['design']['settings'], payload['design']['brief'])
     with pytest.raises(DesignPackageError):
         evaluate_design(payload)
+
+
+@pytest.mark.parametrize('status', ['failed', 'cancelled', 'interrupted', 'rejected'])
+def test_explicit_retry_keeps_failed_attempt_but_unique_success_can_be_evaluated(payload, status):
+    failed = deepcopy(payload['runs'][0])
+    failed.update(id='old-' + status, status=status, completeness='partial')
+    failed['replay'] = None
+    payload['runs'].insert(0, failed)
+    original = deepcopy(payload)
+    result = evaluate_design(payload)
+    assert result['status'] == 'recommended'
+    first = result['candidates'][0]
+    assert first['objective']['n'] == 2 and first['seeds'] == [0, 1]
+    assert first['excluded_attempts'] == [{'run_id':'old-' + status, 'seed':0,
+        'reason':'failed_partial_or_incomplete', 'status':status, 'superseded_by_complete_repeat':True}]
+    assert payload == original
+    assert import_design_package(export_design_package(payload)) == original
+
+
+@pytest.mark.parametrize('mutation,reason', [
+    (lambda r: r['settings'].update(dt_s=.123), 'settings_mismatch'),
+    (lambda r: r['project']['domain'].update(counts_xyz=[1,1,1]), 'project_mismatch'),
+    (lambda r: r['submission'].pop('version_lock'), 'missing_version_lock'),
+    (lambda r: r['submission']['version_lock'].update(implementations=[]), 'missing_implementation_lock'),
+])
+def test_successful_retry_does_not_hide_malformed_failed_input_or_lock(payload, mutation, reason):
+    failed = deepcopy(payload['runs'][0])
+    failed.update(id='bad-failure',status='failed',completeness='partial')
+    mutation(failed)
+    payload['runs'].append(failed)
+    result = evaluate_design(payload)
+    assert result['status'] == 'no_recommendation'
+    assert reason in result['candidates'][0]['reasons']
+    attempt = result['candidates'][0]['excluded_attempts'][0]
+    assert attempt['reason'] == reason and not attempt['superseded_by_complete_repeat']
+
+
+def test_claimed_success_with_bad_endpoint_cannot_be_hidden_by_another_success(payload):
+    bad = deepcopy(payload['runs'][0])
+    bad['id'] = 'fake-complete'
+    bad['replay']['snapshots'][-1]['frame']['time_s'] = .01
+    payload['runs'].append(bad)
+    result = evaluate_design(payload)
+    assert result['status'] == 'no_recommendation'
+    first = result['candidates'][0]
+    assert 'duplicate_seed' in first['reasons'] and 'incomplete_endpoint' in first['reasons']
+    assert any(a['run_id']=='fake-complete' and a['reason']=='incomplete_endpoint' for a in first['excluded_attempts'])
+
+
+@pytest.mark.parametrize('status', ['running', 'submission_unknown'])
+def test_unresolved_attempt_is_not_treated_as_a_superseded_failure(payload, status):
+    pending=deepcopy(payload['runs'][0]);pending.update(id='pending',status=status,completeness='none',replay=None)
+    payload['runs'].append(pending)
+    result=evaluate_design(payload)
+    assert result['status']=='no_recommendation'
+    assert not result['candidates'][0]['excluded_attempts'][0]['superseded_by_complete_repeat']

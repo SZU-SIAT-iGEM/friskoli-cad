@@ -1,3 +1,4 @@
+import {fieldDisplayDomain} from './field-slice.mjs';
 export function normalizeReplay(payload) {
   if (payload?.replay_format_version !== '0.1.0') throw new Error('badEnvelope');
   if (payload?.run?.protocol_version !== '0.1.0') throw new Error('badGraphVersion');
@@ -20,7 +21,7 @@ export function normalizeReplay(payload) {
       throw new Error('badFrameVersion');
     }
     version = currentVersion;
-    const sparse = payload.execution?.task_contract_version === '0.4.0';
+    const sparse = ['0.4.0','0.5.0'].includes(payload.execution?.task_contract_version);
     if (frame.protocol_version !== '0.1.0' || frame.run_id !== runId ||
         (sparse ? !Number.isSafeInteger(frame.frame_index) || frame.frame_index <= previousStep || (index === 0 && frame.frame_index !== 0) : frame.frame_index !== index) ||
         !Number.isFinite(frame.time_s) || frame.time_s <= previousTime ||
@@ -63,9 +64,10 @@ export function normalizeReplay(payload) {
     }
     if (!concentrations || typeof concentrations !== 'object') throw new Error('fieldsMissing');
     for (const field of Object.values(concentrations)) {
-      if (!Array.isArray(field.values_zyx) || field.values_zyx.length !== nz ||
-          field.values_zyx.some(layer => !Array.isArray(layer) || layer.length !== ny ||
-            layer.some(row => !Array.isArray(row) || row.length !== nx || !row.every(Number.isFinite)))) {
+      const [fx,fy,fz]=fieldDisplayDomain(field,payload.domain,{required:payload.execution?.task_contract_version==='0.5.0'}).counts_xyz;
+      if (!Array.isArray(field.values_zyx) || field.values_zyx.length !== fz ||
+          field.values_zyx.some(layer => !Array.isArray(layer) || layer.length !== fy ||
+            layer.some(row => !Array.isArray(row) || row.length !== fx || !row.every(value=>Number.isFinite(value)&&value>=0)))) {
         throw new Error('badFieldShape');
       }
     }

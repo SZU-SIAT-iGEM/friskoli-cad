@@ -9,6 +9,13 @@ const hash = 'a'.repeat(64);
 const cap = {task_contract_version:'0.3.0',version_lock:{registry_sha256:hash,implementations:[]},
   execution:{semantics:profile,backend:'numpy-cpu',default_seed:0}};
 const caps = {task_profiles:{[profile]:cap}};
+test('Task 0.5 negotiates preview and available backend without altering computation grid',()=>{
+ const modern={task_profiles:{[profile]:{...cap,task_contract_versions:['0.3.0','0.5.0'],execution:{...cap.execution,available_backends:['numpy-cpu','numpy-cupy-cuda']}}}};
+ const settings={dt_s:.01,steps:10,frame_every_steps:4,field_stride_xyz:[2,2,1],backend:'numpy-cupy-cuda',include_final_fields:true};
+ const input=buildSubmission(modern,project,settings,'r','request');assert.equal(input.task_contract_version,'0.5.0');assert.equal(input.execution.backend,'numpy-cupy-cuda');assert.deepEqual(input.output_plan.field_stride_xyz,[2,2,1]);assert.equal(input.output_plan.include_final_fields,true);assert.deepEqual(input.project.domain,project.domain);
+ assert.throws(()=>buildSubmission(modern,project,{...settings,backend:'other'},'r','request'),/unsupported_backend/);
+ assert.throws(()=>buildSubmission(modern,project,{...settings,field_stride_xyz:[999,1,1]},'r','request'),/invalid_field_stride/);
+});
 
 test('spatial capability gating and seeded field defaults are exact', () => {
   const input=buildSubmission(caps,project,{dt_s:.01,steps:1},'r1','request');

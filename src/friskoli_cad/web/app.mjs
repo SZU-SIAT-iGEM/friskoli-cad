@@ -1,12 +1,14 @@
-import {renderDesignPanel,designRunQueue,designPackagePayload} from './design-panel.mjs';
+import {renderDesignPanel,planDesignBatch,designPackagePayload} from './design-panel.mjs';
 import { normalizeReplay, cellHistory } from './replay.mjs';
+import {fieldDisplayDomain} from './field-slice.mjs';
 import { registerCatalog, resolveGraph, readableManifest, unavailableModules } from './catalog.mjs';
 import { adaptWorkspace } from './migration.mjs';
 import { renderModuleDocumentation } from './math-inspector.mjs';
 import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
 import { readWorkspace, writeWorkspace, validateDesignBrief, validateDesignDocument, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
-import { TaskStore, preflightSubmission, matchesDraft, supportsTasks, taskCapability, executionStepLimit } from './task-store.mjs';
+import { TaskStore, buildSubmission, preflightSubmission, matchesDraft, supportsTasks, taskCapability, executionStepLimit } from './task-store.mjs';
+import { openTaskPersistence } from './task-persistence.mjs';
 import { renderResultData } from './results.mjs';
 import { compareRuns, METRIC_KEYS, csvCell } from './metrics.mjs';
 import { copyPopulationBranch } from './templates.mjs';
@@ -14,7 +16,10 @@ import { renderComparison } from './metric-results.mjs';
 import { installDockSizing } from './panels.mjs';
 import { SpatialViewport, canTransformBlock, canTransformEnvironment } from './scene3d.mjs';
 import { GraphEditor, autoLayout } from './workflow.mjs';
-import { moduleName } from './workflow-components.mjs';
+import { moduleName, nodeGeometry } from './workflow-components.mjs';
+import { arrangeGraph, timelineMarkers } from './workflow-layout.mjs';
+import { showAssemblyLibrary } from './assembly-library.mjs';
+import { moduleFolders, diagnosticTarget, populationModuleBindings, populationNodeLocked } from './ui-guidance.mjs';
 import { addNode, connect, connectionProblem, disconnect, missingInputs, missingParameters, preferredTiming, removeNode,
   setParameter } from './graph-edit.mjs';
 import { applyLanguage, currentLanguage, setLanguage, t } from './i18n.mjs';
@@ -39,7 +44,14 @@ const state = { project: null, blocks: [], modules: new Map(), replay: null, vie
 const kernel = new KernelClient();
 let taskStorage = null;
 try { taskStorage = localStorage; } catch { /* display unavailable recovery in the task panel */ }
-const taskStore = new TaskStore(kernel, {storage:taskStorage, maxRecords:32, onChange:taskUpdated, isProtected:record => Boolean(record.design_ref) || state.comparison?.has(record.id) || state.batch?.records.has(record.localId)});
+let taskPersistence = null, taskPersistenceError = null;
+try { taskPersistence = await openTaskPersistence(taskStorage); }
+catch (error) { taskPersistenceError = error.message; }
+const durableStorage = taskPersistence?.storage ?? {
+  getItem:key=>taskStorage?.getItem(key),
+  setItem:()=>{throw new Error(taskPersistenceError ?? 'Durable task history is unavailable');}
+};
+const taskStore = new TaskStore(kernel, {storage:durableStorage, maxRecords:64, maxBytes:16*1024*1024, onChange:taskUpdated, isProtected:record => Boolean(record.design_ref) || state.comparison?.has(record.id) || state.batch?.records.has(record.localId)});
 state.objects = new Map();
 state.registries = new Map();
 state.activeObject = null;
@@ -208,12 +220,21 @@ function renderFieldControls() {
   $('field-select').replaceChildren(new Option(t('noField'), ''), ...fields.map(id => new Option(id, id)));
   $('field-select').value = state.field;
   $('field-select').hidden = state.view !== 'results' || fields.length === 0;
-  const nz = (state.view === 'results' ? state.replay?.domain : state.project?.domain)?.counts_xyz[2] ?? 1;
+  const axis={x:0,y:1,z:2}[state.fieldPlane??'z'];
+  const activeField=state.replay?.snapshots[state.frameIndex]?.concentrations[state.field];
+  const domain=(state.view === 'results' ? (activeField?fieldDisplayDomain(activeField,state.replay.domain):state.replay?.domain) : state.project?.domain);
+  const nz = domain?.counts_xyz[axis] ?? 1;
   $('slice-select').replaceChildren(...Array.from({ length: nz }, (_, index) =>
-    new Option(`Z ${index + 1} / ${nz}`, String(index))));
+    new Option(`${'XYZ'[axis]} = ${fmt((index+.5)*(domain?.spacing_um_xyz[axis]??1))} µm`, String(index))));
   state.slice = Math.min(state.slice, nz - 1);
   $('slice-select').value = String(state.slice);
   $('slice-select').hidden = state.view !== 'results' || !state.field || nz === 1;
+  $('field-plane').hidden=state.view!=='results'||!state.field;
+  $('field-plane').value=state.fieldPlane??'z';
+  const range=state.ranges[state.field];
+  $('field-range').hidden=state.view!=='results'||!state.field;
+  $('field-range').textContent=range?`${fmt(range.min,4)}–${fmt(range.max,4)} ${state.replay.snapshots[0].concentrations[state.field].unit}`:'';
+  if(activeField?.aggregation==='volume_mean')$('field-range').textContent+=` · ${currentLanguage()==='zh-CN'?'体积平均预览格距':'Volume-mean preview spacing'} ${domain.spacing_um_xyz.map(v=>fmt(v,4)).join(' × ')} µm · ${currentLanguage()==='zh-CN'?'计算格距':'Computation spacing'} ${state.replay.domain.spacing_um_xyz.map(v=>fmt(v,4)).join(' × ')} µm`;
 }
 
 function currentSnapshot() {
@@ -243,14 +264,15 @@ function renderScene() {
   viewport?.setMode(state.view);
   if (!['workflow','design'].includes(state.view)) {
     viewport?.setSnapshot(snapshot ?? {frame:{cells:[]},concentrations:{}}, state.view === 'results' ? state.selectedCell : null,
-      state.view === 'results' ? state.field : '', state.slice, state.ranges[state.field]);
+      state.view === 'results' ? state.field : '', state.slice, state.ranges[state.field], state.fieldPlane??'z');
     viewport?.setBlocks(state.blocks.map(block => objectForBlock(block,state.objects) ? block : {...block,locked:true}), state.selectedBlock);
     viewport?.setObjects(visibleEnvironment(),state.selectedEnvironment);
   }
   const [nx, ny, nz] = domain.counts_xyz;
   const [dx, dy, dz] = domain.spacing_um_xyz;
   $('view-readout').textContent = `${fmt(nx * dx)} × ${fmt(ny * dy)} × ${fmt(nz * dz)} µm`;
-  $('document-meta').textContent = `${domain.geometry === 'volume' ? '3D' : 'THIN LAYER'}  ·  ${nx} × ${ny} × ${nz}`;
+  $('document-meta').textContent = `${domain.geometry === 'volume' ? '3D' : 'THIN LAYER'}  ·  ${t('grid')} ${nx} × ${ny} × ${nz}`;
+  $('document-meta').title = `${t('spacing')}: ${[dx,dy,dz].map(n=>fmt(n)).join(' × ')} µm · ${nx} × ${ny} × ${nz} cells`;
   $('status-count').textContent = `${snapshot?.frame.cells.length ?? 0} ${t('cells')} · ${state.blocks.length} ${t('populations')}`;
   $('status-version').textContent = state.view === 'results' ? `FRAME ${snapshot?.frame.frame_version ?? '—'}` : 'DRAFT';
   $('empty-results').hidden = state.view !== 'results' || Boolean(state.replay);
@@ -268,11 +290,12 @@ function renderTimeline() {
   $('next-button').disabled = state.frameIndex === replay.snapshots.length - 1;
   const track = $('event-track');
   track.replaceChildren();
-  for (const [index,snapshot] of replay.snapshots.entries()) {
-    const tick = el('button', `event-tick${snapshot.frame.events.length ? ' has-event' : ''}${index === state.frameIndex ? ' current' : ''}`,
-      snapshot.frame.events.length ? '◆' : '·');
+  for (const {index, start, end, events} of timelineMarkers(replay.snapshots, state.frameIndex)) {
+    const snapshot = replay.snapshots[index];
+    const tick = el('button', `event-tick${events ? ' has-event' : ''}${index === state.frameIndex ? ' current' : ''}`, events ? '◆' : '·');
     tick.type = 'button';
-    tick.title = `${fmt(snapshot.frame.time_s, 3)} s · ${snapshot.frame.events.length} events`;
+    tick.title = `${t('frame')} ${index} · ${fmt(snapshot.frame.time_s, 3)} s · ${start}–${end} · ${events} events`;
+    tick.setAttribute('aria-label', tick.title);
     tick.addEventListener('click', () => setFrame(index));
     track.append(tick);
   }
@@ -345,10 +368,14 @@ function renderLeft() {
   }
   if (state.left === 'modules') {
     container.append(el('div', 'tree-heading', `${t('compiled')} · ${state.modules.size}`));
-    for (const [key, manifest] of state.modules) {
-      if (filter && !`${key} ${manifest.description}`.toLowerCase().includes(filter)) continue;
-      treeRow(container, moduleName(manifest,currentLanguage()), key, state.selectedManifest === key,
+    state.moduleFolders??={};
+    for (const folder of moduleFolders(state.modules,currentLanguage(),filter)) {
+      const details=el('details','module-folder');details.open=Boolean(filter)||state.moduleFolders[folder.id]!==false;
+      details.append(el('summary','',`${folder.label} · ${folder.entries.length}`));
+      details.addEventListener('toggle',()=>{if(!filter)state.moduleFolders[folder.id]=details.open;});
+      for (const [key, manifest] of folder.entries) treeRow(details, moduleName(manifest,currentLanguage()), key, state.selectedManifest === key,
         () => { state.selectedManifest = key; renderLeft(); renderInspector(); closeDocks(); }, '⬡');
+      container.append(details);
     }
     return;
   }
@@ -431,7 +458,7 @@ function renderTemplateSummary(container) {
     try {
       const document=await kernel.request(`/api/examples/${encodeURIComponent(select.value)}`);
       if (revision!==state.revision || draft!==state.draftToken) return;
-      await loadProject(document); setView('workflow');
+      await loadProject(document,registry.templates.find(item=>item.example_id===select.value)?.recommended_settings); setView('workflow');
     } catch(error) { status('loadFailed',{message:error.message},true); }
     finally { replace.disabled=false; }
   }); details.append(select,replace);container.append(details);
@@ -472,6 +499,7 @@ function renderBlockInspector(root, block) {
   root.append(el('div', 'inspector-title', block.name), el('div', 'inspector-subtitle', `${t('population')} · ${block.id}`));
   if (!objectForBlock(block,state.objects)) {
     root.append(el('p','pending-note',t('populationAdapterMissing')));
+    renderPopulationMechanisms(root,block.id);
     renderExistingCells(root,block);
     const remove = el('button','inspector-action danger',t('delete'));
     remove.addEventListener('click',() => removeBlock(block.id)); root.append(remove);
@@ -481,6 +509,7 @@ function renderBlockInspector(root, block) {
   const nameRow = el('label', 'edit-row');
   const nameInput = el('input');
   nameInput.type = 'text';
+  nameInput.disabled = Boolean(block.locked);
   nameInput.value = block.name;
   nameInput.setAttribute('aria-label', t('name'));
   nameRow.append(el('span', '', t('name')), nameInput);
@@ -491,6 +520,7 @@ function renderBlockInspector(root, block) {
   });
   count.append(nameRow);
   block.rotation ??= [0, 0, 0];
+  renderPopulationMechanisms(root,block.id);
   const object = objectForBlock(block, state.objects);
   for (const property of object?.properties ?? []) {
     const parent = property.type === 'vector3' ? section(root, t(property.label) + ' · ' + property.unit) : count;
@@ -531,6 +561,7 @@ function renderBlockInspector(root, block) {
     for (const candidate of state.blocks.filter(b => b.id !== block.id && state.project.groups[b.id])) source.append(new Option(`${candidate.name} · ${candidate.id}`,candidate.id));
     const button = el('button','inspector-action',t('copyBranch'));
     button.disabled = !source.options.length || block.locked;
+    if (button.disabled) button.title = currentLanguage()==='zh-CN' ? (block.locked?'菌群已锁定。':'需要另一个已散布的菌群作为来源。') : (block.locked?'The population is locked.':'Another initialized population is required as the source.');
     button.addEventListener('click',() => edit('updated',() => {
       block.binding = {data_nodes:copyPopulationBranch(state.project,source.value,block.id)};
       state.layout = autoLayout(state.project.graph,state.modules,state.layout);
@@ -538,6 +569,33 @@ function renderBlockInspector(root, block) {
     part.append(el('p','empty-message',t('copyBranchHint')),source,button);
   }
   if (block.dirty) root.append(el('div', 'pending-note', t('pending')));
+}
+
+function renderPopulationMechanisms(root,groupId,{project=state.project,modules=state.modules,readOnly=false}={}) {
+  const zh=currentLanguage()==='zh-CN',bindings=populationModuleBindings(project,modules,groupId);
+  const part=section(root,zh?'绑定的驱动与生命周期':'Bound drivers & lifecycle');part.classList.add('population-mechanisms');
+  const locked=Boolean(state.blocks.find(block=>block.id===groupId)?.locked);
+  part.append(el('p','mechanism-note',readOnly?(zh?'以下参数来自本次运行的冻结输入，只读。':'Parameters below are from this run’s frozen input; read-only.'):
+    locked?(zh?'菌群已锁定；解除锁定后可编辑绑定模块参数。':'Population locked; unlock it to edit its bound module parameters.'):
+    (zh?'这些模块直接绑定此菌群；参数与工作流共用同一节点。':'These modules are bound to this population and share the workflow’s actual parameters.')));
+  if(!bindings.length){part.append(el('p','mechanism-note',zh?'尚无绑定模块。添加真实注册模块后可在这里编辑。':'No bound modules. Registered modules appear here when added.'));return;}
+  state.mechanismExpanded??=new Map();
+  for(const {node,manifest} of bindings){
+    const details=el('details','bound-mechanism');details.dataset.boundNode=node.id;
+    const key=`${readOnly?'result':'draft'}:${groupId}:${node.id}`;
+    details.open=state.mechanismExpanded.get(key)??(!readOnly&&Boolean(manifest?.parameters?.speed_um_s));
+    details.addEventListener('toggle',()=>state.mechanismExpanded.set(key,details.open));
+    const summary=el('summary');summary.append(el('span','',manifest?moduleName(manifest,currentLanguage()):node.module_id),el('small','',node.id));details.append(summary);
+    details.append(el('p','mechanism-id',`${node.module_id}@${node.module_version}`));
+    if(!manifest){details.append(el('p','mechanism-note',zh?'当前注册表中没有此模块；保留原始参数，不推测可编辑定义。':'This module is absent from the current registry. Original parameters are preserved without inferred definitions.'));for(const [name,entry] of Object.entries(node.parameters))kv(details,name,JSON.stringify(entry));}
+    else {
+      const entries=Object.entries(manifest.parameters);
+      if(!entries.length)details.append(el('p','mechanism-note',zh?'此节点没有可编辑参数。':'This node has no editable parameters.'));
+      for(const [name,definition] of entries)parameterField(details,node,manifest,name,definition,{readOnly});
+    }
+    if(!readOnly){const locate=el('button','mechanism-locate',zh?'在工作流中定位':'Locate in workflow');locate.type='button';locate.addEventListener('click',()=>{state.left='objects';state.selectedManifest=null;state.inspectorTab='properties';setView('workflow');selectGraph({kind:'node',id:node.id});graphEditor.focusNode?.(node.id);});details.append(locate);}
+    part.append(details);
+  }
 }
 
 function renderExistingCells(root,block) {
@@ -624,6 +682,8 @@ function renderCellInspector(root, cell) {
     for (const [id, value] of channels) kv(part, id, `${fmt(value, 4)} ${state.replay.run.channels[id]?.unit ?? ''}`);
   }
   root.append(el('div', 'inspector-foot', t('history', { count: cellHistory(state.replay, cell.id).length })));
+  const project=visibleProject();
+  if(project){const modules=state.registries.get(project.execution_profile??'legacy-explicit-v1')?.modules??state.modules;renderPopulationMechanisms(root,cell.group_id,{project,modules,readOnly:true});}
 }
 
 function renderDomainInspector(root) {
@@ -640,6 +700,24 @@ function renderDomainInspector(root) {
     output.type = 'checkbox'; output.checked = state.settings.include_fields !== false;
     output.addEventListener('change',() => edit('updated',() => { state.settings.include_fields = output.checked; }));
     outputRow.append(output); part.append(outputRow);
+    const capability=taskCapability(state.capabilities,state.project);
+    if(capability?.task_contract_version==='0.5.0'){
+      const label=(en,zh)=>currentLanguage()==='zh-CN'?zh:en;
+      const backends=capability.execution.available_backends??[capability.execution.backend],backend=el('select');
+      for(const value of backends)backend.add(new Option(value==='numpy-cupy-cuda'?'CUDA · '+label('diffusion only; CPU physiology','仅扩散，生理过程用 CPU'):'CPU',value));
+      if(state.settings.backend&&!backends.includes(state.settings.backend)){const missing=new Option(`${state.settings.backend} · ${label('unavailable on this service','此服务不可用')}`,state.settings.backend);missing.disabled=true;backend.add(missing);}
+      backend.value=state.settings.backend??capability.execution.backend;backend.setAttribute('aria-label','Execution backend');
+      backend.addEventListener('change',()=>edit('updated',()=>{state.settings.backend=backend.value;}));
+      const backendRow=el('label','edit-row',label('Execution backend','计算后端'));backendRow.append(backend);part.append(backendRow);
+      const strideRow=el('div','design-row');
+      for(let axis=0;axis<3;axis++){
+        const row=el('label','edit-row',`${label('Preview block','预览块')} ${'XYZ'[axis]}`),input=el('input');input.type='number';input.min='1';input.step='1';input.value=state.settings.field_stride_xyz?.[axis]??1;input.setAttribute('aria-label',`Field preview stride ${'XYZ'[axis]}`);
+        input.addEventListener('change',()=>edit('updated',()=>{const value=Number(input.value);if(!Number.isSafeInteger(value)||value<1||state.project.domain.counts_xyz[axis]%value)throw Error(label('Preview block must divide the computation grid count.','预览块须整除计算网格数。'));const next=[...(state.settings.field_stride_xyz??[1,1,1])];next[axis]=value;state.settings.field_stride_xyz=next;}));row.append(input);strideRow.append(row);
+      }part.append(strideRow);
+      const strides=state.settings.field_stride_xyz??[1,1,1],spacing=state.project.domain.spacing_um_xyz;
+      part.append(el('p','task-note',`${label('Computation spacing','计算格距')}: ${spacing.join(' × ')} µm; ${label('volume-mean preview spacing','体积平均预览格距')}: ${spacing.map((v,i)=>v*strides[i]).join(' × ')} µm. ${label('Preview averaging changes saved fields only.','预览平均只改变保存的浓度场。')}`));
+      const finalRow=el('label','edit-row',label('Save full final field (NPZ)','保存完整末帧浓度场（NPZ）')),finalInput=el('input');finalInput.type='checkbox';finalInput.checked=state.settings.include_final_fields??false;finalInput.addEventListener('change',()=>edit('updated',()=>{state.settings.include_final_fields=finalInput.checked;}));finalRow.append(finalInput);part.append(finalRow);
+    }
     if (state.project.project_version === '0.5.0') {
       const row = el('label','edit-row',t('frameInterval')), input = el('input'); input.type='number'; input.min='1'; input.step='1'; input.value=state.settings.frame_every_steps ?? 1;
       input.addEventListener('change',()=>edit('updated',()=>{
@@ -662,6 +740,17 @@ function renderDomainInspector(root) {
     }
     inputs.push(triple);
   }
+  const domainHint=el('p','domain-hint'),extentPreview=el('p','domain-extent');
+  const updateDomainForm=()=>{
+    const thin=mode.value==='thin_layer';
+    if(thin)inputs[0][2].value='1';inputs[0][2].disabled=thin;
+    domainHint.textContent=currentLanguage()==='zh-CN'?
+      (thin?'薄层只有一层 Z 网格；Z 间距就是实际厚度，仍须容纳菌体。需要多层 Z 网格时切换至 3D。':'3D 的三个方向分别设置网格数量和格距；物理尺寸等于网格数 × 格距。'):
+      (thin?'A thin layer has one Z grid cell. Z spacing is its physical thickness and must fit the cells. Select 3D for multiple Z layers.':'Each 3D axis has a grid count and spacing. Physical size equals count × spacing.');
+    extentPreview.textContent=`${currentLanguage()==='zh-CN'?'物理尺寸':'Physical size'}: ${inputs[0].map((input,i)=>fmt(Number(input.value)*Number(inputs[1][i].value))).join(' × ')} µm`;
+  };
+  mode.addEventListener('change',updateDomainForm);form.addEventListener('input',updateDomainForm);
+  updateDomainForm();form.append(domainHint,extentPreview);
   const apply = el('button', 'inspector-action', t('apply')); apply.type = 'submit'; form.append(apply);
   form.addEventListener('submit', event => {
     event.preventDefault();
@@ -712,10 +801,17 @@ function renderDomainInspector(root) {
       bounds[key]=[];
       for(let i=0;i<3;i++){const row=el('label','edit-row',`${t(key)} ${'XYZ'[i]} [µm]`),input=el('input');input.type='number';input.step='any';input.required=true;input.value=state.project.observation[key][i];row.append(input);form.append(row);bounds[key].push(input);}
     }
+    const radialCenter=[],radialRadii=el('input');
+    if(state.project.observation.radial_center_um){
+      form.append(el('h3','',currentLanguage()==='zh-CN'?'径向观测（累积球体）':'Radial observations (cumulative spheres)'));
+      for(let i=0;i<3;i++){const row=el('label','edit-row',`${currentLanguage()==='zh-CN'?'球心':'Center'} ${'XYZ'[i]} [µm]`),input=el('input');input.type='number';input.step='any';input.required=true;input.value=state.project.observation.radial_center_um[i];input.setAttribute('aria-label',`Radial center ${'XYZ'[i]}`);row.append(input);form.append(row);radialCenter.push(input);}
+      radialRadii.value=state.project.observation.radial_radii_um.join(', ');radialRadii.required=true;radialRadii.setAttribute('aria-label','Radial radii');const row=el('label','edit-row',currentLanguage()==='zh-CN'?'半径 [µm]，逗号分隔':'Radii [µm], comma-separated');row.append(radialRadii);form.append(row);
+    }
     const apply=el('button','inspector-action',t('apply'));apply.type='submit';form.append(apply);
     form.addEventListener('submit',event=>{event.preventDefault();edit('updated',()=>{
       const lower=bounds.region_lower_um.map(input=>Number(input.value)),upper=bounds.region_upper_um.map(input=>Number(input.value)),size=state.project.domain.counts_xyz.map((n,i)=>n*state.project.domain.spacing_um_xyz[i]);
       if(lower.some((v,i)=>!Number.isFinite(v)||!Number.isFinite(upper[i])||v<0||v>=upper[i]||upper[i]>size[i]))throw new Error(t('invalidObservation'));
+      if(radialCenter.length){const center=radialCenter.map(input=>Number(input.value)),radii=radialRadii.value.split(/[,，\s]+/).filter(Boolean).map(Number);if(!radii.length||center.some(v=>!Number.isFinite(v))||radii.some((r,i)=>!Number.isFinite(r)||r<=0||(i&&r<=radii[i-1])||center.some((c,axis)=>c-r<0||c+r>size[axis])))throw Error(t('invalidObservation'));Object.assign(state.project.observation,{radial_center_um:center,radial_radii_um:radii});}
       Object.assign(state.project.observation,{axis:Number(axis.value),region_lower_um:lower,region_upper_um:upper});
     });});editor.append(form);observation.append(editor);
     const seeds=el('input');seeds.type='text';seeds.value=state.seedList??'0, 1, 2';seeds.setAttribute('aria-label',t('seedList'));
@@ -750,7 +846,10 @@ function renderDiagnostics() {
   const root = $('checks-list'); root.replaceChildren();
   for (const issue of state.checks) {
     const item = el('li', issue.code === 'valid' ? '' : issue.severity === 'info' ? 'info' : 'error');
-    item.append(el('strong', '', issue.code), el('span', '', `${issue.path ?? ''} ${issue.message}`)); root.append(item);
+    item.append(el('strong', '', issue.code), el('span', '', `${issue.path ?? ''} ${issue.message}`));
+    const target=diagnosticTarget(issue,state.project,state.blocks);
+    if(target){const button=el('button','diagnostic-locate',currentLanguage()==='zh-CN'?'定位':'Locate');button.type='button';button.addEventListener('click',()=>locateDiagnostic(target));item.append(button);}
+    root.append(item);
   }
   if (!state.checks.length) root.append(el('li', '', t('unchecked')));
   const runs = $('runs-list'); runs.replaceChildren();
@@ -775,6 +874,10 @@ function renderDiagnostics() {
     const actions = el('div', 'task-actions');
     const action = (label, fn) => { const button = el('button', 'menu-button', t(label)); button.type = 'button'; button.addEventListener('click', fn); actions.append(button); };
     if (run.replay) action('viewPublished', () => selectRun(run));
+    for(const artifact of run.manifest?.artifacts??[]){
+      if(artifact.artifact_id!=='final_fields'||!/^\/api\/runs\/[A-Za-z0-9_-]+\/artifacts\/final_fields$/.test(artifact.href))continue;
+      const link=el('a','menu-button',currentLanguage()==='zh-CN'?'下载完整末帧场 NPZ':'Download full final field NPZ');link.href=artifact.href;link.download=`${run.id}.final-fields.npz`;link.title=`${artifact.bytes} bytes · SHA-256 ${artifact.sha256}`;actions.append(link);
+    }
     if (run.localId && !run.imported) {
       action('inputSnapshot', () => { $('task-input-json').value = JSON.stringify(run.submission, null, 2); $('task-input-dialog').showModal(); });
       if (['queued', 'running'].includes(run.status) && !run.task?.cancel_requested) action('cancelTask', () => taskStore.cancel(run.localId));
@@ -783,10 +886,30 @@ function renderDiagnostics() {
     }
     row.append(actions); runs.append(row);
   }
-  $('task-recovery-warning').hidden = !taskStore.persistenceError && Boolean(taskStorage);
+  $('task-recovery-warning').hidden = !taskStore.persistenceError && Boolean(taskPersistence);
+  $('task-recovery-warning').title = taskStore.persistenceError ?? taskPersistenceError ?? '';
   $('task-output-note').hidden = !supportsTasks(state.capabilities, state.project);
   $('task-output-note').textContent = t(isSpatial(state.project) ? 'spatialTaskOutputScope' : 'taskOutputScope');
   renderComparisons();renderData();
+}
+
+function locateDiagnostic(target) {
+  state.left='objects';state.selectedManifest=null;state.inspectorTab='properties';
+  if(['node','edge','graph'].includes(target.kind)) {
+    setView('workflow');
+    if(target.kind==='graph')graphEditor.fit();
+    else {selectGraph({kind:target.kind,id:target.id});const node=target.kind==='node'?target.id:state.project.graph.edges.find(e=>e.id===target.id)?.to.node;graphEditor.focusNode(node);}
+  }else{
+    setView('space');
+    if(target.kind==='population'){
+      selectBlock(target.id);const block=state.blocks.find(b=>b.id===target.id);
+      if(block)viewport?.focusBounds(block.center,block.size);
+    }else{selectBlock(null);viewport?.fit();}
+  }
+  const root=$('inspector');root?.classList.remove('diagnostic-focus');
+  requestAnimationFrame(()=>root?.classList.add('diagnostic-focus'));
+  if(target.parameter)Array.from(root?.querySelectorAll('input,select')??[]).find(e=>e.getAttribute('aria-label')===target.parameter)?.focus({preventScroll:false});
+  if(target.kind==='settings')$(target.parameter==='dt_s'?'dt-input':'steps-input')?.focus();
 }
 
 function renderComparisons() {
@@ -822,7 +945,8 @@ function selectRun(record) {
 function taskUpdated(record, records) {
   const previous = state.runs.find(run => run.localId === record.localId);
   if(record.design_ref?.design_id===state.design?.id)clearDesignEvaluation();
-  state.runs = [...state.runs.filter(run => !run.localId || run.imported), ...records];
+  const imported = state.runs.filter(run => !run.localId || run.imported), importedIds = new Set(imported.map(run=>run.id));
+  state.runs = [...imported, ...records.filter(run=>!importedIds.has(run.id))];
   if(state.batch?.active===record.localId && ['completed','failed','cancelled','interrupted','rejected','unavailable'].includes(record.status)) {
     const batch=state.batch;batch.active=null;
     if(record.status==='completed')queueMicrotask(()=>nextSeed(batch));
@@ -849,14 +973,15 @@ function startSeedBatch(text) {
   if(state.batch || !state.project || $('run-button').disabled || !supportsTasks(state.capabilities,state.project))return;
   const seeds=text.split(/[\s,，]+/).filter(Boolean).map(Number);
   if(!seeds.length||seeds.length>8||seeds.some(seed=>!Number.isSafeInteger(seed)||seed<0)||new Set(seeds).size!==seeds.length){status('invalidSeeds',{},true);return;}
-  try { taskStore.assertCapacity(seeds.length); } catch(error) { status('runFailed',{message:t(error.code)},true); return; }
+  try { taskStore.assertBatchCapacity(seeds.map(seed=>buildSubmission(state.capabilities,state.project,{...state.settings,seed},`${state.draftToken}:${state.revision}`))); }
+  catch(error) { status('runFailed',{message:t(error.code??error.message)},true); return; }
   const batch={seeds,records:new Set(),project:structuredClone(state.project),settings:structuredClone(state.settings),draftToken:state.draftToken,revision:state.revision,active:null};
   state.batch=batch;nextSeed(batch);
 }
 async function nextSeed(batch) {
   if(state.batch!==batch)return;
   const entry=batch.queue?.shift();
-  const seed=batch.queue ? entry?.seed : batch.seeds.shift();if(seed===undefined){state.batch=null;state.designBatchStatus='Completed';renderDiagnostics();if(state.view==='design')renderDesign();return;}
+  const seed=batch.queue ? entry?.seed : batch.seeds.shift();if(seed===undefined){state.batch=null;state.designBatchStatus=currentLanguage()==='zh-CN'?'本批完成':'Batch completed';renderDiagnostics();if(state.view==='design')renderDesign();return;}
   try {
     const {submission}=await preflightSubmission(kernel,state.capabilities,entry?.project??batch.project,{...batch.settings,seed},`${batch.draftToken}:${batch.revision}`);
     if(state.batch!==batch)return;
@@ -876,6 +1001,54 @@ async function assemblyRequest(path,body) {
   return response.json();
 }
 function downloadBlob(name,blob){const url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function restoreDesignRuns(payload) {
+  for(const record of payload.runs) {
+    const index=state.runs.findIndex(run=>run.id===record.id),existing=state.runs[index];
+    if(existing && (existing.replay || !['completed','failed','cancelled','interrupted','unavailable','rejected'].includes(existing.status)))continue;
+    const run=structuredClone(record);run.imported=true;run.paused=true;
+    if(run.replay)run.replay=normalizeReplay(run.replay);
+    if(index<0)state.runs.push(run);else state.runs[index]=run;
+  }
+}
+async function applyPopulationAssembly(groupId, assembly) {
+  if (state.assemblyBusy || !state.project) throw new Error('Assembly editor is busy');
+  if (state.blocks.find(b=>b.id===groupId)?.locked) throw new Error('The target population is locked');
+  const token=state.assemblyToken,draftToken=state.draftToken,revision=state.revision;
+  state.assemblyBusy=true;
+  try {
+    const result=await assemblyRequest('apply',{project:structuredClone(state.project),group_id:groupId,assembly,bindings:null});
+    if(token!==state.assemblyToken||draftToken!==state.draftToken||revision!==state.revision) throw new Error('The draft changed; the mechanism was not applied');
+    const loaded=readWorkspace(result); state.assemblyBusy=false;
+    const applied=edit('updated',()=>{
+      state.project=loaded.project;state.blocks=loaded.blocks;state.layout=autoLayout(state.project.graph,state.modules,state.layout);
+      state.selectedBlock=groupId;state.selectedEnvironment=null;state.graphSelection=null;state.replay=null;state.activeRun=null;
+      state.design=null;state.designBrief=null;state.designImported=false;state.designBatchStatus='';state.designNotice='';state.designError='';
+      state.draftToken=crypto.randomUUID();
+    });
+    if (!applied) throw new Error('The mechanism edit was rejected; the previous draft was retained');
+    state.assemblyNotice=currentLanguage()==='zh-CN'?`已应用 ${assembly.name} 到 ${groupId}；可通过撤销恢复。`:`Applied ${assembly.name} to ${groupId}; Undo restores the previous mechanism.`;
+    renderDesign();
+  } finally { if(token===state.assemblyToken&&draftToken===state.draftToken)state.assemblyBusy=false; }
+}
+async function openMechanismLibrary() {
+  if (!state.project) return;
+  let token=state.draftToken,revision=state.revision;
+  const guard=()=>token===state.draftToken&&revision===state.revision;
+  try {
+    const response=await fetch('/api/assemblies');
+    if (!response.ok) throw new Error('Mechanism catalog unavailable');
+    const {assemblies}=await response.json(); if(!guard())return;
+    showAssemblyLibrary({groups:structuredClone(state.project.groups),selectedGroupId:state.selectedBlock,
+      executionProfile:state.project.execution_profile,officials:assemblies,revisionGuard:guard,
+      extract:async(groupId,metadata)=>{
+        if(!guard())throw new Error('The draft changed');
+        return assemblyRequest('extract',{project:structuredClone(state.project),group_id:groupId,metadata});
+      },
+      validate:assembly=>assemblyRequest('validate',{assembly}),
+      apply:async(groupId,assembly)=>{if(!guard())throw new Error('The draft changed');await applyPopulationAssembly(groupId,assembly);token=state.draftToken;revision=state.revision;}
+    });
+  } catch(error) {status('editFailed',{message:error.message},true);}
+}
 function renderDesign(){renderDesignPanel($('design-view'),state,{
   render:renderDesign,changed, error:error=>{state.designError=error.message;renderDesign();},
   async generate(brief){
@@ -893,9 +1066,11 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
     }finally{state.designBusy=false;renderDesign();}
 
   },
-  run(){
-    if(state.batch)return;const queue=designRunQueue(state.design);taskStore.assertCapacity(queue.length);
-    if(state.runs.some(r=>r.design_ref?.design_id===state.design.id))throw new Error('This design already has run history. Generate a new design ID to run again.');
+  run(selection){
+    if(state.batch)return;
+    const {queue}=planDesignBatch(state.design,state.runs,selection);
+    if(!queue.length)return;
+    taskStore.assertBatchCapacity(queue.map(entry=>buildSubmission(state.capabilities,entry.project,{...state.design.settings,seed:entry.seed},`${state.draftToken}:${state.revision}`)));
     const batch={queue,designId:state.design.id,records:new Set(),settings:structuredClone(state.design.settings),draftToken:state.draftToken,revision:state.revision,active:null};
     state.batch=batch;state.designBatchStatus='Running';nextSeed(batch);renderDesign();
   },
@@ -927,22 +1102,12 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
   async importAssembly(file,groupId){
     if(state.assemblyBusy||!state.project)return;
     const token=state.assemblyToken,draftToken=state.draftToken,revision=state.revision;
-    state.assemblyBusy=true;state.assemblyError='';state.assemblyNotice='';renderDesign();
+    state.assemblyError='';state.assemblyNotice='';
     try{
       if(file.size>10*1024*1024)throw new Error('Assembly file exceeds 10 MiB');
       const assembly=JSON.parse(await file.text());
-      const result=await assemblyRequest('apply',{project:structuredClone(state.project),group_id:groupId,assembly,bindings:null});
       if(token!==state.assemblyToken||draftToken!==state.draftToken||revision!==state.revision)return;
-      const loaded=readWorkspace(result);
-      state.assemblyBusy=false;
-      edit('updated',()=>{
-        state.project=loaded.project;state.blocks=loaded.blocks;state.layout=autoLayout(state.project.graph,state.modules,state.layout);
-        state.selectedBlock=groupId;state.selectedEnvironment=null;state.graphSelection=null;state.replay=null;state.activeRun=null;
-        state.design=null;state.designBrief=null;state.designImported=false;state.designBatchStatus='';state.designNotice='';state.designError='';
-        state.draftToken=crypto.randomUUID();
-      });
-      state.assemblyNotice=currentLanguage()==='zh-CN'?`已应用 ${assembly.name} 到 ${groupId}；原有空间位置和其他菌群保持不变。`:`Applied ${assembly.name} to ${groupId}; positions and other populations were preserved.`;
-      renderDesign();
+      await applyPopulationAssembly(groupId,assembly);
     }catch(error){
       if(token===state.assemblyToken&&draftToken===state.draftToken){state.assemblyError=error.message;renderDesign();}
     }finally{if(token===state.assemblyToken&&draftToken===state.draftToken){state.assemblyBusy=false;renderDesign();}}
@@ -950,16 +1115,26 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
   view:selectRun,
   async open(candidate){const design=state.design,brief=state.designBrief;await loadProject(candidate.project);state.design=design;state.designBrief=brief;changed();setView('workflow');},
   async export(format){
-    const registry=await fetch('/api/catalog?execution_profile='+encodeURIComponent(state.design.baseline_project.execution_profile)).then(r=>r.json());
-    const payload=designPackagePayload(state,writeWorkspace(state),registry);
-    if(format==='package'){downloadBlob(state.design.id+'.friskoli',await designRequest('export',payload,'blob'));state.exportedDesigns??=new Set();state.exportedDesigns.add(state.design.id);renderDesign();}
-    else downloadBlob(state.design.id+'.'+format,new Blob([await designRequest('report',{payload,format},'text')],{type:format==='html'?'text/html':'text/csv'}));
+    if(!state.design||state.designExporting)return;
+    const design=structuredClone(state.design),id=design.id,workspace=writeWorkspace(state);
+    const runs=structuredClone(state.runs.filter(run=>run.design_ref?.design_id===id));
+    state.designExporting=true;
+    try{
+    const registry=await fetch('/api/catalog?execution_profile='+encodeURIComponent(design.baseline_project.execution_profile)).then(r=>{if(!r.ok)throw new Error('Catalog unavailable');return r.json();});
+    const payload={package_version:'0.1.0',design,workspace,runs,registry};
+    if(format==='package'){downloadBlob(id+'.friskoli',await designRequest('export',payload,'blob'));state.exportedDesigns??=new Set();state.exportedDesigns.add(id);renderDesign();}
+    else if(format==='omex')downloadBlob(id+'.omex',await designRequest('standards',{payload,format},'blob'));
+    else if(format==='loss-report')download(id+'.loss-report.json',JSON.stringify(await designRequest('standards',{payload,format}),null,2),'application/json');
+    else downloadBlob(id+'.'+format,new Blob([await designRequest('report',{payload,format},'text')],{type:format==='html'?'text/html':'text/csv'}));
+    }finally{state.designExporting=false;renderDesign();}
   },
-  clear(){
+  async clear(){
     const id=state.design.id;
     if(!state.exportedDesigns?.has(id))throw new Error(currentLanguage()==='zh-CN'?'请先导出 .friskoli 设计包。':'Export the .friskoli package first.');
     if(!confirm(currentLanguage()==='zh-CN'?'从本机历史清除此设计的已结束运行？导出的包保留完整记录。':'Remove this design’s finished runs from local history? The exported package keeps the records.'))return;
-    const records=taskStore.removeDesignRecords(id);state.runs=[...state.runs.filter(r=>(!r.localId||r.imported)&&r.design_ref?.design_id!==id),...records];state.comparison.clear();state.designBatchStatus='';clearDesignEvaluation();renderDesign();renderDiagnostics();
+    const records=taskStore.removeDesignRecords(id);await taskStore.flushPersistence();
+    await taskPersistence?.archive.removePackage(id);
+    state.runs=[...state.runs.filter(r=>(!r.localId||r.imported)&&r.design_ref?.design_id!==id),...records];state.comparison.clear();state.designImported=false;state.designBatchStatus='';clearDesignEvaluation();renderDesign();renderDiagnostics();
   },
   import(){
     const input=el('input');input.type='file';input.accept='.friskoli';input.addEventListener('change',async()=>{
@@ -968,9 +1143,11 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
         const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
         const payload=await designRequest('import',{archive_base64:btoa(binary)});
         if(state.project&&fingerprint()!==state.saved&&!confirm(t('replaceDraft')))return;
-        validateDesignDocument(payload.design);await loadProject(payload.workspace);state.designImported=true;state.design=payload.design;state.designBrief=structuredClone(payload.design.brief);
-        const ids=new Set(state.runs.map(r=>r.id));
-        for(const record of payload.runs){if(ids.has(record.id))continue;const run=structuredClone(record);run.imported=true;run.paused=true;if(run.replay)run.replay=normalizeReplay(run.replay);state.runs.push(run);ids.add(run.id);}
+        validateDesignDocument(payload.design);
+        if(!taskPersistence)throw new Error(taskPersistenceError??'Durable design archive is unavailable');
+        await taskPersistence.archive.savePackage(payload);
+        await loadProject(payload.workspace);state.designImported=true;state.design=payload.design;state.designBrief=structuredClone(payload.design.brief);
+        restoreDesignRuns(payload);
         changed();setView('design');
       }catch(error){state.designError=error.message;renderDesign();}
     });input.click();
@@ -1008,10 +1185,14 @@ function showBottom(tab) {
 const moduleKey = node => `${node.module_id}@${node.module_version}`;
 const findNode = id => state.project.graph.nodes.find(node => node.id === id);
 
-function parameterField(parent, node, manifest, name, definition) {
+function parameterField(parent, node, manifest, name, definition, {readOnly=false}={}) {
   const row = el('label', 'edit-row');
   const input = el(definition.enum ? 'select' : 'input');
   const entry = node.parameters[name];
+  const isReadOnly=readOnly||state.view==='results'||populationNodeLocked(node,state.blocks)||Boolean(manifest.unavailable);
+  input.disabled=isReadOnly;
+  if(isReadOnly)input.title=currentLanguage()==='zh-CN'?(readOnly||state.view==='results'?'冻结运行参数，只读。':'菌群已锁定或模块不可用。'):(readOnly||state.view==='results'?'Frozen run parameter; read-only.':'The population is locked or the module is unavailable.');
+  input.dataset.parameter=name;input.dataset.node=node.id;
   if (definition.enum) {
     input.append(new Option(t('parameterMissing'), ''));
     for (const value of definition.enum) input.append(new Option(String(value), value));
@@ -1040,10 +1221,13 @@ function parameterField(parent, node, manifest, name, definition) {
   if (definition.description) evidence.append(el('p', '', definition.description));
   if (definition.minimum !== undefined || definition.maximum !== undefined) evidence.append(el('p', '', `${t('range')}: ${definition.minimum ?? '−∞'} … ${definition.maximum ?? '∞'}`));
   input.addEventListener('change', () => {
+    if(isReadOnly||state.view==='results'||populationNodeLocked(node,state.blocks))return;
     const raw = definition.type === 'boolean' ? input.checked : input.value;
     const id = node.id;
     edit('parameterUpdated', () => {
-      const problem = setParameter(findNode(id), manifest, name, raw);
+      const target=findNode(id);
+      if(populationNodeLocked(target,state.blocks))throw new Error(currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.');
+      const problem = setParameter(target, manifest, name, raw);
       if (problem) throw new Error(problem);
     }, { name });
   });
@@ -1081,6 +1265,7 @@ function deleteGraphItem(selection) {
   edit(selection.kind === 'node' ? 'nodeRemoved' : 'edgeRemoved', () => {
     const graph = state.project.graph;
     if (selection.kind === 'node') {
+      if(populationNodeLocked(findNode(selection.id),state.blocks))throw new Error(currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.');
       const role = requiredRoleRemovalProblem(state.project,selection.id,state.objects,state.modules);
       if (role) throw new Error(t('requiredMechanism',{role}));
     }
@@ -1158,9 +1343,11 @@ function renderGraphSummary(root) {
 }
 
 function renderManifest(root, manifest, node = null) {
-  root.append(el('div', 'inspector-title', node?.id ?? manifest.id),
-    el('div', 'inspector-subtitle', `${manifest.id}@${manifest.version}`));
+  root.append(el('div', 'inspector-title', moduleName(manifest,currentLanguage())),
+    el('div', 'inspector-subtitle', `${node?node.id+' · ':''}${manifest.id}@${manifest.version}`));
   const identity = section(root, t('module'));
+  kv(identity,currentLanguage()==='zh-CN'?'注册于执行规则':'Registered in profile',state.project.execution_profile??'legacy-explicit-v1');
+  kv(identity,currentLanguage()==='zh-CN'?'协议':'Protocol',manifest.protocol_version??'0.1.0');
   kv(identity, t('scope'), manifest.scope);
   kv(identity, t('phase'), String(manifest.phase));
   kv(identity, t('maturity'), manifest.maturity ?? '—');
@@ -1178,7 +1365,8 @@ function renderManifest(root, manifest, node = null) {
     const remove = el('button', 'inspector-action danger', t('deleteNode'));
     remove.type = 'button';
     const role = requiredRoleRemovalProblem(state.project,node.id,state.objects,state.modules);
-    remove.disabled = Boolean(role);
+    remove.disabled = Boolean(role)||populationNodeLocked(node,state.blocks);
+    if(populationNodeLocked(node,state.blocks))remove.title=currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.';
     if (role) { remove.title = t('requiredMechanism',{role}); root.append(el('p','pending-note',remove.title)); }
     remove.addEventListener('click', () => deleteGraphItem({ kind: 'node', id: node.id }));
     root.append(remove);
@@ -1306,6 +1494,12 @@ function connectPorts(from, to) {
 }
 
 const graphEditor = new GraphEditor($('workflow-view'), {
+  library: openMechanismLibrary,
+  arrange() {
+    if (!state.project) return;
+    const before = snapshot(); state.layout = arrangeGraph(state.project.graph,state.modules,state.layout,nodeGeometry);
+    pushHistory(before); renderAll(); graphEditor.fit(); status('updated');
+  },
   toggle(id) { edit('updated', () => { state.layout[id].collapsed = !state.layout[id].collapsed; }); },
   hint: () => status('connectHint'),
   select: selectGraph,
@@ -1494,7 +1688,8 @@ function download(name, content, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-async function loadProject(document) {
+async function loadProject(document,recommendedSettings=null) {
+  if(recommendedSettings&&!document.workspace_format_version){const loaded=readWorkspace(document);loaded.settings={...loaded.settings,...structuredClone(recommendedSettings)};document=writeWorkspace(loaded);}
   const project = document.workspace_format_version ? document.project : document;
   const profile = project?.execution_profile ?? 'legacy-explicit-v1';
   const registry = state.registries.get(profile);
@@ -1506,6 +1701,7 @@ async function loadProject(document) {
   state.assemblyBusy = false; state.assemblyError = ''; state.assemblyNotice = ''; state.assemblyDraft = null;
   state.activeSpecies=null;
   Object.assign(state, loaded);
+  state.designImported=false;state.designBatchOptions={};state.designBatchOptionsId=null;
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);
   state.selectedBlock = loaded.blocks[0]?.id ?? null;
   state.selectedCell = null;
@@ -1523,6 +1719,16 @@ async function loadProject(document) {
     status('opened');
     state.checks = [...report.issues, ...report.changes.map(change => ({...change,severity:'info'}))];
     if (state.checks.length) { showBottom('checks'); renderDiagnostics(); }
+    if(state.design && taskPersistence) {
+      const token=state.draftToken,design=state.design;
+      try {
+        const payload=await taskPersistence.archive.loadPackage(design.id);
+        if(token!==state.draftToken || !payload)return;
+        validateDesignDocument(payload.design);
+        if(JSON.stringify(payload.design)!==JSON.stringify(design))throw new Error('Archived evidence does not match this frozen design');
+        restoreDesignRuns(payload);state.designImported=true;renderDiagnostics();
+      }catch(error){if(token===state.draftToken){state.designError=error.message;renderDesign();}}
+    }
 }
 
 try {
@@ -1622,8 +1828,9 @@ $('language-select').addEventListener('change', event => {
 $('camera-select').addEventListener('change', event => viewport?.setCamera(event.target.value));
 $('field-select').addEventListener('change', event => { state.field = event.target.value; renderScene(); });
 $('slice-select').addEventListener('change', event => { state.slice = Number(event.target.value); renderScene(); });
-$('fit-button').addEventListener('click', () => viewport?.fit());
-$('fit-tool').addEventListener('click', () => viewport?.fit());
+$('field-plane').addEventListener('change',event=>{state.fieldPlane=event.target.value;state.slice=0;renderScene();});
+$('fit-button').addEventListener('click', () => state.view === 'workflow' ? graphEditor.fit() : viewport?.fit());
+$('fit-tool').addEventListener('click', () => state.view === 'workflow' ? graphEditor.fit() : viewport?.fit());
 $('zoom-in').addEventListener('click', () => viewport?.zoom(1.3));
 $('zoom-out').addEventListener('click', () => viewport?.zoom(1 / 1.3));
 for (const [id, view] of [['top-tool', 'top'], ['front-tool', 'front'], ['right-tool', 'right']]) {
@@ -1725,7 +1932,7 @@ function refreshWelcome() {
     const button=el('button','start-command'); button.type='button';
     const text=el('span'); text.append(el('strong','',item.label),el('small','',`${item.description} · ${t('exploratory')}`));
     button.append(el('span','','◇'),text);
-    button.addEventListener('click',()=>loadWelcome(()=>kernel.request(`/api/examples/${encodeURIComponent(item.example_id)}`)));
+    button.addEventListener('click',()=>loadWelcome(()=>kernel.request(`/api/examples/${encodeURIComponent(item.example_id)}`),false,item.recommended_settings));
     templates.append(button);
   }
   let recovery = false;
@@ -1753,7 +1960,7 @@ function chooseProjectFile(fromWelcome = false) {
   fileWelcomeEpoch = fromWelcome ? welcomeEpoch : null;
   $('project-file').click();
 }
-async function loadWelcome(read, alreadyConfirmed = false) {
+async function loadWelcome(read, alreadyConfirmed = false,recommendedSettings=null) {
   if (welcomePending || (!alreadyConfirmed && !replaceAllowed())) return;
   const epoch = ++welcomeEpoch;
   welcomePending = true;
@@ -1762,7 +1969,7 @@ async function loadWelcome(read, alreadyConfirmed = false) {
   try {
     const document = await read();
     if (epoch !== welcomeEpoch || !$('welcome-dialog').open) return;
-    await loadProject(document);
+    await loadProject(document,recommendedSettings);
   } catch (error) {
     if (epoch !== welcomeEpoch || !$('welcome-dialog').open) return;
     $('welcome-error').textContent = t('loadFailed', {message:error.message});

@@ -1,5 +1,7 @@
 import { resolveGraph } from './catalog.mjs';
 import { currentLanguage } from './i18n.mjs';
+import { arrangeGraph } from './workflow-layout.mjs';
+export { arrangeGraph } from './workflow-layout.mjs';
 import { NODE_WIDTH, element as el, nodeGeometry, nodeStatus, createNodeShell, createNodeHeader,
   createPortRow, createNodeFooter, graphBounds, workflowText } from './workflow-components.mjs';
 export { NODE_WIDTH } from './workflow-components.mjs';
@@ -23,6 +25,7 @@ export function nodeHeight(manifest, collapsed = false, coarse = false) {
 
 // Keeps saved positions and places new nodes in their phase column below existing cards.
 export function autoLayout(graph, modules, layout = {}) {
+  if (!graph.nodes.some(n => layout[n.id])) return arrangeGraph(graph, modules, layout, nodeGeometry);
   const next = {};
   const phases = [...new Set(graph.nodes.map(node => modules.get(key(node))?.phase ?? 0))].sort((a, b) => a - b);
   for (const node of graph.nodes) if (layout[node.id]) next[node.id] = { ...layout[node.id] };
@@ -116,6 +119,16 @@ export class GraphEditor {
     this.container.scrollLeft=Math.max(0,bounds.x*this.zoom-24);
     this.container.scrollTop=Math.max(0,bounds.y*this.zoom);
   }
+  focusNode(id){
+    const node=this.resolved?.nodes.find(n=>n.id===id),position=this.layout[id];
+    if(!node||!position||!this.board)return;
+    const geometry=nodeGeometry(node.manifest,position.collapsed,this.coarse);
+    this.zoom=Math.min(1,Math.max(.5,(this.container.clientWidth-32)/geometry.width));this.resizeBoard();
+    this.container.scrollLeft=Math.max(0,(position.x+geometry.width/2)*this.zoom-this.container.clientWidth/2);
+    this.container.scrollTop=Math.max(0,(position.y+geometry.height/2)*this.zoom-this.container.clientHeight/2+GRAPH_TOP_INSET);
+    const card=[...this.board.querySelectorAll('[data-node]')].find(n=>n.dataset.node===id&&n.classList.contains('graph-node'));
+    card?.classList.add('diagnostic-focus');card?.focus({preventScroll:true});
+  }
 
   portPoint(nodeId, side, name) {
     const node = this.resolved.nodes.find(item => item.id === nodeId);
@@ -166,8 +179,14 @@ export class GraphEditor {
     const toolbar = el('div', 'graph-toolbar'); toolbar.setAttribute('role', 'toolbar'); toolbar.setAttribute('aria-label', 'Workflow');
     for (const [label, action] of [['zoomOut', () => this.zoomBy(1/1.2)], ['actual', () => this.zoomBy(1/this.zoom)], ['zoomIn', () => this.zoomBy(1.2)], ['fit', () => this.fit()]]) {
       const button = el('button', '', label === 'zoomOut' ? '−' : label === 'zoomIn' ? '+' : workflowText(this.language, label)); button.type='button';
+      button.dataset.action = label;
       button.setAttribute('aria-label', workflowText(this.language, label)); button.title=workflowText(this.language, label);
       button.addEventListener('click', action); if(label==='actual')this.zoomLabel=button; toolbar.append(button);
+    }
+    for (const [key, en, zh] of [['arrange','Arrange','整理布局'],['library','Mechanism library','机制模板库']]) {
+      if (!this.callbacks[key]) continue;
+      const button = el('button','',this.language === 'zh-CN' ? zh : en); button.type='button';
+      button.addEventListener('click', () => this.callbacks[key]()); toolbar.append(button);
     }
     this.container.append(toolbar,this.wrapper);this.applyZoom();
     [this.container.scrollLeft, this.container.scrollTop] = scroll;

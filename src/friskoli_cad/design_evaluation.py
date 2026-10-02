@@ -1,5 +1,4 @@
 """Conservative, paired-seed exploration; never an experimental efficacy claim."""
-from collections import Counter
 import statistics
 
 from friskoli_cad.design_delivery import _validate, _report, _finite
@@ -39,14 +38,20 @@ def _evaluate(data):
         cid = candidate['id']
         pairs = [(row, run) for row, run in zip(records, data['runs'], strict=True)
                  if row['candidate_id'] == cid and (run.get('design_ref') or {}).get('design_id') == design['id']]
-        reasons, valid = [], []
-        counts = Counter(row['seed'] for row, _ in pairs)
+        reasons, valid, excluded_attempts = [], [], []
+        successful_seeds = {row['seed'] for row, _ in pairs if row['reason'] is None}
         for row, run in pairs:
             reason = row['reason']
-            if counts[row['seed']] > 1:
-                reason = 'duplicate_seed'
+            if row.get('duplicate_seed'):
+                _add(reasons, 'duplicate_seed')
             if reason:
-                _add(reasons, reason)
+                superseded = (reason == 'failed_partial_or_incomplete'
+                              and run.get('status') in ('failed', 'cancelled', 'interrupted', 'rejected')
+                              and row['seed'] in successful_seeds)
+                excluded_attempts.append({'run_id':row['run_id'], 'seed':row['seed'],
+                    'reason':reason, 'status':run.get('status'), 'superseded_by_complete_repeat':superseded})
+                if not superseded:
+                    _add(reasons, reason)
             else:
                 valid.append((row, run))
         seeds = {row['seed'] for row, _ in valid}
@@ -79,7 +84,7 @@ def _evaluate(data):
         evaluated.append({'candidate_id': cid, 'name': candidate['name'], 'kind': candidate['kind'],
                           'status': 'incomplete' if incomplete else ('excluded' if hard_failed and candidate['kind'] != 'control' else 'eligible'),
                           'reasons': reasons, 'objective': objective, 'constraints': constraints,
-                          'control_comparison': None, 'seeds': sorted(seeds)})
+                          'control_comparison': None, 'seeds': sorted(seeds), 'excluded_attempts':excluded_attempts})
     if len(all_series) > 1:
         _add(global_reasons, 'incompatible_series')
         for item in evaluated:

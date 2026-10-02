@@ -3,6 +3,7 @@ import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControl
 import { TransformControls } from './vendor/three/examples/jsm/controls/TransformControls.js';
 import { nextHit } from './catalog.mjs';
 import { environmentTransformGeometry, isEnvironmentObject } from './placeables.mjs';
+import { concentrationSlice } from './field-slice.mjs';
 
 const fmt = value => Number(value.toFixed(2)).toString();
 
@@ -164,7 +165,7 @@ export class SpatialViewport {
     return this.geometryCache.get(key);
   }
 
-  setSnapshot(snapshot, selectedId, fieldId = '', slice = 0, range = null) {
+  setSnapshot(snapshot, selectedId, fieldId = '', slice = 0, range = null, normal = 'z') {
     this.snapshot = snapshot;
     this.selectedId = selectedId;
     this.clear(this.cells);
@@ -191,8 +192,8 @@ export class SpatialViewport {
     }
     const field = snapshot.concentrations[fieldId];
     if (field && range) {
-      const values = field.values_zyx[slice];
-      const [nx, ny] = this.domain.counts_xyz;
+      const section = concentrationSlice(field,this.domain,normal,slice);
+      const values = section.values, nx = section.width, ny = section.height;
       const paint = document.createElement('canvas');
       paint.width = nx;
       paint.height = ny;
@@ -211,11 +212,14 @@ export class SpatialViewport {
       texture.colorSpace = THREE.SRGBColorSpace;
       texture.magFilter = THREE.NearestFilter;
       texture.minFilter = THREE.NearestFilter;
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(this.size[0], this.size[1]),
+      const plane = new THREE.Mesh(new THREE.PlaneGeometry(...section.size),
         new THREE.MeshBasicMaterial({ map: texture, transparent: true, opacity: .47,
           side: THREE.DoubleSide, depthWrite: false }));
-      plane.position.set(this.size[0] / 2, this.size[1] / 2,
-        (slice + .5) * this.domain.spacing_um_xyz[2]);
+      plane.position.fromArray(this.size.map(value=>value/2));
+      plane.position.setComponent(section.axes[2],section.coordinate);
+      if(normal==='y')plane.rotation.x=Math.PI/2;
+      if(normal==='x')plane.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(
+        new THREE.Vector3(0,1,0),new THREE.Vector3(0,0,1),new THREE.Vector3(1,0,0)));
       plane.userData.texture = texture;
       plane.raycast = () => {};
       this.field.add(plane);
@@ -486,6 +490,22 @@ export class SpatialViewport {
   }
 
   fit() { if (this.size) this.setCamera(this.view); }
+  focusBounds(center,extent) {
+    if(!this.size||![...center,...extent].every(Number.isFinite))return;
+    const target=new THREE.Vector3(...center),direction=this.camera.position.clone().sub(this.orbit.target).normalize();
+    const aspect=this.canvas.clientWidth/Math.max(1,this.canvas.clientHeight),radius=Math.max(1,...extent)/2;
+    this.orbit.target.copy(target);
+    if(this.camera.isOrthographicCamera){
+      const available=(this.camera.top-this.camera.bottom)*Math.min(1,aspect);
+      this.camera.zoom=Math.max(.1,Math.min(20,available/(radius*2.6)));
+      this.camera.updateProjectionMatrix();
+      this.camera.position.copy(target).add(direction.multiplyScalar(Math.max(radius*4,this.size[2]*2)));
+    }else{
+      const angle=Math.atan(Math.tan(THREE.MathUtils.degToRad(this.camera.fov/2))*Math.min(1,aspect));
+      this.camera.position.copy(target).add(direction.multiplyScalar(radius/Math.sin(angle)*1.3));
+    }
+    this.orbit.update();this.request();
+  }
 
   zoom(factor) {
     if (this.camera.isOrthographicCamera) {

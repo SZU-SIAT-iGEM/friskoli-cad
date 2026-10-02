@@ -51,9 +51,9 @@
 @media(max-width:620px){.result-data{display:block}.result-chart{width:100%}}
 
 /* Dock separators float above the grid so they never create implicit columns. */
-.resize-handle{position:absolute;z-index:6;background:transparent;touch-action:none}.resize-handle:focus-visible,.resize-handle:hover{background:#67d4b466}.resize-left,.resize-right{top:0;bottom:0;width:5px;cursor:col-resize}.resize-left{left:calc(42px + var(--left-width) - 2px)}.resize-right{right:calc(var(--right-width) - 2px)}.resize-bottom{left:42px;right:var(--right-width);bottom:0;height:5px;cursor:row-resize}
-@media(max-width:960px){.resize-left,.resize-right{display:none}.resize-bottom{left:42px;right:0}}
-@media(max-width:620px){.resize-bottom{left:38px}}
+.resize-handle{position:absolute;z-index:6;background:transparent;touch-action:none}.resize-handle:focus-visible,.resize-handle:hover{background:#67d4b466}.resize-left,.resize-right{top:0;bottom:0;width:5px;cursor:col-resize}.resize-left{left:calc(42px + var(--left-width) - 2px)}.resize-right{right:calc(var(--right-width) - 2px)}.resize-bottom{left:0;right:0;top:-4px;height:8px;cursor:row-resize}
+@media(max-width:960px){.resize-left,.resize-right{display:none}}
+.diagnostics{position:relative;height:var(--bottom-height)}
 
 /* Professional workspace controls and the project startup window. */
 :root { color: #e1e8ec; background: #151c22; --bg: #151c22; --panel: #202a31; --panel-deep: #1b242b; --input: #172027; --line: #3b4850; --muted: #aab8c1; --blue: #79b9dc; }
@@ -205,3 +205,82 @@ dialog::backdrop { background: #080e14a6; backdrop-filter: blur(3px); }
   .graph-identity-panel { top: 46px; }
   .graph-node .graph-node-title { padding-right: 42px; }
 }
+
+/* Reference CAD shell: compact blue surfaces, quiet separators and grouped tools. */
+:root { --bg:#101d26; --panel:#192831; --panel-deep:#16242d; --input:#10212b; --line:#2a3c47; --muted:#91acb9; --mint:#63c9ad; }
+.menubar { overflow:visible; position:relative; z-index:15; height:44px; gap:10px; padding:0 14px; background:#182730; }
+.brand { width:174px; gap:13px; }.brand-rule { display:none; }.brand img:first-child { width:110px; }.brand .cad-mark { width:49px; }
+.application-menus { display:flex; height:100%; align-items:center; gap:2px; }
+.application-menu { display:flex; height:100%; align-items:center; }
+.application-menu>.menu-button { padding-inline:11px; }
+.application-menu>.menu-button[aria-expanded=true] { background:#29413f; color:#e4f5f1; }
+.application-dropdown { position:fixed; min-width:195px; max-width:calc(100vw - 16px); padding:5px; background:#1b2e38; border:1px solid #3a5360; border-radius:3px; box-shadow:0 9px 22px #0005; z-index:60; }
+.application-dropdown button { width:100%; min-height:34px; padding:7px 12px; display:block; text-align:left; font-size:12px; border:0; border-radius:2px; background:transparent; }
+.application-dropdown button:hover:not(:disabled),.application-dropdown button:focus-visible { background:#294840; }
+.top-save { order:5; }.menubar #settings-button { order:4; }.project-title { order:3; }
+.workspacebar { height:42px; background:#15232d; }.workspace-tabs { gap:0; }.workspace-tabs button { padding-inline:18px; }
+.history-tools { display:flex; align-items:center; border-left:1px solid var(--line); padding-left:12px; gap:2px; }
+.history-tools button { font-size:11px; padding-inline:7px; }
+.run-button { background:#438f7c; border-color:#438f7c; color:#f1fbf7; font-weight:500; }
+.run-button:hover:not(:disabled) { background:#50aa90; }
+.documentbar { height:25px; background:#15242d; color:var(--muted); font-size:11px; border-bottom-color:#243640; }
+.documentbar span:last-child { font-size:10px; }
+.dock-tabs { height:36px; }.dock-tabs button { font-weight:400; }.toolrail { background:#182730; }
+.dock { background:var(--panel); }.search-wrap input { border-color:var(--line); }.tree-row { min-height:34px; }
+.tree-row.active { background:#2b4242; box-shadow:inset 2px 0 var(--mint); }.tree-row:hover { background:#223840; }
+.property-section { border-color:var(--line); padding:16px 14px; }.property-section h3 { color:#a7c4d1; font-weight:500; font-size:12px; }
+.inspector-title { font-size:15px; font-weight:500; padding-top:17px; }.inspector-subtitle { color:#82a4b5; }
+.inspector-action { background:transparent; }.inspector-action:hover { background:#243e40; }
+.transform-tools { position:absolute; left:15px; top:12px; z-index:3; display:flex; align-items:center; border:1px solid #304753; border-radius:3px; background:#1b2e37ed; }
+.transform-tools button { display:flex; align-items:center; justify-content:center; min-width:48px; height:30px; padding:0 10px; border:0; border-right:1px solid #304753; background:transparent; font-size:12px; color:#adbfca; }
+.transform-tools button:last-child { border-right:0; min-width:32px; padding-inline:8px; }.transform-tools .icon { width:16px; height:16px; }
+.transform-tools button.active,.transform-tools button[aria-pressed=true] { background:#35574a; color:#e6f7ed; }.transform-tools button:hover:not(:disabled) { background:#2b4849; }
+.graph-node { --category-color:#75b6cf; border:1px solid #3b5663; border-radius:5px; background:#192e39; }
+.graph-node[data-category=data] { --category-color:#82b3a5; }.graph-node[data-category=population] { --category-color:#51c3a4; }.graph-node[data-category=environment] { --category-color:#e8b45c; }.graph-node[data-category=cell] { --category-color:#63c9ad; }.graph-node[data-category=mechanism],.graph-node[data-category=model] { --category-color:#e8b45c; }
+.graph-node-header { border-bottom:1px solid #2d4651; background:#223b46; }
+.graph-node-header::before { content:''; position:absolute; width:3px; height:20px; left:-1px; top:8px; background:var(--category-color); }
+.graph-node .graph-node-title { color:#d8e8ed; font-weight:500; }.graph-node .graph-scope { color:#8bb1c0; font-size:11px; }.graph-status { font-size:11px; }
+.graph-node.selected { border:1px solid var(--mint); background:#1c323c; box-shadow:0 0 0 1px #63c9ad55; }.graph-node:hover { background:#1e3540; }
+.graph-node .graph-port { font-size:11px; color:#90b4c3; }.graph-node .port-dot::after { width:9px; height:9px; border-width:1px; border-color:var(--category-color); }.graph-node .graph-port.out .port-dot::after { background:var(--category-color); }
+.graph-node .graph-port.missing .port-dot::after { border-color:var(--red); }.graph-board { background-size:40px 40px; }.content-view { background-color:#101e28; }
+.shortcut-dialog { width:min(570px,calc(100vw - 24px)); }.shortcut-list { display:grid; grid-template-columns:minmax(130px,.8fr) 1.2fr; gap:10px 15px; font-size:12px; line-height:1.5; }.shortcut-list dt { color:var(--mint); }.shortcut-list dd { margin:0; color:#c5d7dd; }
+@media(max-width:1100px) { .menubar { gap:4px; }.application-menu>.menu-button { padding-inline:9px; }.history-tools { padding-left:5px; }.workspace-tabs button { padding-inline:12px; } }
+@media(max-width:620px) {
+ .menubar { height:44px; padding:0 6px; gap:0; }.brand { width:80px; }.brand img:first-child { width:76px; }.brand .cad-mark { display:none; }.application-menu>.menu-button { padding-inline:7px; font-size:11px; }.menubar #settings-button { padding-inline:5px; font-size:10px; }.top-save { display:none; }
+ .workspacebar { height:84px; position:relative; padding-inline:7px; }.workspace-tabs { width:calc(100% - 95px); height:39px; }.workspace-tabs button { padding-inline:6px; }.history-tools { height:39px; width:95px; justify-content:flex-end; padding-left:3px; }.history-tools button { padding-inline:4px; font-size:10px; }.run-tools { width:100%; height:42px; }
+ .transform-tools { top:8px; left:8px; }.transform-tools button { min-width:43px; padding-inline:7px; font-size:11px; }.view-controls { top:49px; left:8px; right:8px; justify-content:flex-end; }.result-banner { top:90px; }.documentbar { height:24px; }
+ .shortcut-list { grid-template-columns:1fr 1.2fr; gap:9px; font-size:11px; }
+}
+@media(pointer:coarse) {
+ .application-menu>.menu-button,.application-dropdown button { min-height:44px; }.transform-tools button { min-height:44px; min-width:44px; }.history-tools button { min-height:44px; }.graph-node .graph-port { font-size:14px; }.graph-node .graph-scope,.graph-status { font-size:13px; }
+}
+@media(pointer:coarse) and (max-width:620px) { .workspacebar { height:92px; }.workspace-tabs,.history-tools { height:44px; }.view-controls { top:61px; } }
+.graph-node[data-scope=population] { --category-color:#58c6a5; }.graph-node[data-scope=environment] { --category-color:#63b5d2; }.graph-node[data-category=data] { --category-color:#a1bfb3; }
+.run-tools #dt-input { width:68px; }.run-tools #steps-input { width:60px; }
+#left-content>.edit-row { padding:4px 12px; align-items:flex-start; flex-direction:column; gap:6px; }#left-content>.edit-row select { width:100%; max-width:100%; }
+@media(max-width:620px) { .run-tools #dt-input { width:62px; }.run-tools #steps-input { width:54px; } }
+/* NODE_HEAD = 88 in workflow-components.mjs; port coordinates share this boundary. */
+.graph-node-header { height:88px; padding:8px 10px; }.graph-node .graph-node-title { height:32px; line-height:16px; font-size:12px; }.graph-node .graph-scope { line-height:18px; }.graph-status { padding-top:3px; line-height:18px; }
+@media(pointer:coarse) { .graph-node .graph-node-title { font-size:13px; }.graph-node .graph-scope,.graph-status { font-size:12px; } }
+@media(pointer:coarse) { .graph-identifiers { right:56px; }.graph-node .graph-scope { padding-right:100px; }.graph-status { max-width:calc(100% - 100px); } }
+/* Mechanism templates share the existing form and inspector controls. */
+.assembly-library-dialog { width:min(760px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; padding:22px; }
+.assembly-library-dialog .design-field { margin:10px 0; }
+.assembly-library-dialog section.design-field { border-top:1px solid var(--border); padding-top:14px; }
+.assembly-library-dialog section.design-field > p { overflow-wrap:anywhere; }
+.module-folder { border-bottom:1px solid var(--line); }.module-folder>summary { padding:12px; font-size:12px; color:#a7c4d1; cursor:pointer; }
+.module-folder .tree-row { padding-left:20px; }
+.domain-hint,.domain-extent { font-size:12px; line-height:1.6; color:var(--muted); }.domain-extent { color:var(--mint); }
+.diagnostic-locate { width:fit-content; padding:4px 10px; margin-top:6px; font-size:12px; }
+.diagnostic-focus { animation:diagnostic-emphasis 1.4s ease-out; }
+@keyframes diagnostic-emphasis { from { box-shadow:inset 0 0 0 2px #f3ba78; } to { box-shadow:inset 0 0 0 2px transparent; } }
+@media(prefers-reduced-motion:reduce) { .diagnostic-focus { animation:none; outline:1px solid #f3ba78; } }
+#field-range { font-variant-numeric:tabular-nums; font-size:11px; padding:4px 8px; border-left:1px solid var(--line); }
+.viewport:has(#result-banner:not([hidden])) .result-banner{position:relative;inset:auto;max-width:none;margin:8px 10px 0;padding:4px 6px;background:#101b25ed;overflow-wrap:anywhere;z-index:1;}
+.viewport:has(#result-banner:not([hidden])) .view-controls{position:relative;inset:auto;margin:4px 10px;justify-content:flex-start;flex-wrap:wrap;z-index:1;}
+.viewport:has(#result-banner:not([hidden])) #field-range{flex-basis:100%;line-height:1.5;background:#101b25ed;border-left:0;overflow-wrap:anywhere;}
+.result-data>h3{grid-column:1/-1;flex-basis:100%;margin:8px 0;}
+/* The population inspector edits the actual graph-bound module parameters. */
+.population-mechanisms .mechanism-note { color:var(--muted); font-size:11px; line-height:1.65; margin:0 0 10px; }
+.bound-mechanism { border-top:1px solid var(--line); padding:7px 0; }.bound-mechanism>summary { cursor:pointer; color:#b8dcd3; padding:3px 0; font-size:12px; line-height:1.6; }.bound-mechanism>summary small { display:block; margin-left:13px; color:var(--muted); font:10px/1.5 Consolas,monospace; overflow-wrap:anywhere; }.mechanism-id { color:var(--muted); font:10px/1.6 Consolas,monospace; overflow-wrap:anywhere; margin:5px 0 9px; }.bound-mechanism .edit-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(80px,105px); gap:8px; font-size:11px; }.bound-mechanism .edit-row input:not([type=checkbox]),.bound-mechanism .edit-row select { width:100%; min-width:0; max-width:100%; }.bound-mechanism .parameter-evidence { margin:0 0 8px; }.mechanism-locate { width:100%; min-height:30px; border:1px solid var(--line); border-radius:3px; background:#20343c; margin:8px 0 3px; font-size:11px; }.mechanism-locate:hover { background:#2b4743; }
+@media(pointer:coarse){.bound-mechanism>summary,.mechanism-locate { min-height:44px; }.bound-mechanism .edit-row { font-size:13px; }}

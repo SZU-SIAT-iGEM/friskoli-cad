@@ -4,9 +4,18 @@ import {readFileSync} from 'node:fs';
 import {numericDesignParameters,designRunQueue,designPackagePayload,defaultAssemblyMetadata,enableResultEvaluation} from '../src/friskoli_cad/web/design-panel.mjs';
 import {readWorkspace,writeWorkspace} from '../src/friskoli_cad/web/workspace.mjs';
 import {TaskStore,TASK_STORAGE_KEY,buildSubmission} from '../src/friskoli_cad/web/task-store.mjs';
+import {restoreDesignBatchOptions,persistDesignBatchOptions} from '../src/friskoli_cad/web/design-panel.mjs';
 const project=JSON.parse(readFileSync(new URL('../src/friskoli_cad/examples/chemotaxis_pts_a.project.json',import.meta.url)));
 const brief={brief_version:'0.1.0',id:'d',name:'Design',goal:{metric:'mean_displacement_um',direction:'maximize',group_id:'cells'},chassis:{name:'Test',provenance:'User'},variables:[{node_id:'n',parameter:'p',values:[1,2]}],constraints:[],seeds:[2,5],max_runs:32};
 const design={design_version:'0.1.0',id:'d',brief,baseline_project:project,settings:{dt_s:.05,steps:2},budget:{candidate_count:3,repeats:2,total_runs:6,total_steps:12},excluded:[],candidates:[{id:'a',name:'A',kind:'candidate',project,explanation:'Scan',soft_penalty:0,overrides:[]},{id:'b',name:'B',kind:'candidate',project,explanation:'Scan',soft_penalty:0,overrides:[]},{id:'control',name:'Control',kind:'control',project,explanation:'Control',soft_penalty:0,overrides:[]}]};
+test('batch display preferences survive refresh without entering frozen scientific input',()=>{
+ const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)};
+ const before=JSON.stringify(design),options={candidateId:'b',seed:'5',batchSize:2};
+ assert.equal(persistDesignBatchOptions(design,options,storage),true);assert.deepEqual(restoreDesignBatchOptions(design,storage),options);assert.equal(JSON.stringify(design),before);
+ assert.deepEqual(restoreDesignBatchOptions({...design,id:'another'},storage),{candidateId:'',seed:'',batchSize:4});
+ persistDesignBatchOptions(design,{candidateId:'missing',seed:'9',batchSize:0},storage);assert.deepEqual(restoreDesignBatchOptions(design,storage),{candidateId:'',seed:'',batchSize:4});
+ assert.equal(persistDesignBatchOptions(design,options,{setItem(){throw Error('quota');}}),false);
+});
 test('design scan only exposes actual registered finite number/integer parameters',()=>{
  const p={graph:{nodes:[{id:'n',module_id:'m',module_version:'1',parameters:{a:{value:1},b:{value:'x'},c:{value:2},d:{value:3},e:{value:Infinity}}}]}};
  const m=new Map([['m@1',{parameters:{a:{type:'number'},b:{type:'string'},c:{type:'integer'},d:{type:'number',enum:[3]},e:{type:'number'}}}]]);

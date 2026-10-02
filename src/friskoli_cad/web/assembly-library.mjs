@@ -1,0 +1,41 @@
+import {currentLanguage} from './i18n.mjs';
+const text=(en,zh)=>currentLanguage()==='zh-CN'?zh:en;
+export const ASSEMBLY_LIBRARY_KEY='friskoli-assembly-library-v1';
+const canonical=value=>JSON.stringify(value,(_,v)=>v&&typeof v==='object'&&!Array.isArray(v)?Object.fromEntries(Object.keys(v).sort().map(k=>[k,v[k]])):v);
+const key=a=>`${a.id}@${a.version}`;
+const clone=value=>JSON.parse(JSON.stringify(value));
+export class AssemblyLibraryStore {
+  constructor(storage,{maxItems=50,maxBytes=10*1024*1024}={}){this.storage=storage;this.maxItems=maxItems;this.maxBytes=maxBytes;this.deleted=[];this.items=this.read();this.savedRaw=this.storage.getItem(ASSEMBLY_LIBRARY_KEY);}
+  read(){const raw=this.storage.getItem(ASSEMBLY_LIBRARY_KEY);if(raw===null)return [];let data;try{data=JSON.parse(raw);}catch{throw Error('Saved template library is invalid; original storage was preserved');}if(data.version!=='0.1.0'||!Array.isArray(data.items)||new Set(data.items.map(key)).size!==data.items.length)throw Error('Unsupported or duplicate template library; original storage was preserved');this.check(data.items);return clone(data.items);}
+  check(items){const raw=JSON.stringify({version:'0.1.0',items});if(items.length>this.maxItems||new TextEncoder().encode(raw).length>this.maxBytes)throw Error('Template library limit: 50 entries / 10 MiB');for(const a of items)if(!a||typeof a.id!=='string'||typeof a.version!=='string'||a.assembly_version!=='0.1.0')throw Error('Invalid assembly record');return raw;}
+  list(){return clone(this.items);}
+  commit(items){const raw=this.check(items);if(this.storage.getItem(ASSEMBLY_LIBRARY_KEY)!==this.savedRaw)throw Error('Template library changed in another window; reopen the library');this.storage.setItem(ASSEMBLY_LIBRARY_KEY,raw);this.savedRaw=raw;this.items=clone(items);}
+  add(assembly){const copy=clone(assembly),existing=this.items.find(a=>key(a)===key(copy));if(existing){if(canonical(existing)!==canonical(copy))throw Error('Same ID and version have different content; change the ID or version');return false;}this.commit([...this.items,copy]);return true;}
+  remove(id){const found=this.items.find(a=>key(a)===id);if(!found)return false;this.commit(this.items.filter(a=>key(a)!==id));this.deleted.push(clone(found));return true;}
+  undoDelete(){if(!this.deleted.length)return false;const item=this.deleted.at(-1);this.add(item);this.deleted.pop();return true;}
+}
+
+const el=(tag,value='',className='')=>{const node=document.createElement(tag);node.textContent=value;node.className=className;return node;};
+export function showAssemblyLibrary({groups,selectedGroupId,executionProfile,extract,apply,validate,officials=[],revisionGuard=()=>true,storage=localStorage}){
+  const dialog=el('dialog'),body=el('div','','dialog-content'),status=el('p','','task-note');status.setAttribute('role','status');
+  dialog.setAttribute('aria-label',text('Population mechanism library','菌群机制模板库'));dialog.className='assembly-library-dialog';
+  const title=el('h2',text('Population mechanism library','菌群机制模板库'));
+  body.append(title,el('p',text('Data templates only. Constructed examples are not calibrated bacterial strains. Applying initializes from node parameters.','这里只保存数据模板。构造示例不是已标定菌株；应用时按节点参数重新初始化。')));
+  const select=el('select');for(const [id,group] of Object.entries(groups))select.add(new Option(group.name??id,id));if(groups[selectedGroupId])select.value=selectedGroupId;
+  const field=(label,input)=>{const row=el('label',label,'design-field');row.append(input);body.append(row);return input;};
+  field(text('Target population','目标菌群'),select);
+  const name=field(text('Template name','模板名称'),el('input')),id=field('ID',el('input')),version=field(text('Version','版本'),el('input')),source=field(text('Source / conditions','来源 / 条件'),el('input'));
+  const defaults=()=>{const group=groups[select.value];name.value=`${group?.name??select.value} ${text('mechanism','机制')}`;id.value=`population-${select.value.replace(/[^A-Za-z0-9_.-]/g,'-')}`;version.value='1.0.0';source.value=text('User workspace; uncalibrated','用户工作区；未标定');};defaults();select.addEventListener('change',defaults);
+  const actions=el('div','','design-actions'),list=el('div'),controls=[];let busy=false,closed=false,store;
+  const button=(parent,label,fn)=>{const b=el('button',label,'inspector-action');b.type='button';b.addEventListener('click',()=>run(fn));parent.append(b);controls.push(b);return b;};
+  const guard=()=>{if(closed||!revisionGuard())throw Error(text('The workspace changed; reopen the library.','工作区已变化，请重新打开模板库。'));};
+  async function run(fn){if(busy)return;busy=true;controls.forEach(b=>b.disabled=true);try{guard();await fn();}catch(error){status.textContent=error.message;}finally{busy=false;if(!closed){controls.forEach(b=>b.disabled=false);render();}}}
+  try{store=new AssemblyLibraryStore(storage);}catch(error){status.textContent=error.message;}
+  const saveButton=button(actions,text('Save selected mechanism','保存选中菌群机制'),async()=>{if(!store)return;const metadata={id:id.value,name:name.value,version:version.value,kind:'part',biological_role:'population mechanism',provenance:{kind:'user',reference:source.value}};const assembly=await extract(select.value,metadata);guard();const valid=await validate(assembly);guard();store.add(valid??assembly);status.textContent=text('Template saved locally.','模板已保存在本机。');});
+  const file=el('input');file.type='file';file.accept='.json,application/json';file.hidden=true;
+  const importButton=button(actions,text('Import assembly JSON','导入 assembly JSON'),()=>file.click());
+  file.addEventListener('change',()=>run(async()=>{const selected=file.files[0];file.value='';if(!selected||!store)return;if(selected.size>10*1024*1024)throw Error('Assembly file exceeds 10 MiB');const assembly=JSON.parse(await selected.text());const valid=await validate(assembly);guard();store.add(valid??assembly);status.textContent=text('Validated and imported.','已验证并导入。');}));
+  const undoButton=button(actions,text('Undo deletion','撤回删除'),()=>{if(store)store.undoDelete();});
+  function render(){saveButton.disabled=!store||busy||!Object.keys(groups).length;importButton.disabled=!store||busy;undoButton.disabled=!store||busy||!store.deleted.length;undoButton.title=undoButton.disabled?text('No deleted local template to restore.','没有可恢复的已删除本机模板。'):'';for(const b of [saveButton,importButton])b.title=!store?text('Local template storage is unavailable.','本机模板存储不可用。'):'';const keep=controls.filter(b=>!list.contains(b));controls.splice(0,controls.length,...keep);list.replaceChildren();const user=store?.list()??[];for(const [official,assemblies] of [[true,officials],[false,user]]){list.append(el('h3',official?text('Reviewed example mechanisms','已审查示例机制'):text('Local user templates','本机用户模板')));if(!assemblies.length)list.append(el('p',text('No templates','暂无模板')));for(const item of assemblies){const assembly=item.assembly??item,row=el('section','','design-field');row.append(el('strong',`${assembly.name} · ${key(assembly)}`),el('p',`${assembly.execution_profile} · ${assembly.provenance.kind}: ${assembly.provenance.reference}`));const compatible=assembly.execution_profile===executionProfile;if(!compatible)row.append(el('p',text('Different execution profile; cannot apply here.','计算 profile 不同，无法应用到当前项目。')));const applyButton=button(row,text('Apply to target','应用到目标菌群'),async()=>{guard();await apply(select.value,clone(assembly));status.textContent=text('Applied. Use the workspace Undo to revert.','已应用，可用工作区撤销恢复。');});applyButton.disabled=!compatible||busy||!Object.keys(groups).length;button(row,text('Export JSON','导出 JSON'),()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(assembly,null,2)],{type:'application/json'}));const a=el('a');a.href=url;a.download=`${assembly.id}-${assembly.version}.assembly.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);});if(!official)button(row,text('Delete','删除'),()=>store.remove(key(assembly)));list.append(row);}}}
+  body.append(actions,file,status,list);const close=el('button',text('Close','关闭'),'inspector-action');close.type='button';close.addEventListener('click',()=>dialog.close());body.append(close);dialog.append(body);document.body.append(dialog);dialog.addEventListener('close',()=>{closed=true;dialog.remove();});render();dialog.showModal();return dialog;
+}

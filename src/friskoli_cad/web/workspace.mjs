@@ -1,6 +1,6 @@
 // Editable documents and solved runs have separate lifetimes. No solver logic belongs here.
 import { blocksFromProject } from './population.mjs';
-import { METRIC_KEYS, metricRows, csvCell } from './metrics.mjs';
+import { METRIC_KEYS, metricRows, radialMetricColumns, csvCell } from './metrics.mjs';
 
 export const WORKSPACE_VERSION = '0.6.0';
 export const RECOVERY_KEY = 'friskoli.workspace.v2';
@@ -103,6 +103,9 @@ export function readWorkspace(document) {
   if (settings.seed !== undefined && (!Number.isSafeInteger(settings.seed) || settings.seed < 0)) throw new Error('Invalid execution seed');
   if (settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw new Error('Invalid field output setting');
   if (settings.frame_every_steps !== undefined && (!Number.isSafeInteger(settings.frame_every_steps) || settings.frame_every_steps < 1 || settings.frame_every_steps > 10000)) throw new Error('Invalid frame interval');
+  if(settings.backend!==undefined&&!['numpy-cpu','numpy-cupy-cuda'].includes(settings.backend))throw Error('Invalid execution backend');
+  if(settings.include_final_fields!==undefined&&typeof settings.include_final_fields!=='boolean')throw Error('Invalid final field setting');
+  if(settings.field_stride_xyz!==undefined&&(!Array.isArray(settings.field_stride_xyz)||settings.field_stride_xyz.length!==3||settings.field_stride_xyz.some((s,i)=>!Number.isSafeInteger(s)||s<1||project.domain.counts_xyz[i]%s)))throw Error('Invalid field preview stride');
   const design = version ? structuredClone(document.design ?? null) : null;
   const designBrief = version ? structuredClone(document.design_brief ?? null) : null;
   if (design) validateDesignDocument(design);
@@ -145,8 +148,10 @@ export function exportRun(record) {
 }
 
 export function metricsCSV(replay) {
-  if (replay.snapshots.some(s => s.metrics)) return [['frame_index','time_s','observation_id','group_id',...METRIC_KEYS],...metricRows(replay)]
-    .map(row => row.map(csvCell).join(',')).join('\n')+'\n';
+  if (replay.snapshots.some(s => s.metrics)) {
+    const radial=radialMetricColumns(replay),values=replay.snapshots.flatMap(s=>Object.values(s.metrics?.by_group??{}));
+    return [['frame_index','time_s','observation_id','group_id',...METRIC_KEYS,...radial.map(c=>c.label)],...metricRows(replay).map((row,i)=>[...row,...radial.map(c=>c.value(values[i].radial))])].map(row => row.map(csvCell).join(',')).join('\n')+'\n';
+  }
   const rows = ['frame_index,time_s,cell_count,event_count'];
   for (const { frame } of replay.snapshots) rows.push([frame.frame_index, frame.time_s, frame.cells.length, frame.events.length].join(','));
   return rows.join('\n') + '\n';

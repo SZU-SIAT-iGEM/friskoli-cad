@@ -57,6 +57,24 @@
         },
         "include_fields": {
           "type": "boolean"
+        },
+        "backend": {
+          "enum": [
+            "numpy-cpu",
+            "numpy-cupy-cuda"
+          ]
+        },
+        "field_stride_xyz": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "include_final_fields": {
+          "type": "boolean"
         }
       }
     },
