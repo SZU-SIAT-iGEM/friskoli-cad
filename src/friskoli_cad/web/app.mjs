@@ -6,13 +6,13 @@ import { renderModuleDocumentation } from './math-inspector.mjs';
 import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
 import { readWorkspace, writeWorkspace, validateDesignBrief, validateDesignDocument, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
-import { TaskStore, buildSubmission, matchesDraft, supportsTasks, taskCapability } from './task-store.mjs';
+import { TaskStore, buildSubmission, matchesDraft, supportsTasks, taskCapability, executionStepLimit } from './task-store.mjs';
 import { renderResultData } from './results.mjs';
 import { compareRuns, METRIC_KEYS, csvCell } from './metrics.mjs';
 import { copyPopulationBranch } from './templates.mjs';
 import { renderComparison } from './metric-results.mjs';
 import { installDockSizing } from './panels.mjs';
-import { SpatialViewport } from './scene3d.mjs';
+import { SpatialViewport, canTransformBlock } from './scene3d.mjs';
 import { GraphEditor, autoLayout } from './workflow.mjs';
 import { moduleName } from './workflow-components.mjs';
 import { addNode, connect, connectionProblem, disconnect, missingInputs, missingParameters, preferredTiming, removeNode,
@@ -45,7 +45,7 @@ state.registries = new Map();
 state.activeObject = null;
 state.comparison = new Set();
 const isSpatial = project => ['spatial-unbiased-v1','chemotaxis-spatial-v1'].includes(project?.execution_profile);
-const stepLimit = () => taskCapability(state.capabilities,state.project)?.limits?.steps ?? 100;
+const stepLimit = () => executionStepLimit(state.capabilities, state.project);
 const TOOLS = { select: 'select-tool', population: 'population-tool', move: 'move-tool', scale: 'scale-tool',
   rotate: 'rotate-tool', hand: 'hand-tool', orbit: 'orbit-tool', measure: 'measure-tool' };
 let viewport;
@@ -127,9 +127,21 @@ function status(key, values = {}, error = false) {
   while (list.children.length > 200) list.lastChild.remove();
 }
 
-// Space tools: select, place, move/scale gizmo, measure. Any tool other than select switches to Space.
+// Transform tools require an editable Space selection; other editing tools can switch to Space.
+function selectedBlockTransformable() {
+  const block = state.blocks.find(item => item.id === state.selectedBlock);
+  return canTransformBlock(block, state.view) && Boolean(objectForBlock(block, state.objects));
+}
+
+function updateTransformTools() {
+  const enabled = selectedBlockTransformable();
+  for (const id of ['move-tool','scale-tool','rotate-tool']) $(id).disabled = !enabled;
+  if (!enabled && ['move','scale','rotate'].includes(state.tool)) useTool('select');
+}
+
 function useTool(tool) {
   if (!state.project) return;
+  if (['move','scale','rotate'].includes(tool) && !selectedBlockTransformable()) return;
   if (tool === 'population' && !availablePlaceables(state.modules,state.capabilities,state.objects,state.project).some(item => item.kind === 'population' && item.status === 'ready')) {
     status('populationAdapterMissing',{},true); return;
   }
@@ -206,6 +218,7 @@ function visibleEnvironment() {
 
 function renderScene() {
   if (!state.project) return;
+  updateTransformTools();
   renderFieldControls();
   const snapshot = currentSnapshot();
   const domain = state.view === 'results' ? state.replay?.domain ?? state.project.domain : state.project.domain;
@@ -364,7 +377,7 @@ function renderLeft() {
     }
   }
   container.append(el('div', 'tree-heading', `${t('domain')} · ${state.blocks.length}`));
-  treeRow(container, state.project.id, t('domain'), !state.selectedBlock && !state.selectedEnvironment, () => { state.selectedBlock = null; state.selectedEnvironment = null; renderInspector(); renderLeft(); });
+  treeRow(container, state.project.id, t('domain'), !state.selectedBlock && !state.selectedEnvironment, () => { state.selectedBlock = null; state.selectedEnvironment = null; renderInspector(); renderLeft(); renderScene(); });
   renderEnvironmentRows(container,filter);
   for (const block of state.blocks) {
     if (filter && !`${block.name} ${block.id}`.toLowerCase().includes(filter) && state.view !== 'results') continue;
@@ -1343,8 +1356,6 @@ function renderAll() {
   if (hasFields) $('result-banner').textContent = $('result-banner').textContent.replace(t('taskFramesOnly'),t('taskWithFields'));
   $('export-button').disabled = !state.replay;
   $('population-tool').disabled = state.view !== 'space' || !availablePlaceables(state.modules,state.capabilities,state.objects,state.project).some(item => item.kind === 'population' && item.status === 'ready');
-  const transformable = state.view === 'space' && state.blocks.some(block => block.id === state.selectedBlock && !block.locked && objectForBlock(block,state.objects));
-  for (const id of ['move-tool','scale-tool','rotate-tool']) $(id).disabled = !transformable;
   renderScene();
   renderTimeline();
   renderLeft();
@@ -1511,7 +1522,7 @@ try {
     contextBlock: showContext,
     transformBlock(id, center, size, rotation) {
       const block = state.blocks.find(b => b.id === id);
-      if (!block || block.locked) return;
+      if (!canTransformBlock(block, state.view) || !objectForBlock(block, state.objects)) return;
       edit('blockMoved', () => { Object.assign(block, {center, size, rotation, dirty:true}); checkBlock(state.project.domain, block); });
     },
     measure(result) {

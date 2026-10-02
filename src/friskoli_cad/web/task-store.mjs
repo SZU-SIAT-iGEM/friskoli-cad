@@ -41,6 +41,11 @@ export function supportsTasks(capabilities, project) {
   return !!taskCapability(capabilities, project);
 }
 
+export function executionStepLimit(capabilities, project) {
+  const limits = [taskCapability(capabilities, project)?.limits?.steps, capabilities?.limits?.steps];
+  return limits.find(value => Number.isSafeInteger(value) && value > 0) ?? 100;
+}
+
 export function buildSubmission(capabilities, project, settings, editRevision, requestId = identity()) {
   const task = taskCapability(capabilities, project);
   if (!task) throw failure('task.unsupported_contract');

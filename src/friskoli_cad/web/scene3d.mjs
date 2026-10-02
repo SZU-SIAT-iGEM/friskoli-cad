@@ -5,6 +5,8 @@ import { nextHit } from './catalog.mjs';
 
 const fmt = value => Number(value.toFixed(2)).toString();
 
+export const canTransformBlock = (block, mode) => mode === 'space' && Boolean(block && !block.hidden && !block.locked);
+
 export class SpatialViewport {
   constructor(canvas, annotations, callbacks) {
     this.canvas = canvas;
@@ -225,19 +227,23 @@ export class SpatialViewport {
     this.selectedBlock = selectedBlock;
     for (const block of blocks) {
       if (block.hidden || (!block.dirty && block.id !== selectedBlock)) continue;
+      const selected = block.id === selectedBlock;
       const geometry = new THREE.BoxGeometry(...block.size);
-      const material = new THREE.MeshBasicMaterial({ color: block.id === selectedBlock ? 0xf3ba78 : 0x4dcaaf,
+      const material = new THREE.MeshBasicMaterial({ color: selected ? 0xf3ba78 : 0x4dcaaf,
         transparent: true, opacity: .045, depthWrite: false, side: THREE.DoubleSide });
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.fromArray(block.center);
       mesh.rotation.set(...(block.rotation ?? [0,0,0]).map(n => n * Math.PI / 180));
       mesh.userData.blockId = block.id;
       const outline = new THREE.LineSegments(new THREE.EdgesGeometry(geometry),
-        new THREE.LineBasicMaterial({ color: block.id === selectedBlock ? 0xf3ba78 : 0x59bda9,
-          transparent: true, opacity: block.id === selectedBlock ? .9 : .43 }));
+        new THREE.LineBasicMaterial({ color: selected ? 0xf3ba78 : 0x59bda9,
+          transparent: true, opacity: selected ? .9 : .43 }));
+      outline.raycast = () => {};
       mesh.add(outline);
       this.blocks.add(mesh);
-      if (block.dirty || this.tool === 'move' || this.tool === 'scale' || this.tool === 'rotate') this.blockHits.push(mesh);
+      // Distributed populations remain selectable from the object list only.
+      // Their selected mesh can host the gizmo without intercepting scene picks.
+      if (block.dirty) this.blockHits.push(mesh);
     }
     this.blocks.visible = this.mode === 'space';
     this.attachGizmo();
@@ -271,9 +277,9 @@ export class SpatialViewport {
 
   // Shows the move/scale gizmo on the selected block while a transform tool is active in Space.
   attachGizmo() {
-    const mesh = this.blockHits?.find(item => item.userData.blockId === this.selectedBlock);
+    const mesh = this.blocks.children.find(item => item.userData.blockId === this.selectedBlock);
     const block = this.blockData?.find(item => item.id === this.selectedBlock);
-    if (this.mode === 'space' && mesh && !block?.locked && ['move','rotate','scale'].includes(this.tool)) {
+    if (mesh && canTransformBlock(block, this.mode) && ['move','rotate','scale'].includes(this.tool)) {
       this.transform.setMode(this.tool === 'move' ? 'translate' : this.tool);
       this.transform.showX = this.tool !== 'rotate' || this.domain.geometry !== 'thin_layer';
       this.transform.showY = this.tool !== 'rotate' || this.domain.geometry !== 'thin_layer';
@@ -285,7 +291,7 @@ export class SpatialViewport {
   commitTransform() {
     const mesh = this.transform.object;
     const block = this.blockData?.find(item => item.id === mesh?.userData.blockId);
-    if (!block) return;
+    if (!canTransformBlock(block, this.mode)) return;
     const size = block.size.map((value, axis) => value * Math.abs(mesh.scale.getComponent(axis)));
     this.callbacks.transformBlock(block.id, mesh.position.toArray(), size, [mesh.rotation.x,mesh.rotation.y,mesh.rotation.z].map(v => v * 180 / Math.PI));
   }
@@ -357,8 +363,9 @@ export class SpatialViewport {
   }
 
   hitBlock(event) {
+    if (this.mode !== 'space') return null;
     this.pointFromEvent(event);
-    return this.raycaster.intersectObjects(this.blockHits ?? [])[0]?.object.userData.blockId ?? null;
+    return this.raycaster.intersectObjects(this.blockHits ?? [], false)[0]?.object.userData.blockId ?? null;
   }
 
   pick(event) {
@@ -373,7 +380,7 @@ export class SpatialViewport {
       }
       const objectId = this.raycaster.intersectObjects(this.objectHits ?? [],false)[0]?.object.userData.nodeId;
       if (objectId) { this.callbacks.selectEnvironment?.(objectId); return; }
-      const id = this.raycaster.intersectObjects(this.blockHits ?? [])[0]?.object.userData.blockId;
+      const id = this.raycaster.intersectObjects(this.blockHits ?? [], false)[0]?.object.userData.blockId;
       if (id) this.callbacks.selectBlock(id);
       return;
     }
