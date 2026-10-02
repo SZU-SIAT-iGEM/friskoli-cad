@@ -6,7 +6,8 @@ import json
 import time
 import pytest
 
-from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, registry_for_profile
+from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, registry_for_profile
+from friskoli_cad.engine.spatial_runtime import MAX_CELLS, MAX_VOXELS
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.protocol.task_validation import _validator, canonical_loads, sha256
 from friskoli_cad.tasks import TaskError, TaskService
@@ -75,7 +76,8 @@ def test_spatial_capabilities_and_disabled_fields_preserve_contract(tmp_path):
         cap = service.capabilities(SPATIAL_PROFILE)
         _validator("TaskCapabilities", "0.3.0").validate(cap)
         assert not any(cap[name] for name in ("pause","resume","checkpoint"))
-        assert cap["limits"]["cells"] <= 256 and cap["limits"]["voxels"] <= 10000
+        assert cap["limits"]["cells"] == min(MAX_CELLS, service.limits.cells)
+        assert cap["limits"]["voxels"] == min(MAX_VOXELS, service.limits.voxels)
         submission = body(service, fields=False)
         task, _ = service.submit(submission, "no-fields")
         task = terminal(service, task["run_id"])
@@ -83,6 +85,16 @@ def test_spatial_capabilities_and_disabled_fields_preserve_contract(tmp_path):
         manifest = service.manifest(task["run_id"])
         for descriptor in manifest["chunks"]:
             assert "concentrations" not in canonical_loads(service.chunk(task["run_id"], descriptor["chunk_id"]))["frames"][0]
+
+
+@pytest.mark.parametrize("profile", [SPATIAL_PROFILE, CHEMOTAXIS_PROFILE])
+@pytest.mark.parametrize("budget", [1024, MAX_VOXELS * 2])
+def test_spatial_capabilities_bound_service_budget_by_supported_grid(tmp_path, profile, budget):
+    with TaskService(tmp_path / "tasks", limits={"voxels": budget}) as service:
+        cap = service.capabilities(profile)
+        _validator("TaskCapabilities", cap["task_contract_version"]).validate(cap)
+        assert cap["limits"]["voxels"] == min(budget, MAX_VOXELS)
+        assert service.limits.voxels == budget
 
 
 def test_fields_estimated_and_rejected_before_queue(tmp_path):

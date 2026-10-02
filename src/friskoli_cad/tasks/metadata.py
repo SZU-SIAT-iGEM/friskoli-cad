@@ -8,6 +8,8 @@ from importlib.resources import files
 import numpy as np
 
 from friskoli_cad.engine.compiler import compile_graph
+from friskoli_cad.engine.field_backend import backend_environment
+from .artifacts import final_field_estimate, concentration_species
 from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, profile_for_project, registry_for_profile, pts_schedule, spatial_schedule, chemotaxis_schedule, task_version
 from friskoli_cad.protocol.task_validation import sha256
 
@@ -26,6 +28,7 @@ def source_hashes() -> dict:
                  for entry in root.joinpath("science", "data").iterdir()
                  if entry.name.endswith(".json"))
     paths.append(("tasks/worker.py", root.joinpath("tasks", "worker.py")))
+    paths.append(("tasks/artifacts.py", root.joinpath("tasks", "artifacts.py")))
     return {name: hashlib.sha256(path.read_bytes()).hexdigest()
             for name, path in sorted(paths)}
 
@@ -62,15 +65,16 @@ def compiled_plan(project, registry) -> dict:
         } for node in plan.nodes]}
 
 
-def provenance(seed: int, sources: dict, project=None) -> dict:
+def provenance(seed: int, sources: dict, project=None, backend=BACKEND) -> dict:
     spatial = project is not None and profile_for_project(project) in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)
     used = spatial and any(project['groups'][node['owner']['id']]['ids'] and (
         node['module_id'] == 'motion.unbiased_run_tumble' and node['parameters']['tumble_rate_s']['value'] > 0 or
         node['module_id'] == 'motion.hazard_run_tumble' and node['parameters']['maximum_tumble_rate_s']['value'] > 0 or
-        node['module_id'] == 'life.health_balance' or node['module_id'] == 'division.area_adder')
+        node['module_id'] in ('life.health_balance', 'life.starvation_hazard', 'division.area_adder'))
         for node in project['graph']['nodes'] if node['owner']['kind'] == 'population')
-    return {"provenance_version": "0.2.0" if spatial else "0.1.0", "backend": BACKEND, "precision": "float64",
+    return {"provenance_version": "0.2.0" if spatial else "0.1.0", "backend": backend, "precision": "float64",
         "python_version": platform.python_version(), "numpy_version": np.__version__,
+        **({"backend_environment": backend_environment(backend)} if backend == "numpy-cupy-cuda" else {}),
         "platform": platform.platform(), "source_sha256": sources,
         "rng": {"algorithm": "pcg64-sha256-key-v1" if spatial else "none-deterministic", "seed": seed, "used": bool(used)}}
 
@@ -98,6 +102,17 @@ def estimate(submission, registry) -> dict:
     # It still retains the domain counts for geometry validation and limits.
     field_elements = 1 if profile_for_project(project) == PTS_PROFILE else voxels
     memory = 64 * 1024 * 1024 + field_elements * max(1, field_arrays) * 8 * 16
+    if submission.get("task_contract_version") == "0.5.0" and profile_for_project(project) in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE):
+        # The local-field modules own one array per species. Snapshot/graph ports
+        # alias immutable arrays; budget eight float64 buffers per owner plus
+        # masks/geometry scratch, rather than multiplying every alias by 16.
+        local_species = {node["parameters"]["species"]["value"] for node in project["graph"]["nodes"]
+                         if node["module_id"] in ("field.diffusive_local", "field.ideal_local_reservoir")}
+        local_outputs = sum(sum(port["shape"] == "field.scalar" for port in manifests[(node["module_id"], node["module_version"])]["outputs"].values())
+                            for node in project["graph"]["nodes"]
+                            if node["module_id"] in ("field.diffusive_local", "field.ideal_local_reservoir"))
+        owners = max(1, field_arrays - local_outputs + len(local_species))
+        memory = 64 * 1024 * 1024 + voxels * (owners * 8 * 8 + 4)
     memory += budget_cells * (4096 + cell_arrays * 8 * 16)
     # UTF-8 names and channel IDs are included, rather than assuming ASCII names.
     channel_bytes = sum(len(name.encode("utf-8")) + 32
@@ -108,10 +123,15 @@ def estimate(submission, registry) -> dict:
     if submission["output_plan"]["include_fields"]:
         species = {node["parameters"]["species"]["value"] for node in project["graph"]["nodes"]
                    if node["module_id"] in ("field.diffusive_local", "field.ideal_local_reservoir")}
-        field_bytes = sum(128 + len(name.encode("utf-8")) + voxels * 32 for name in species)
+        if submission.get("task_contract_version") == "0.5.0":
+            species = concentration_species(project)
+        stride = submission["output_plan"].get("field_stride_xyz", [1, 1, 1])
+        preview_voxels = (nx // stride[0]) * (ny // stride[1]) * (nz // stride[2])
+        field_overhead = 384 if submission.get("task_contract_version") == "0.5.0" else 128
+        field_bytes = sum(field_overhead + len(name.encode("utf-8")) + preview_voxels * 32 for name in species)
     object_bytes = sum(192 + len(node["id"].encode("utf-8")) * 6 for node in project["graph"]["nodes"]
         if node["module_id"] in ("material.degradable_box", "source.finite_local")) if profile_for_project(project) in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) else 0
     metric_bytes = 1024 * len(project['groups']) if profile_for_project(project) == CHEMOTAXIS_PROFILE else 0
     output = frames * (2048 + budget_cells * (768 + longest_id + channel_bytes) + field_bytes + object_bytes + metric_bytes)
     return {"cells": cells, "voxels": voxels, "steps": steps,
-            "memory_bytes": memory, "output_bytes": output}
+            "memory_bytes": memory, "output_bytes": output + final_field_estimate(submission)}

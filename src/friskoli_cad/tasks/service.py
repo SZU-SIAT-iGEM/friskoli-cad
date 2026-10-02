@@ -21,6 +21,8 @@ from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.protocol.task_validation import (VERSION, TaskValidationError, canonical_bytes, canonical_loads, sha256, strict_json_loads, validate_submission)
 from .metadata import BACKEND, compiled_plan, estimate, provenance, registry_metadata
 from .worker import run_worker
+from .artifacts import file_digest, final_field_estimate
+from friskoli_cad.engine.field_backend import available_backends, memory_available_bytes
 
 TERMINAL = frozenset(("completed", "failed", "cancelled", "interrupted"))
 _ID = re.compile(r"^[A-Za-z0-9_-]{1,128}$")
@@ -103,6 +105,8 @@ class TaskService:
                     seq INTEGER NOT NULL, event TEXT NOT NULL, PRIMARY KEY(run_id, seq));
                 CREATE TABLE IF NOT EXISTS chunks (run_id TEXT NOT NULL REFERENCES tasks(run_id) ON DELETE CASCADE,
                     chunk_id TEXT NOT NULL, metadata TEXT NOT NULL, PRIMARY KEY(run_id, chunk_id));
+                CREATE TABLE IF NOT EXISTS artifacts (run_id TEXT NOT NULL REFERENCES tasks(run_id) ON DELETE CASCADE,
+                    artifact_id TEXT NOT NULL, metadata TEXT NOT NULL, PRIMARY KEY(run_id, artifact_id));
                 CREATE TABLE IF NOT EXISTS tombstones (run_id TEXT PRIMARY KEY, expires REAL NOT NULL);
             """)
             self._recover()
@@ -171,7 +175,7 @@ class TaskService:
                             "Task has expired." if gone else "Unknown task.")
         return row
 
-    def _event(self, task, kind, manifest=None):
+    def _event(self, task, kind):
         task["last_event_seq"] += 1
         task["updated_at"] = _now()
         event = {"seq": task["last_event_seq"], "type": kind, "created_at": task["updated_at"], "task": task}
@@ -179,21 +183,21 @@ class TaskService:
         self._db.execute("UPDATE tasks SET task=?, finished=COALESCE(finished,?) WHERE run_id=?",
                          (self._dump(task), finished, task["run_id"]))
         self._db.execute("INSERT INTO events VALUES(?,?,?)", (task["run_id"], event["seq"], self._dump(event)))
-        if manifest is not None:
-            manifest.update(status=task["status"], completeness=task["result"]["completeness"],
-                            progress=task["progress"], issues=task["issues"])
-            self._db.execute("UPDATE tasks SET manifest=? WHERE run_id=?", (self._dump(manifest), task["run_id"]))
 
     def capabilities(self, profile=LEGACY_PROFILE):
         if profile not in self._profile_metadata:
             raise TaskError(422, "task.execution_unsupported", "Unsupported execution profile.", "/execution/semantics", phase="resolve")
         _, version_lock, _ = self._profile_metadata[profile]
+        limits = asdict(self.limits)
+        if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE):
+            from friskoli_cad.engine.spatial_runtime import MAX_CELLS, MAX_VOXELS
+            limits.update(cells=min(MAX_CELLS, self.limits.cells), voxels=min(MAX_VOXELS, self.limits.voxels))
         return {"task_contract_version": task_version(profile), "mode": "single-worker",
+            "task_contract_versions": [task_version(profile), "0.5.0"],
             "pause": False, "resume": False, "checkpoint": False, "partial_results": True,
-            "hash_canonicalization": "RFC8785", "limits": {**asdict(self.limits),
-                **({"cells": min(256, self.limits.cells), "voxels": min(10000, self.limits.voxels)} if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) else {})},
+            "hash_canonicalization": "RFC8785", "limits": limits,
             "version_lock": canonical_loads(self._dump(version_lock)),
-            "execution": {"semantics": profile, "backend": BACKEND, "default_seed": 0}}
+            "execution": {"semantics": profile, "backend": BACKEND, "available_backends": available_backends() if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) else [BACKEND], "default_seed": 0}}
 
     def version_lock(self, project=None):
         profile = LEGACY_PROFILE if project is None else profile_for_project(project)
@@ -210,8 +214,9 @@ class TaskService:
         profile = profile_for_project(project)
         registry, full, _ = self._profile_metadata[profile]
         expected_version = task_version(profile)
-        if (execution["semantics"] != profile or execution["backend"] != BACKEND
-                or submission["task_contract_version"] != expected_version):
+        if (execution["semantics"] != profile or execution["backend"] not in (available_backends() if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) else [BACKEND])
+                or submission["task_contract_version"] not in (expected_version, "0.5.0")
+                or (submission["task_contract_version"] != "0.5.0" and execution["backend"] != BACKEND)):
             raise TaskError(422, "task.execution_unsupported", "Unsupported execution semantics or backend.", "/execution", phase="resolve")
         if not math.isfinite(execution["dt_s"] * execution["steps"]):
             raise TaskError(422, "task.time_overflow", "Simulation duration must be finite.", "/execution")
@@ -232,6 +237,9 @@ class TaskService:
             path = getattr(error, "path", "")
             raise TaskError(422, getattr(error, "code", "task.project_invalid"), str(error),
                             "/project" + (path if path != "/" else ""), phase="validate") from error
+        strides = submission["output_plan"].get("field_stride_xyz", [1, 1, 1])
+        if any(count % stride for count, stride in zip(project["domain"]["counts_xyz"], strides)):
+            raise TaskError(422, "task.field_stride", "Each field stride must divide its grid count.", "/output_plan/field_stride_xyz", phase="validate")
         unknown = set(submission["output_plan"]["observables"]) - set(project["run"]["channels"])
         if unknown:
             raise TaskError(422, "task.observable_unknown", "Output plan includes an unknown frame channel.", "/output_plan/observables", phase="validate")
@@ -240,7 +248,7 @@ class TaskService:
         budget = estimate(submission, registry)
         frame_count = 1 + execution["steps"] // submission["output_plan"]["frame_every_steps"]
         frame_count += int(execution["steps"] % submission["output_plan"]["frame_every_steps"] != 0)
-        frame_bytes = budget["output_bytes"] // frame_count
+        frame_bytes = (budget["output_bytes"] - final_field_estimate(submission)) // frame_count
         if frame_bytes > self.limits.chunk_bytes:
             hint = " Disable field output explicitly if fields are not needed." if submission["output_plan"]["include_fields"] else ""
             raise TaskError(413, "task.resource_limit",
@@ -253,7 +261,7 @@ class TaskService:
                 if name == "output_bytes":
                     if profile == CHEMOTAXIS_PROFILE:
                         minimum = next((stride for stride in range(1, 10001)
-                            if (1 + math.ceil(execution["steps"] / stride)) * frame_bytes <= self.limits.output_bytes), None)
+                            if (1 + math.ceil(execution["steps"] / stride)) * frame_bytes + final_field_estimate(submission) <= self.limits.output_bytes), None)
                         if minimum is not None:
                             hint = f" Set output frame_every_steps to at least {minimum}; numerical dt_s and steps stay unchanged."
                     if submission["output_plan"]["include_fields"]:
@@ -261,6 +269,13 @@ class TaskService:
                 raise TaskError(413, "task.resource_limit",
                     f"Estimated {name} {budget[name]} exceeds {bound} {getattr(self.limits, bound)}." + hint,
                     "/output_plan" if name == "output_bytes" else "/execution" if name == "steps" else "/project", phase="estimate")
+        device_free = memory_available_bytes(execution["backend"])
+        if device_free is not None and budget["voxels"] * 17 + 64 * 1024 * 1024 > device_free:
+            raise TaskError(413, "task.resource_unavailable", "Estimated diffusion buffers exceed currently available device memory.", "/execution/backend", phase="estimate")
+        if budget["memory_bytes"] > psutil.virtual_memory().available:
+            raise TaskError(413, "task.resource_unavailable", "Estimated worker memory exceeds currently available host RAM.", "/project", phase="estimate")
+        if budget["output_bytes"] + len(canonical_bytes(submission)) * 2 + 1024 * 1024 > shutil.disk_usage(self.directory).free:
+            raise TaskError(503, "task.storage_unavailable", "Insufficient free storage for estimated task output.", "/output_plan", phase="estimate")
         return plan, budget
 
     def _validated_submission(self, submission):
@@ -310,7 +325,7 @@ class TaskService:
             if existing:
                 return self._same(existing, digest), False
         plan, budget = self._admit(submission)
-        metadata = provenance(submission["execution"]["seed"], self._sources, submission["project"])
+        metadata = provenance(submission["execution"]["seed"], self._sources, submission["project"], submission["execution"]["backend"])
         with self._transaction():
             existing = self._db.execute("SELECT * FROM idempotency WHERE key=?", (key,)).fetchone()
             if existing:
@@ -370,9 +385,21 @@ class TaskService:
     def manifest(self, run_id):
         with self._lock:
             row = self._row(run_id)
-            if row["manifest"] is None:
+            records = self._db.execute("SELECT metadata FROM chunks WHERE run_id=? ORDER BY chunk_id", (run_id,)).fetchall()
+            if not records:
                 raise TaskError(409, "task.result_unavailable", "No complete frame has been published.")
-            return canonical_loads(row["manifest"])
+            # Read one committed snapshot under the same lock as publication.
+            # The indexed chunks are authoritative for old and new databases;
+            # never repeatedly serialize their entire history on each step.
+            task = canonical_loads(row["task"])
+            return {"task_contract_version": task["task_contract_version"], "run_id": run_id,
+                "input_snapshot": task["input_snapshot"], "chunks": [canonical_loads(item[0]) for item in records],
+                "compiled_plan": canonical_loads(row["plan"]), "provenance": canonical_loads(row["provenance"]),
+                "status": task["status"], "completeness": task["result"]["completeness"],
+                "progress": task["progress"], "issues": task["issues"],
+                **({"artifacts": [canonical_loads(item[0]) for item in self._db.execute(
+                    "SELECT metadata FROM artifacts WHERE run_id=? ORDER BY artifact_id", (run_id,)).fetchall()]}
+                   if task["task_contract_version"] == "0.5.0" else {})}
 
     def chunk(self, run_id, chunk_id):
         with self._lock:
@@ -391,6 +418,25 @@ class TaskService:
                 raise TaskError(503, "task.output_corrupt", "A published chunk failed integrity verification.", phase="publish")
             return body
 
+    def artifact(self, run_id, artifact_id):
+        """Return a verified file path for streaming; unpublished files are inaccessible."""
+        with self._lock:
+            self._row(run_id)
+            if artifact_id != "final_fields":
+                raise TaskError(404, "task.not_found", "Unknown artifact.")
+            row = self._db.execute("SELECT metadata FROM artifacts WHERE run_id=? AND artifact_id=?", (run_id, artifact_id)).fetchone()
+            if row is None:
+                raise TaskError(404, "task.not_found", "Unknown or unpublished artifact.")
+            metadata = canonical_loads(row[0])
+            path = self.directory / "runs" / run_id / "final-fields.npz"
+            try:
+                size, digest = file_digest(path)
+            except OSError as error:
+                raise TaskError(503, "task.output_corrupt", "Published artifact is unavailable.", phase="publish") from error
+            if size != metadata["bytes"] or digest != metadata["sha256"]:
+                raise TaskError(503, "task.output_corrupt", "Published artifact failed integrity verification.", phase="publish")
+            return path, metadata
+
     def cancel(self, run_id):
         with self._transaction():
             row = self._row(run_id)
@@ -404,7 +450,7 @@ class TaskService:
                 task["status"], task["finished_at"] = "cancelled", _now()
                 self._event(task, "cancelled")
                 return task, False
-            self._event(task, "cancel_requested", canonical_loads(row["manifest"]) if row["manifest"] else None)
+            self._event(task, "cancel_requested")
         self._wake.set()
         return task, True
 
@@ -419,7 +465,7 @@ class TaskService:
                 task["cancel_requested"] = True
             if issue is not None:
                 task["issues"].append(issue)
-            self._event(task, status, canonical_loads(row["manifest"]) if row["manifest"] else None)
+            self._event(task, status)
             return task
 
     def _recover(self):
@@ -431,6 +477,12 @@ class TaskService:
         for row in self._db.execute("SELECT run_id,chunk_id FROM chunks").fetchall():
             try:
                 self.chunk(row["run_id"], row["chunk_id"])
+            except TaskError:
+                self._corrupt.add(row["run_id"])
+
+        for row in self._db.execute("SELECT run_id,artifact_id FROM artifacts").fetchall():
+            try:
+                self.artifact(row["run_id"], row["artifact_id"])
             except TaskError:
                 self._corrupt.add(row["run_id"])
 
@@ -461,12 +513,28 @@ class TaskService:
     def _publish(self, run_id, message):
         with self._lock:
             row = self._row(run_id)
-            existing = canonical_loads(row["manifest"]) if row["manifest"] else None
-            descriptors = existing["chunks"][:] if existing else []
+            count, output_bytes = self._db.execute(
+                "SELECT COUNT(*), COALESCE(SUM(json_extract(metadata,'$.bytes')),0) FROM chunks WHERE run_id=?",
+                (run_id,)).fetchone()
             contract_version = canonical_loads(row["task"])["task_contract_version"]
         metadata = None
+        artifact = message.get("final_field_artifact")
+        artifact_bytes = 0
+        if artifact is not None:
+            submission = canonical_loads(row["input"])
+            if not message["final"] or contract_version != "0.5.0" or not submission["output_plan"].get("include_final_fields", False):
+                raise TaskError(500, "task.output_corrupt", "Unexpected final field artifact.", phase="publish")
+            pending = self.directory / "runs" / run_id / "final-fields.pending.npz"
+            artifact_bytes, digest = file_digest(pending)
+            if artifact_bytes != artifact["bytes"] or digest != artifact["sha256"] or artifact["step_index"] != message["step"]:
+                raise TaskError(500, "task.output_corrupt", "Final field artifact failed integrity verification.", phase="publish")
+            if output_bytes + artifact_bytes > self.limits.output_bytes:
+                raise TaskError(413, "task.resource_limit", "Final field artifact exceeds output_bytes.", phase="publish")
+            artifact = {**artifact, "href": f"/api/runs/{run_id}/artifacts/final_fields"}
+        elif message["final"] and canonical_loads(row["input"])["output_plan"].get("include_final_fields", False):
+            raise TaskError(500, "task.output_corrupt", "Requested final field artifact is missing.", phase="publish")
         if "frame" in message:
-            sequence = len(descriptors)
+            sequence = count
             chunk_id = f"chunk_{sequence:08d}"
             body = canonical_bytes({"task_contract_version": contract_version, "run_id": run_id,
                 "chunk_id": chunk_id, "frames": [{"sequence": sequence, "step_index": message["step"],
@@ -475,7 +543,7 @@ class TaskService:
                     **({"object_states": message["object_states"]} if "object_states" in message else {}),
                     **({"metrics": message["metrics"]} if "metrics" in message else {}),
                     **({"lifecycle_details": message["lifecycle_details"]} if "lifecycle_details" in message else {})}]})
-            if len(body) > self.limits.chunk_bytes or sum(item["bytes"] for item in descriptors) + len(body) > self.limits.output_bytes:
+            if len(body) > self.limits.chunk_bytes or output_bytes + len(body) + artifact_bytes > self.limits.output_bytes:
                 raise TaskError(413, "task.resource_limit", "Actual output exceeds the published output limit.", "/output_plan", phase="publish")
             metadata = {"chunk_id": chunk_id, "href": f"/api/runs/{run_id}/chunks/{chunk_id}",
                 "sha256": hashlib.sha256(body).hexdigest(), "bytes": len(body), "media_type": "application/json",
@@ -488,35 +556,35 @@ class TaskService:
                 return task["status"]
             if metadata:
                 self._db.execute("INSERT INTO chunks VALUES(?,?,?)", (run_id, metadata["chunk_id"], self._dump(metadata)))
-                descriptors.append(metadata)
+                count += 1
+            if artifact is not None and not task["cancel_requested"]:
+                os.replace(self.directory / "runs" / run_id / "final-fields.pending.npz",
+                           self.directory / "runs" / run_id / "final-fields.npz")
+                self._db.execute("INSERT INTO artifacts VALUES(?,?,?)", (run_id, "final_fields", self._dump(artifact)))
             task["progress"] = {"committed_step": message["step"], "simulation_time_s": message["time_s"]}
-            if descriptors:
+            if count:
                 task["result"]["completeness"] = "partial"
             if task["cancel_requested"]:
                 task["status"], task["finished_at"] = "cancelled", _now()
             elif message["final"]:
                 task["status"], task["finished_at"] = "completed", _now()
                 task["result"]["completeness"] = "complete"
-            manifest = {"task_contract_version": task["task_contract_version"], "run_id": run_id,
-                "input_snapshot": task["input_snapshot"], "chunks": descriptors,
-                "compiled_plan": canonical_loads(row["plan"]), "provenance": canonical_loads(row["provenance"])} if descriptors else None
-            self._event(task, "progress" if task["status"] == "running" else task["status"], manifest)
+            self._event(task, "progress" if task["status"] == "running" else task["status"])
             return task["status"]
 
     def _run_active(self, run_id, submission):
-        folder = self.directory / "runs" / run_id
-        spool = folder / "worker"
-        spool.mkdir(parents=True, exist_ok=True)
-        acknowledgement_reader, acknowledgement_writer = self._ctx.Pipe(duplex=False)
-        process = self._ctx.Process(target=run_worker, args=(submission, str(spool), acknowledgement_reader,
-                                    asdict(self.limits), self._sources), name="friskoli-numerical-worker", daemon=True)
+        (self.directory / "runs" / run_id).mkdir(parents=True, exist_ok=True)
+        # One bounded data message then one durable-commit acknowledgement.
+        # No queue can accumulate frames if disk publication is slower than compute.
+        parent_channel, worker_channel = self._ctx.Pipe(duplex=True)
+        process = self._ctx.Process(target=run_worker, args=(submission, worker_channel,
+                                    asdict(self.limits), self._sources, str(self.directory / "runs" / run_id / "final-fields.pending.npz")), name="friskoli-numerical-worker", daemon=True)
         self._process = process
         started = time.monotonic()
         try:
             process.start()
-            # Only the child owns the reader. Keeping a parent copy would hide
-            # a dead reader from send_bytes and leak a pipe handle per task.
-            acknowledgement_reader.close()
+            # Only the child owns its endpoint, so a killed worker exposes EOF.
+            worker_channel.close()
             observed = psutil.Process(process.pid)
             while not self._stop.is_set():
                 if time.monotonic() - started > self.limits.wall_time_s:
@@ -526,12 +594,16 @@ class TaskService:
                         raise TaskError(413, "task.resource_limit", "Worker RSS exceeded the published memory budget.", phase="execute")
                 except psutil.NoSuchProcess:
                     pass
-                ready = spool / "ready.json"
-                if ready.exists():
-                    if ready.stat().st_size > self.limits.chunk_bytes + 4096:
-                        raise TaskError(413, "task.resource_limit", "Worker message exceeded chunk_bytes.", phase="publish")
-                    message = canonical_loads(ready.read_bytes())
-                    ready.unlink()
+                try:
+                    message_ready = parent_channel.poll(0.01)
+                except (EOFError, OSError) as error:
+                    raise TaskError(500, "task.worker_failed", "Numerical worker disconnected before publishing its next step.", phase="execute") from error
+                if message_ready:
+                    try:
+                        raw = parent_channel.recv_bytes(self.limits.chunk_bytes + 4096)
+                    except (EOFError, OSError) as error:
+                        raise TaskError(500, "task.worker_failed", "Numerical worker disconnected before publishing its next step.", phase="execute") from error
+                    message = canonical_loads(raw)
                     if message["kind"] == "error":
                         self._finish(run_id, "failed", _issue(message["code"], message["message"], path=message.get("path", ""), phase=message["phase"]))
                         return
@@ -539,20 +611,19 @@ class TaskService:
                         return
                     try:
                         # At most one byte can be outstanding: the child must
-                        # consume it before it can publish the next ready file.
+                        # consume it before it can send the next bounded message.
                         # No process-shared condition lock can be poisoned by
                         # terminating the child while it waits for this ack.
-                        acknowledgement_writer.send_bytes(b"\x01")
-                    except (BrokenPipeError, EOFError, OSError) as error:
+                        parent_channel.send_bytes(b"\x01")
+                    except (EOFError, OSError) as error:
                         raise TaskError(500, "task.worker_failed",
                             "Numerical worker disconnected before acknowledging its committed step.", phase="execute") from error
                 elif not process.is_alive():
                     raise TaskError(500, "task.worker_failed", "Numerical worker exited before publishing its final step.", phase="execute")
-                self._stop.wait(0.01)
             self._finish(run_id, "interrupted", _issue("task.service_interrupted", "Service closed before this task finished.", phase="recover"))
         finally:
-            acknowledgement_reader.close()
-            acknowledgement_writer.close()
+            worker_channel.close()
+            parent_channel.close()
             if process.pid is not None:
                 if process.is_alive():
                     process.terminate()
@@ -562,6 +633,8 @@ class TaskService:
                     process.join(timeout=5)
                 process.close()
             self._process = None
+            pending = self.directory / "runs" / run_id / "final-fields.pending.npz"
+            pending.unlink(missing_ok=True)
 
     def _manage(self):
         while not self._stop.is_set():

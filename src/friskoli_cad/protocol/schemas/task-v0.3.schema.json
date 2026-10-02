@@ -359,6 +359,13 @@
         },
         "execution": {
           "$ref": "#/$defs/ExecutionSupport"
+        },
+        "task_contract_versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
         }
       }
     },
@@ -1193,6 +1200,16 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740991
+        },
+        "available_backends": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "numpy-cpu",
+              "numpy-cupy-cuda"
+            ]
+          },
+          "uniqueItems": true
         }
       }
     },

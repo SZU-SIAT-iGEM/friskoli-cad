@@ -1,32 +1,32 @@
 """Spawned numerical worker; the parent alone publishes durable task state."""
 from __future__ import annotations
 
-import json
 import os
 import multiprocessing
 import threading
+import time
 import numpy as np
-from pathlib import Path
 
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.engine.runtime import SimulationError
 from friskoli_cad.engine.profiles import PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE
 from friskoli_cad.protocol.task_validation import canonical_bytes, sha256
 from .metadata import source_hashes
+from .artifacts import write_final_fields, concentration_species, nonnegative_mean
 
 
-def _send(spool: Path, acknowledgement, message: dict, maximum: int) -> None:
+PROGRESS_INTERVAL_S = 0.25
+
+
+def _send(channel, message: dict, maximum: int) -> None:
     data = canonical_bytes(message)
     if len(data) > maximum:
         raise WorkerLimit("A complete output frame exceeds chunk_bytes.")
-    temporary = spool / "pending.tmp"
-    with temporary.open("wb") as stream:
-        stream.write(data)
-        stream.flush()
-        os.fsync(stream.fileno())
-    os.replace(temporary, spool / "ready.json")
+    # The pipe is transient, bounded to one checked message. Only the parent's
+    # indexed chunks/task transaction are durable; no worker file is a result.
+    channel.send_bytes(data)
     # The parent only acknowledges after the complete step is committed.
-    if acknowledgement.recv_bytes() != b"\x01":
+    if channel.recv_bytes() != b"\x01":
         raise ValueError("Invalid committed-step acknowledgement")
 
 
@@ -34,7 +34,21 @@ class WorkerLimit(ValueError):
     pass
 
 
-def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict, expected_sources: dict) -> None:
+def concentration_preview(values, domain, stride_xyz):
+    """Uniform-grid block means; preserves volume integral and never changes solver state."""
+    sx, sy, sz = stride_xyz
+    if any(type(s) is not int or s < 1 or n % s for n, s in zip(
+            (domain.nx, domain.ny, domain.nz), stride_xyz)):
+        raise ValueError("Field stride must divide every grid count")
+    preview = values if (sx, sy, sz) == (1, 1, 1) else nonnegative_mean(values.reshape(
+        domain.nz // sz, sz, domain.ny // sy, sy, domain.nx // sx, sx), axis=(1, 3, 5))
+    return {"unit": "uM", "values_zyx": preview.tolist(), "aggregation": "volume_mean",
+            "field_domain": {"geometry": domain.geometry,
+                "counts_xyz": [domain.nx // sx, domain.ny // sy, domain.nz // sz],
+                "spacing_um_xyz": [domain.dx_um * sx, domain.dy_um * sy, domain.dz_um * sz]}}
+
+
+def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, artifact_path=None) -> None:
     """Never mutates SQLite or published chunks; one bounded message is in flight."""
     def watch_parent():
         parent = multiprocessing.parent_process()
@@ -43,18 +57,19 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
                 threading.Event().wait(0.2)
             os._exit(1)
     threading.Thread(target=watch_parent, daemon=True).start()
-    spool = Path(spool_name)
     phase = "initialize"
     try:
         if source_hashes() != expected_sources:
             raise ValueError("Execution source changed after admission.")
-        simulation = simulation_from_project(submission["project"], seed=submission["execution"]["seed"])
+        simulation = simulation_from_project(submission["project"], seed=submission["execution"]["seed"],
+            field_backend=submission["execution"]["backend"])
         execution = submission["execution"]
         observations = set(submission["output_plan"]["observables"])
         every = submission["output_plan"]["frame_every_steps"]
         pending_events = []
         pending_deaths = []
         pending_event_bytes = 0
+        last_progress = time.monotonic()
         for step in range(execution["steps"] + 1):
             phase = "execute"
             snapshot = simulation.current if step == 0 else simulation.step(execution["dt_s"])
@@ -99,21 +114,36 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
                             or not 0 <= amount <= node["parameters"]["initial_molecules"]["value"]):
                             raise ValueError("Invalid object inventory snapshot")
                     message["object_states"] = {key: dict(value) for key, value in states.items()}
-                if submission["output_plan"]["include_fields"]:
+                if submission["output_plan"]["include_fields"] or (message["final"] and submission["output_plan"].get("include_final_fields", False)):
                     expected = {node["parameters"]["species"]["value"] for node in submission["project"]["graph"]["nodes"]
                                 if node["module_id"] in ("field.diffusive_local", "field.ideal_local_reservoir")}
+                    if submission["task_contract_version"] == "0.5.0":
+                        expected = concentration_species(submission["project"])
                     if set(snapshot.concentration_fields) != expected or any(
                         snapshot.concentration_units[species] != "uM" or values.shape != snapshot.domain.shape
                         or not np.isfinite(values).all() or (values < 0).any()
                         for species, values in snapshot.concentration_fields.items()
                     ):
                         raise ValueError("Invalid complete spatial fields")
-                    message["concentrations"] = {species: {"unit": snapshot.concentration_units[species],
-                        "values_zyx": values.tolist()} for species, values in snapshot.concentration_fields.items()}
+                if submission["output_plan"]["include_fields"]:
+                    message["concentrations"] = {species: (
+                        concentration_preview(values, snapshot.domain, submission["output_plan"].get("field_stride_xyz", [1, 1, 1]))
+                        if submission["task_contract_version"] == "0.5.0" else
+                        {"unit": snapshot.concentration_units[species], "values_zyx": values.tolist()})
+                        for species, values in snapshot.concentration_fields.items()}
                 domain = snapshot.domain
                 message["grid_revision"] = sha256({"shape": list(domain.shape),
                     "spacing": [domain.dx_um, domain.dy_um, domain.dz_um]})
-            _send(spool, acknowledgement, message, limits["chunk_bytes"] + 4096)
+            if message["final"] and submission["output_plan"].get("include_final_fields", False):
+                if artifact_path is None:
+                    raise ValueError("Final field artifact path is unavailable")
+                message["final_field_artifact"] = write_final_fields(snapshot, step, artifact_path, limits["output_bytes"])
+            # Every numerical step above still computes and checks state. Pure
+            # progress between requested output frames needs no per-step commit.
+            # The next complete step after this interval also observes cancel.
+            if "frame" in message or message["final"] or time.monotonic() - last_progress >= PROGRESS_INTERVAL_S:
+                _send(channel, message, limits["chunk_bytes"] + 4096)
+                last_progress = time.monotonic()
     except (EOFError, BrokenPipeError):
         # The parent stopped or closed its confirmation channel; there is no
         # peer left to consume another error message.
@@ -124,9 +154,9 @@ def run_worker(submission: dict, spool_name: str, acknowledgement, limits: dict,
         # Numerical error paths are input pointers; arbitrary exception details never expose paths.
         message = str(error) if known or isinstance(error, WorkerLimit) else "Numerical worker failed during " + phase + "."
         try:
-            _send(spool, acknowledgement, {"kind": "error", "code": code,
+            _send(channel, {"kind": "error", "code": code,
                 "message": message, "phase": phase, "path": error.path if known else ""}, 4096)
         except BaseException:
             pass
     finally:
-        acknowledgement.close()
+        channel.close()
