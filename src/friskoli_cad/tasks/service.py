@@ -238,22 +238,32 @@ class TaskService:
         if profile != CHEMOTAXIS_PROFILE and submission["output_plan"]["frame_every_steps"] != 1 and any("divide" in node["outputs"] for node in plan["nodes"]):
             raise TaskError(422, "task.sampling_unsupported", "Division models require every complete frame to preserve lineage events.", "/output_plan/frame_every_steps", phase="validate")
         budget = estimate(submission, registry)
+        frame_count = 1 + execution["steps"] // submission["output_plan"]["frame_every_steps"]
+        frame_count += int(execution["steps"] % submission["output_plan"]["frame_every_steps"] != 0)
+        frame_bytes = budget["output_bytes"] // frame_count
+        if frame_bytes > self.limits.chunk_bytes:
+            hint = " Disable field output explicitly if fields are not needed." if submission["output_plan"]["include_fields"] else ""
+            raise TaskError(413, "task.resource_limit",
+                f"Estimated single-frame bytes {frame_bytes} exceed chunk_bytes {self.limits.chunk_bytes}. "
+                "Increasing the output interval cannot reduce a single frame." + hint, "/output_plan", phase="estimate")
         for name, bound in (("cells", "cells"), ("voxels", "voxels"), ("steps", "steps"),
                             ("memory_bytes", "estimated_memory_bytes"), ("output_bytes", "output_bytes")):
             if budget[name] > getattr(self.limits, bound):
-                raise TaskError(413, "task.resource_limit", name + " exceeds the published admission limit.",
-                                "/execution" if name == "steps" else "/project", phase="estimate")
-        frame_count = 1 + execution["steps"] // submission["output_plan"]["frame_every_steps"]
-        frame_count += int(execution["steps"] % submission["output_plan"]["frame_every_steps"] != 0)
-        if budget["output_bytes"] // frame_count > self.limits.chunk_bytes:
-            raise TaskError(413, "task.resource_limit", "Estimated complete frame exceeds chunk_bytes.", "/output_plan", phase="estimate")
+                hint = ""
+                if name == "output_bytes":
+                    if profile == CHEMOTAXIS_PROFILE:
+                        minimum = next((stride for stride in range(1, 10001)
+                            if (1 + math.ceil(execution["steps"] / stride)) * frame_bytes <= self.limits.output_bytes), None)
+                        if minimum is not None:
+                            hint = f" Set output frame_every_steps to at least {minimum}; numerical dt_s and steps stay unchanged."
+                    if submission["output_plan"]["include_fields"]:
+                        hint += " Field output may be disabled explicitly if those results are not needed."
+                raise TaskError(413, "task.resource_limit",
+                    f"Estimated {name} {budget[name]} exceeds {bound} {getattr(self.limits, bound)}." + hint,
+                    "/output_plan" if name == "output_bytes" else "/execution" if name == "steps" else "/project", phase="estimate")
         return plan, budget
 
-    def submit(self, submission, key):
-        if not isinstance(key, str) or not _KEY.fullmatch(key):
-            raise TaskError(400, "task.idempotency_key", "A valid Idempotency-Key is required.")
-        if self._closed or self._unavailable:
-            raise TaskError(503, "task.storage_unavailable", "The task service cannot accept new work.")
+    def _validated_submission(self, submission):
         try:
             if isinstance(submission, (bytes, str)):
                 raw = submission if isinstance(submission, bytes) else submission.encode("utf-8")
@@ -270,6 +280,30 @@ class TaskService:
             validate_submission(submission)
         except TaskValidationError as error:
             raise TaskError(422, error.issues[0]["code"], str(error), issues=error.issues) from error
+        return submission, data
+
+    def preflight(self, submission):
+        """Check the exact static admission rules without reserving a task or key.
+
+        Queue/storage availability and actual runtime limits are checked at
+        submission/execution; this result is not an execution guarantee.
+        """
+        submission, _ = self._validated_submission(submission)
+        _, budget = self._admit(submission)
+        steps = submission["execution"]["steps"]
+        stride = submission["output_plan"]["frame_every_steps"]
+        profile = profile_for_project(submission["project"])
+        return {"valid": True, "issues": [], "estimate": budget,
+                "frames": 1 + (steps + stride - 1) // stride,
+                "cells": budget["cells"], "voxels": budget["voxels"],
+                "limits": self.capabilities(profile)["limits"]}
+
+    def submit(self, submission, key):
+        if not isinstance(key, str) or not _KEY.fullmatch(key):
+            raise TaskError(400, "task.idempotency_key", "A valid Idempotency-Key is required.")
+        if self._closed or self._unavailable:
+            raise TaskError(503, "task.storage_unavailable", "The task service cannot accept new work.")
+        submission, data = self._validated_submission(submission)
         digest = sha256({name: value for name, value in submission.items() if name != "request_id"})
         with self._lock:
             existing = self._db.execute("SELECT * FROM idempotency WHERE key=?", (key,)).fetchone()

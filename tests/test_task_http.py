@@ -16,6 +16,7 @@ from urllib.request import Request, urlopen
 
 from friskoli_cad.replay_service import EXAMPLE_PROJECT, ReplayServer
 from friskoli_cad.protocol.task_validation import _validator
+from friskoli_cad.engine.chemotaxis_templates import make_example
 
 
 class TaskHTTPTests(unittest.TestCase):
@@ -75,6 +76,82 @@ class TaskHTTPTests(unittest.TestCase):
                 return task
             time.sleep(.03)
         self.fail("task did not reach a terminal state")
+
+    def scientific_submission(self, name, *, stride=1):
+        project = make_example(name)
+        return {"task_contract_version": "0.4.0", "request_id": "preflight-science",
+                "edit_revision": "preflight:1", "project": project,
+                "version_lock": self.server.task_service.version_lock(project),
+                "execution": {"semantics": "chemotaxis-spatial-v1", "backend": "numpy-cpu",
+                              "seed": 17, "dt_s": .05, "steps": 1900},
+                "output_plan": {"frame_every_steps": stride, "observables": list(project["run"]["channels"]),
+                                "include_fields": True}}
+
+    def test_preflight_has_no_task_or_idempotency_side_effects(self):
+        submission = self.submission(steps=1)
+        before = deepcopy(submission)
+        _, _, caps = self.request("/api/capabilities")
+        self.assertEqual(caps["task_preflight"], {"href": "/api/runs/preflight", "method": "POST"})
+        for _ in range(2):
+            code, _, result = self.request("/api/runs/preflight", submission, key="unused-preflight-key")
+            self.assertEqual(code, 200)
+            self.assertTrue(result["valid"])
+            self.assertEqual(result["frames"], 2)
+        self.assertEqual(submission, before)
+        service = self.server.task_service
+        with service._lock:
+            self.assertEqual(service._db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0], 0)
+            self.assertEqual(service._db.execute("SELECT COUNT(*) FROM idempotency").fetchone()[0], 0)
+        submission["request_id"] = "actual-submit"
+        code, _, task = self.request("/api/runs", submission, key="unused-preflight-key")
+        self.assertEqual(code, 202)
+        self.assertEqual(task["estimate"], result["estimate"])
+        self.assertEqual(self.terminal(task["run_id"])["status"], "completed")
+
+    def test_preflight_and_submit_reject_same_1900_lifecycle_budget(self):
+        submission = self.scientific_submission("chemotaxis-lifecycle")
+        code, _, check = self.request("/api/runs/preflight", submission)
+        self.assertEqual(code, 413)
+        issue = check["issues"][0]
+        self.assertEqual(issue["path"], "/output_plan")
+        self.assertIn("output_bytes", issue["message"])
+        self.assertIn("at least 9", issue["message"])
+        code, _, rejected = self.request("/api/runs", submission, key="budget-rejected")
+        self.assertEqual(code, 413)
+        self.assertEqual(check, rejected)
+        execution = deepcopy(submission["execution"])
+        submission["output_plan"]["frame_every_steps"] = 9
+        code, _, accepted = self.request("/api/runs/preflight", submission)
+        self.assertEqual(code, 200)
+        self.assertLessEqual(accepted["estimate"]["output_bytes"], accepted["limits"]["output_bytes"])
+        self.assertEqual(submission["execution"], execution)
+
+    def test_preflight_fine_grid_uses_async_limits_and_real_output_plan(self):
+        submission = self.scientific_submission("chemotaxis-mcp", stride=10)
+        submission["project"]["domain"].update(counts_xyz=[100, 100, 1], spacing_um_xyz=[2, 1, 2])
+        before = deepcopy(submission)
+        code, _, result = self.request("/api/runs/preflight", submission)
+        self.assertEqual(code, 200)
+        self.assertEqual(result["voxels"], 10000)
+        self.assertEqual(result["frames"], 191)
+        self.assertEqual(result["estimate"]["output_bytes"], 125518706)
+        self.assertEqual(submission, before)
+        submission["output_plan"]["frame_every_steps"] = 1
+        code, _, result = self.request("/api/runs/preflight", submission)
+        self.assertEqual(code, 413)
+        self.assertIn("output_bytes", result["issues"][0]["message"])
+
+    def test_preflight_single_frame_limit_does_not_recommend_sparse_output(self):
+        from dataclasses import replace
+        service = self.server.task_service
+        service.limits = replace(service.limits, chunk_bytes=1000)
+        for stride in (1, 1900):
+            code, _, result = self.request("/api/runs/preflight", self.scientific_submission("chemotaxis-mcp", stride=stride))
+            self.assertEqual(code, 413)
+            message = result["issues"][0]["message"]
+            self.assertIn("single-frame bytes", message)
+            self.assertIn("cannot reduce a single frame", message)
+            self.assertNotIn("at least", message)
 
     def test_real_submission_events_input_and_checksummed_chunks(self):
         submission = self.submission()

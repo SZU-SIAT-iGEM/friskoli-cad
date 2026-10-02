@@ -3,12 +3,17 @@ from __future__ import annotations
 import json
 import threading
 import unittest
+import io
+import tempfile
 from copy import deepcopy
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 from unittest.mock import patch
+from contextlib import redirect_stderr, redirect_stdout
+from friskoli_cad import replay_service
+from friskoli_cad.tasks import TaskLimits
 
 from friskoli_cad.replay_service import (EXAMPLE_PROJECT, MAX_STEPS, MAX_REPLAY_BYTES,
     MAX_REPLAY_CELL_FRAMES, ReplayHandler, ReplayRequestError, build_replay,
@@ -23,6 +28,50 @@ def load(name: str) -> dict:
 
 
 class ReplayServiceTests(unittest.TestCase):
+    def test_cli_task_timeout_default_and_override_are_passed_to_server(self):
+        self.assertEqual(TaskLimits().wall_time_s, 60)
+        for arguments, expected in (([], 1800), (["--task-wall-time-s", "75"], 75)):
+            with self.subTest(arguments=arguments), \
+                 patch("sys.argv", ["friskoli-cad", *arguments]), \
+                 patch.object(replay_service, "ReplayServer") as server, redirect_stdout(io.StringIO()):
+                replay_service.main()
+                self.assertEqual(server.call_args.kwargs["task_limits"].wall_time_s, expected)
+                server.return_value.serve_forever.assert_called_once()
+                server.return_value.server_close.assert_called_once()
+
+    def test_cli_invalid_task_timeout_is_rejected_before_creating_server(self):
+        for value in ("0", "-1", "1.5", "nan", "inf", "abc"):
+            with self.subTest(value=value), patch("sys.argv", ["friskoli-cad", "--task-wall-time-s", value]), \
+                 patch.object(replay_service, "ReplayServer") as server, redirect_stderr(io.StringIO()) as errors:
+                with self.assertRaises(SystemExit) as rejected:
+                    replay_service.main()
+                self.assertEqual(rejected.exception.code, 2)
+                self.assertIn("positive integer", errors.getvalue())
+                server.assert_not_called()
+
+    def test_cli_sync_only_does_not_create_async_limits_or_service(self):
+        with patch("sys.argv", ["friskoli-cad", "--sync-only", "--task-wall-time-s", "75"]), \
+             patch.object(replay_service, "ReplayServer") as server, redirect_stdout(io.StringIO()):
+            replay_service.main()
+            self.assertIsNone(server.call_args.kwargs["task_directory"])
+            self.assertIsNone(server.call_args.kwargs["task_limits"])
+
+    def test_server_publishes_configured_task_timeout(self):
+        with tempfile.TemporaryDirectory(prefix="friskoli-cli-limits-") as directory:
+            server = replay_service.ReplayServer(("127.0.0.1", 0), task_directory=directory,
+                                                 task_limits=TaskLimits(wall_time_s=1800))
+            worker = threading.Thread(target=server.serve_forever, daemon=True)
+            worker.start()
+            try:
+                with urlopen(f"http://127.0.0.1:{server.server_port}/api/capabilities") as response:
+                    capabilities = json.load(response)
+                for task in [capabilities["task"], *capabilities["task_profiles"].values()]:
+                    self.assertEqual(task["limits"]["wall_time_s"], 1800)
+            finally:
+                server.shutdown()
+                worker.join(timeout=3)
+                server.server_close()
+
     def test_validation_does_not_advance_or_change_the_submitted_project(self):
         project = load("adder_division.project.json")
         before = deepcopy(project)

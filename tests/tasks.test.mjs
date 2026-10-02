@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHash } from 'node:crypto';
 import { KernelClient } from '../src/friskoli_cad/web/kernel-client.mjs';
-import { TaskStore, buildSubmission, matchesDraft, supportsTasks, TASK_STORAGE_KEY } from '../src/friskoli_cad/web/task-store.mjs';
+import { TaskStore, buildSubmission, preflightSubmission, matchesDraft, supportsTasks, TASK_STORAGE_KEY } from '../src/friskoli_cad/web/task-store.mjs';
 
 const hash = 'a'.repeat(64);
 const cap = {api_version:'0.2.0', placeables:[], task:{task_contract_version:'0.1.0',
@@ -51,6 +51,34 @@ test('exact capability gate preserves legacy fallback and copies real version lo
   assert.equal(input.project.run.run_id,'legacy_metadata'); assert.equal(input.execution.seed,0);
   assert.throws(()=>{input.project.id='mutated';},TypeError);
   assert.throws(()=>buildSubmission({...cap,task:{task_contract_version:'0.1.0'}},project(),{},'x'),/task.invalid_capabilities/);
+});
+
+test('preflight sends the exact output plan without changing numerical inputs or creating tasks', async () => {
+  const profile='chemotaxis-spatial-v1', doc={...project(),project_version:'0.5.0',execution_profile:profile,random_seed:17};
+  const capabilities={...cap,task_profiles:{[profile]:{...cap.task,task_contract_version:'0.4.0',
+    execution:{...cap.task.execution,semantics:profile}}}};
+  const settings={dt_s:.05,steps:1900,frame_every_steps:9,include_fields:true};
+  const before=structuredClone({doc,settings}), calls=[];
+  const client=new KernelClient(async(path,options)=>{
+    calls.push({path,options});return new Response(JSON.stringify({valid:true,frames:213,estimate:{output_bytes:1000}}));
+  });
+  const {submission:checked,result}=await preflightSubmission(client,capabilities,doc,settings,'draft:1');
+  assert.equal(calls.length,1);assert.equal(calls[0].path,'/api/runs/preflight');
+  assert.equal(calls[0].options.headers['Idempotency-Key'],undefined);
+  assert.deepEqual(JSON.parse(calls[0].options.body),checked);
+  assert.equal(checked.execution.dt_s,.05);assert.equal(checked.execution.steps,1900);
+  assert.equal(checked.output_plan.frame_every_steps,9);assert.equal(checked.output_plan.include_fields,true);
+  assert.deepEqual({doc,settings},before);assert.equal(result.frames,213);
+  assert.ok(Object.isFrozen(checked));
+});
+
+test('preflight rejection preserves the actionable admission issue without retrying', async () => {
+  let calls=0;
+  const issue={code:'task.resource_limit',path:'/output_plan',message:'Set output frame_every_steps to at least 9.'};
+  const client=new KernelClient(async()=>{calls++;return new Response(JSON.stringify({issues:[issue]}),{status:413});});
+  await assert.rejects(preflightSubmission(client,cap,project(),{dt_s:.5,steps:1900},'draft:1'),
+    error=>error.status===413&&error.issue.path==='/output_plan'&&error.message.includes('at least 9'));
+  assert.equal(calls,1);
 });
 
 test('completed async result keeps task and legacy frame identities separate', async () => {

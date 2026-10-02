@@ -28,6 +28,7 @@ export class KernelClient {
     return result;
   }
   validate(project, settings) { return this.request('/api/validate', { project, dt_s:settings.dt_s,steps:settings.steps }); }
+  preflight(submission) { return this.request('/api/runs/preflight', submission); }
   run(project, settings, request_id) { return this.request('/api/replay', { project,dt_s:settings.dt_s,steps:settings.steps, request_id }); }
   submitTask(submission, key) {
     if (!key) throw new Error('Idempotency-Key required');

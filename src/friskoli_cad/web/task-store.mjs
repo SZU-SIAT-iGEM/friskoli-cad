@@ -67,6 +67,13 @@ export function buildSubmission(capabilities, project, settings, editRevision, r
     output_plan:{frame_every_steps:stride, observables:Object.keys(project.run.channels), include_fields:spatial ? (settings.include_fields ?? true) : false}});
 }
 
+export async function preflightSubmission(client, capabilities, project, settings, editRevision) {
+  const submission = buildSubmission(capabilities, project, settings, editRevision);
+  const result = await client.preflight(submission);
+  if (result?.valid !== true) throw failure('task.invalid_preflight');
+  return {submission, result};
+}
+
 // A field-enabled result must carry the complete active species set in every committed frame.
 function taskFields(item, submission) {
   if (!submission.output_plan.include_fields) return {};

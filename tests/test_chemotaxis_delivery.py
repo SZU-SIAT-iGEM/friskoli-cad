@@ -145,9 +145,13 @@ def test_checkpoint_file_restores_new_scientific_state(tmp_path):
 def test_preflight_supports_long_async_requests_without_allocating_output_history():
     from friskoli_cad.replay_service import prepare_project, ReplayRequestError
     doc = make_example('chemotaxis-pts-a')
-    sim = prepare_project(doc, dt_s=.05, steps=200, validation_only=True)
+    sim = prepare_project(doc, dt_s=.05, steps=10000, validation_only=True)
     assert sim.time_s == 0
-    with pytest.raises(ReplayRequestError): prepare_project(doc, dt_s=.05, steps=200)
+    # Synchronous execution now accepts more than 100 steps, but must still
+    # reject a result history exceeding its field budget before stepping.
+    with pytest.raises(ReplayRequestError) as rejected:
+        prepare_project(doc, dt_s=.05, steps=10000)
+    assert rejected.value.code == 'replay.size'
 
 
 @pytest.mark.parametrize('event', ['death', 'division'])

@@ -25,7 +25,7 @@ from friskoli_cad.project import simulation_from_project
 from friskoli_cad.project import validate_project
 from friskoli_cad.protocol import ProtocolError, validate_frame_sequence
 from friskoli_cad.protocol.task_validation import TaskValidationError, strict_json_loads
-from friskoli_cad.tasks import TaskError, TaskService
+from friskoli_cad.tasks import TaskError, TaskLimits, TaskService
 
 
 EXAMPLE_PROJECT = files("friskoli_cad").joinpath("examples", "workspace_3d.project.json")
@@ -332,6 +332,9 @@ class ReplayHandler(BaseHTTPRequestHandler):
             service = self._task_service()
             if query:
                 raise TaskError(400, "task.request_invalid", "task mutations do not accept query parameters")
+            if path == "/api/runs/preflight":
+                self._json(200, service.preflight(self._task_body(service.limits.request_bytes)))
+                return
             if path == "/api/runs":
                 keys = self.headers.get_all("Idempotency-Key", [])
                 if len(keys) != 1 or not keys[0].strip():
@@ -417,6 +420,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
             }
             service = getattr(self.server, "task_service", None)
             if service is not None:
+                capabilities["task_preflight"] = {"href": "/api/runs/preflight", "method": "POST"}
                 capabilities["task"] = service.capabilities()
                 capabilities["task_profiles"] = {PTS_PROFILE: service.capabilities(PTS_PROFILE),
                                                   SPATIAL_PROFILE: service.capabilities(SPATIAL_PROFILE),
@@ -502,15 +506,28 @@ class ReplayServer(ThreadingHTTPServer):
                 self.task_service.close()
 
 
+def _positive_seconds(value: str) -> int:
+    try:
+        seconds = int(value)
+    except ValueError as error:
+        raise argparse.ArgumentTypeError("must be a positive integer number of seconds") from error
+    if seconds < 1:
+        raise argparse.ArgumentTypeError("must be a positive integer number of seconds")
+    return seconds
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Serve the local Friskoli-CAD replay viewer")
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--task-dir", type=Path, default=default_task_directory(),
                         help="persistent task database and result directory (outside the repository by default)")
     parser.add_argument("--sync-only", action="store_true", help="serve only the legacy synchronous API")
+    parser.add_argument("--task-wall-time-s", type=_positive_seconds, default=1800,
+                        help="asynchronous task wall-time limit in seconds (default: 1800; ignored with --sync-only)")
     arguments = parser.parse_args()
     server = ReplayServer(("127.0.0.1", arguments.port),
-                          task_directory=None if arguments.sync_only else arguments.task_dir)
+                          task_directory=None if arguments.sync_only else arguments.task_dir,
+                          task_limits=None if arguments.sync_only else TaskLimits(wall_time_s=arguments.task_wall_time_s))
     print(f"Friskoli-CAD replay: http://127.0.0.1:{server.server_port}", flush=True)
     try:
         server.serve_forever()
