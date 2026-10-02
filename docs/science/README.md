@@ -1,5 +1,7 @@
 # 科学模型审查与迁入
 
+**使用入口：** [模块使用指南](../module-guide.md)按完整案例、可调参数和模块目录介绍当前28个模块 ID（MCP、面积分裂各含两个兼容版本）。新增通用饱和摄取、营养储备与持续匮乏生存，以及五套完整 `foundation-*` 组合，详见[基础过程与趋化机制的组合](foundation-composition.md)。这些新生存规则和数值均为 constructed phenomenological 假设，未标定真实菌株；旧最小机制与来源生命周期图保持原语义。沿用原B生物参数的128µm中心源普通图、随机分裂v2与通用径向观测见 [N5 B 生命周期](n5-b-lifecycle.md)。
+
 更新：2026-10-01。两份来源模型已完成首轮代码/数学审查、确定缺陷修订、有限规模回归和独立复核。完整来源修订保存在相邻的 `friskoli-model-review` 仓库，原始目录与 ZIP 保留。CAD 的 `chemotaxis-spatial-v1` 现已注册 A 浓度记忆、B CheY-P 记忆、MCP 受体适应、信号驱动运动，以及 direct-bulk 水解、营养生长、总 copy 表达、health/death 和面积 adder。实现范围与实际通过的检查分开说明。
 
 当前入口：[N3 机制、单位与来源差异](n3-mechanisms.md)、[N3 中文 Wiki](../wiki/models/n3-chemotaxis.md)、[完整 N3 验收](../verification-n3-complete.md)。最小 PTS 链的历史入口仍可查阅：[PTS 方程与参数证据](pts-minimal.md)、[共享库存结算](settlement.md)、[bulk 执行协议](../protocol/pts-bulk-profile.md)及[早期验收](../verification-n3.md)。运行所需选定来源文件锁、证据和 fixtures 在包内，运行不依赖相邻模型目录。

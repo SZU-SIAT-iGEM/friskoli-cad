@@ -8,6 +8,8 @@ Schema 校验通过只说明资料结构正确，不证明并发、持久化、�
 
 本页描述历史 Task 0.1。当前服务同时协商固定 PTS 0.2、空间 0.3 和[科学 Task 0.4](chemotaxis-profile.md)，完整接口见[混合版本 OpenAPI 0.4](tasks-openapi-v0.4.json)；下文 `include_fields=false` 等限制只适用于 Task 0.1。
 
+2026-10-02 新增非持久化的 `POST /api/runs/preflight`，适用于当前服务支持的四个任务合同版本。请求为完整 Submission，与提交共用严格 JSON、schema、版本锁、项目语义和资源估算。成功返回 `valid: true`、空 `issues`、`estimate`、`frames`、初始 `cells`、`voxels` 与该 profile 的 `limits`；错误沿用 TaskError。服务顶层 capabilities 的 `task_preflight: {href: "/api/runs/preflight", method: "POST"}` 公布此入口，不修改已发布的 TaskCapabilities schema。接口不创建任务、不占幂等键、不预留队列或磁盘；正式提交仍会重新核验，实际运行仍受资源和数值限制。精确结构见当前混合版本 OpenAPI。
+
 ## 兼容边界
 
 `src/friskoli_cad/replay_service.py` 保留原 `api_version: 0.2.0`：

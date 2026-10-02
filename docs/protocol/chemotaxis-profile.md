@@ -1,6 +1,6 @@
 # 科学趋化执行合同
 
-2026-10-01。执行规则 `chemotaxis-spatial-v1`，Project **0.5.0**、Catalog/Task/CompiledPlan **0.4.0**、Workspace **0.4.0**。旧三种 profile 的执行含义和旧 Schema 保留。科学依据与来源差异见[机制说明](../science/n3-mechanisms.md)，验收见[完整 N3](../verification-n3-complete.md)。
+2026-10-02。执行规则 `chemotaxis-spatial-v1`，Project **0.5.0**、Catalog/CompiledPlan **0.4.0**、Task **0.4.0** 或通用 **0.5.0**、Workspace **0.6.0**。旧三种 profile 的执行含义和旧 Schema 保留。科学依据与来源差异见[机制说明](../science/n3-mechanisms.md)，验收见[完整 N3](../verification-n3-complete.md)。
 
 ## 注册和编辑
 
@@ -29,7 +29,7 @@ source/material 必须引用已存在的有限场；每个物种只有一个场 
 
 ## 任务与结果
 
-任务状态机沿用 N2。能力通过 `capabilities.task_profiles["chemotaxis-spatial-v1"]` 精确协商；接口见 [OpenAPI 0.4](tasks-openapi-v0.4.json)与 [Task Schema](../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json)。同步 replay 仍限制短运行；预检查与异步任务可检查最多 10000 步，具体预算由服务公布。
+任务状态机沿用 N2。能力通过 `capabilities.task_profiles["chemotaxis-spatial-v1"]` 精确协商；兼容接口见 [OpenAPI 0.4](tasks-openapi-v0.4.json)与 [Task Schema](../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json)。同步 replay 仍限制短运行；预检查与异步任务可检查最多 10000 步，具体预算由服务公布。
 
 每个 FrameEnvelope 带 `metrics`、`object_states` 和 `lifecycle_details`；请求场时附 `concentrations`。Frame 0.2 本身不增加未知字段。稀疏保存汇集上次保存以来的生命周期事件与死因详情，分别保留序列号、原数值步号和事件时刻；超过输出预算明确失败，不能静默丢弃事件。
 
@@ -41,4 +41,11 @@ Checkpoint 文件 **0.2.0** 包装 `chemotaxis-checkpoint/v1`：保存动态实�
 
 PTS 示例中引诱物就是摄入养分，底物释放与直接来源进入同一个有限场。MCP 示例中 ligand 独立，营养由明确的均匀外部储库供给。MCP 使用 Tu、Shimizu、Berg 2008 的 MWC 与甲基化适应思路，并声明线性反馈近似；不冒称论文完整拟合模型。
 
-按用户本轮调整，三池输运不列为 N3 必需机制，接触降解直接进入可溶外场。A/B 保留各自感知、运动和生理规则；不声称逐轨迹复现原 A 三池模型。碰撞是保守几何阻挡，部分降解材料保持原盒体边界；流体力、连续侵蚀、膜材料预算、实验标定和标准格式导出分别留在后续阶段。
+按用户本轮调整，三池输运不列为 N3 必需机制，接触降解直接进入可溶外场。A/B 保留各自感知、运动和生理规则；不声称逐轨迹复现原 A 三池模型。碰撞是保守几何阻挡，部分降解材料保持原盒体边界；流体力、连续侵蚀、膜材料预算、实验标定和完整标准求解模型适配分别留在后续阶段；已有SBOL Component子集与OMEX容器见[实际支持范围](../standards-export.md)。
+
+
+## Task 0.5 输出与后端扩展
+
+Capabilities 保留旧默认 `task_contract_version`，用 `task_contract_versions` 声明可用合同，用 `execution.available_backends` 声明当前可用后端。0.5 的 `output_plan.field_stride_xyz` 只控制块体积平均预览；每个浓度项含实际显示 `field_domain` 和 `aggregation=volume_mean`，`grid_revision` 仍标记计算网格。`include_final_fields` 可独立生成完整分辨率末帧 NPZ，默认关闭。
+
+选择 `numpy-cupy-cuda` 只加速扩散，细胞模块和 RNG 留在 CPU；provenance记录选定后端及CUDA环境。不可用后端不自动替换。旧0.4输出结构和CompiledPlan0.4继续保留。见[OpenAPI 0.5](tasks-openapi-v0.5.json)、[Task Schema 0.5](../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json)和[资源与完整末帧说明](../task-field-previews.md)。

@@ -231,7 +231,8 @@
           "steps": {
             "type": "integer",
             "minimum": 1,
-            "maximum": 100
+            "maximum": 10000,
+            "description": "Total numerical steps. Synchronous replay also enforces cumulative field, cell-frame and serialized-byte limits published in capabilities; async clients use the complete Submission with /api/runs/preflight."
           },
           "request_id": {
             "type": "string",
