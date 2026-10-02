@@ -30,9 +30,12 @@ from friskoli_cad.tasks import TaskError, TaskService
 
 EXAMPLE_PROJECT = files("friskoli_cad").joinpath("examples", "workspace_3d.project.json")
 MAX_REQUEST_BYTES = 1_000_000
+MAX_STEPS = 10_000
 MAX_REPLAY_VALUES = 1_000_000
 MAX_VIEW_TILES = 4_096
 MAX_VIEW_CELLS = 2_000
+MAX_REPLAY_CELL_FRAMES = MAX_VIEW_CELLS * 101
+MAX_REPLAY_BYTES = 128 * 1024 * 1024
 MAX_DESIGN_REQUEST_BYTES = 64 * 1024 * 1024
 STATIC_FILES = {
     "/design-panel.mjs": ("design-panel.mjs", "text/javascript; charset=utf-8"),
@@ -100,19 +103,24 @@ def _snapshot_payload(snapshot, *, spatial=False) -> dict:
 
 def prepare_project(project: Mapping[str, object], *, dt_s: float, steps: int, validation_only=False):
     """Validate and limit allocations before creating the initial state; never advances time."""
-    maximum_steps = 10000 if validation_only else 100
+    maximum_steps = MAX_STEPS
     if type(steps) is not int or not 1 <= steps <= maximum_steps:
         raise ReplayRequestError("replay.steps", f"steps must be an integer from 1 to {maximum_steps}")
     if type(dt_s) not in (int, float) or not math.isfinite(dt_s) or dt_s <= 0:
         raise ReplayRequestError("replay.dt", "dt_s must be positive and finite")
+    if not math.isfinite(dt_s * steps):
+        raise ReplayRequestError("replay.duration", "total duration must be finite")
     registry = registry_for_project(project)
     validate_project(project, registry.manifests, registry=registry)
     nx, ny, nz = project["domain"]["counts_xyz"]
     allocated_frames = 1 if validation_only else steps + 1
     if nx * ny > MAX_VIEW_TILES or nx * ny * nz * allocated_frames > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "grid exceeds the local viewer limit", 413)
-    if sum(len(group["ids"]) for group in project["groups"].values()) > MAX_VIEW_CELLS:
+    cells = sum(len(group["ids"]) for group in project["groups"].values())
+    if cells > MAX_VIEW_CELLS:
         raise ReplayRequestError("replay.cell_count", "cell count exceeds the local viewer limit", 413)
+    if cells * allocated_frames > MAX_REPLAY_CELL_FRAMES:
+        raise ReplayRequestError("replay.cell_frames", "estimated cumulative cell frames exceed the synchronous replay limit", 413)
     if project.get("execution_profile") in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) and nx * ny * nz * max(1, len(project["species"])) * allocated_frames > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "replay field data exceeds the local viewer limit", 413)
     simulation = simulation_from_project(project, registry)
@@ -124,7 +132,25 @@ def prepare_project(project: Mapping[str, object], *, dt_s: float, steps: int, v
         raise ReplayRequestError("replay.cell_count", "cell count exceeds the local viewer limit", 413)
     if initial.domain.voxel_count * field_count * allocated_frames > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "replay field data exceeds the local viewer limit", 413)
+    if not validation_only:
+        spatial = project.get("execution_profile") in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)
+        # Admission estimate only: changing geometry, events and numeric values are
+        # measured again for every emitted frame below.
+        estimate = _json_size(_replay_envelope(project)) + 1024
+        estimate += (_json_size(_snapshot_payload(initial, spatial=spatial)) + 2) * allocated_frames
+        if estimate > MAX_REPLAY_BYTES:
+            raise ReplayRequestError("replay.bytes", "estimated result bytes exceed the synchronous replay limit", 413)
     return simulation
+
+
+def _json_size(value) -> int:
+    return sum(len(part.encode("utf-8")) for part in json.JSONEncoder(
+        ensure_ascii=False, allow_nan=False).iterencode(value))
+
+
+def _replay_envelope(project) -> dict:
+    return {"replay_format_version": "0.1.0", "project_id": project["id"],
+            "run": project["run"], "domain": project["domain"], "snapshots": []}
 
 
 def build_replay(project: Mapping[str, object], *, dt_s: float, steps: int) -> dict:
@@ -133,19 +159,26 @@ def build_replay(project: Mapping[str, object], *, dt_s: float, steps: int) -> d
     simulation = prepare_project(project, dt_s=dt_s, steps=steps)
     initial = simulation.current
     spatial = project.get("execution_profile") in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)
-    snapshots = [_snapshot_payload(initial, spatial=spatial)]
-    for _ in range(steps):
-        snapshots.append(_snapshot_payload(simulation.step(dt_s), spatial=spatial))
-        if len(snapshots[-1]["frame"]["cells"]) > MAX_VIEW_CELLS:
+    replay = _replay_envelope(project)
+    snapshots = replay["snapshots"]
+    # Reserve space for the HTTP execution metadata appended by ReplayHandler.
+    result_bytes = _json_size(replay) + 1024
+    cell_frames = 0
+    for index in range(steps + 1):
+        snapshot = initial if index == 0 else simulation.step(dt_s)
+        cells = len(snapshot.cell_frame["cells"])
+        if cells > MAX_VIEW_CELLS:
             raise ReplayRequestError("replay.cell_count", "cell count exceeds the local viewer limit", 413)
+        cell_frames += cells
+        if cell_frames > MAX_REPLAY_CELL_FRAMES:
+            raise ReplayRequestError("replay.cell_frames", "cumulative cell frames exceed the synchronous replay limit", 413)
+        payload = _snapshot_payload(snapshot, spatial=spatial)
+        result_bytes += _json_size(payload) + (2 if snapshots else 0)
+        if result_bytes > MAX_REPLAY_BYTES:
+            raise ReplayRequestError("replay.bytes", "result bytes exceed the synchronous replay limit", 413)
+        snapshots.append(payload)
     validate_frame_sequence((item["frame"] for item in snapshots), project["run"])
-    return {
-        "replay_format_version": "0.1.0",
-        "project_id": project["id"],
-        "run": project["run"],
-        "domain": project["domain"],
-        "snapshots": snapshots,
-    }
+    return replay
 
 
 class ReplayHandler(BaseHTTPRequestHandler):
@@ -374,7 +407,8 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"], "replay_versions": ["0.1.0"],
                 "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
                 "limits": {"request_bytes": MAX_REQUEST_BYTES, "cells": MAX_VIEW_CELLS,
-                           "xy_tiles": MAX_VIEW_TILES, "replay_values": MAX_REPLAY_VALUES, "steps": 100},
+                           "xy_tiles": MAX_VIEW_TILES, "replay_values": MAX_REPLAY_VALUES, "steps": MAX_STEPS,
+                           "replay_cell_frames": MAX_REPLAY_CELL_FRAMES, "replay_bytes": MAX_REPLAY_BYTES},
                 "placeables": [{"kind": item["kind"], "module": item["initializer"]["module"]}
                                for item in default_registry().catalog["objects"]],
                 "placeable_profiles": {profile: [item["initializer"]["module"]
@@ -420,7 +454,8 @@ class ReplayHandler(BaseHTTPRequestHandler):
             if request_id is not None and (not isinstance(request_id, str) or not 1 <= len(request_id) <= 128):
                 raise ReplayRequestError("request.id", "request_id must be a short string")
             if self.path == "/api/validate":
-                simulation = prepare_project(request["project"], dt_s=request["dt_s"], steps=request["steps"], validation_only=True)
+                simulation = prepare_project(request["project"], dt_s=request["dt_s"], steps=request["steps"],
+                                             validation_only=getattr(self.server, "task_service", None) is not None)
                 self._json(200, {"api_version": "0.2.0", "valid": True, "issues": [],
                                  "cells": len(simulation.current.cell_frame["cells"]),
                                  "voxels": simulation.current.domain.voxel_count})

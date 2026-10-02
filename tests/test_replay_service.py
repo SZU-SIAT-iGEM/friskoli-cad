@@ -8,8 +8,11 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+from unittest.mock import patch
 
-from friskoli_cad.replay_service import EXAMPLE_PROJECT, ReplayHandler, ReplayRequestError, build_replay, prepare_project, STATIC_FILES
+from friskoli_cad.replay_service import (EXAMPLE_PROJECT, MAX_STEPS, MAX_REPLAY_BYTES,
+    MAX_REPLAY_CELL_FRAMES, ReplayHandler, ReplayRequestError, build_replay,
+    prepare_project, STATIC_FILES, _json_size, _replay_envelope)
 
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples" / "runtime"
@@ -69,6 +72,86 @@ class ReplayServiceTests(unittest.TestCase):
         with self.assertRaisesRegex(ReplayRequestError, "local viewer"):
             build_replay(large, dt_s=0.5, steps=1)
 
+    def test_long_replay_accepts_1900_steps_within_viewer_budget(self):
+        project = load("scheduled_inputs.project.json")
+        before = deepcopy(project)
+        replay = build_replay(project, dt_s=0.5, steps=1900)
+        self.assertEqual(len(replay["snapshots"]), 1901)
+        self.assertEqual([item["frame"]["time_s"] for item in replay["snapshots"]],
+                         [index * .5 for index in range(1901)])
+        self.assertEqual(project, before)
+        self.assertLessEqual(1900, MAX_STEPS)
+
+    def test_small_project_admits_10000_steps(self):
+        simulation = prepare_project(load("scheduled_inputs.project.json"), dt_s=.5, steps=10000)
+        self.assertEqual(simulation.current.cell_frame["time_s"], 0)
+
+    def test_dense_long_replay_rejected_before_world_allocation(self):
+        project = load("scheduled_inputs.project.json")
+        group = project["groups"]["group_1"]
+        group["ids"] = [f"cell_{index}" for index in range(2000)]
+        group["positions_um"] = [group["positions_um"][0][:] for _ in range(2000)]
+        group["orientation_xyzw"] = [group["orientation_xyzw"][0][:] for _ in range(2000)]
+        with patch("friskoli_cad.replay_service.simulation_from_project") as construct:
+            with self.assertRaises(ReplayRequestError) as rejected:
+                build_replay(project, dt_s=.5, steps=10000)
+            self.assertEqual(rejected.exception.code, "replay.cell_frames")
+            self.assertEqual(rejected.exception.status, 413)
+            construct.assert_not_called()
+
+    def test_default_space_1900_still_requires_more_than_sync_field_budget(self):
+        project = json.loads(EXAMPLE_PROJECT.read_text(encoding="utf-8"))
+        with patch("friskoli_cad.replay_service.simulation_from_project") as construct:
+            with self.assertRaises(ReplayRequestError) as rejected:
+                build_replay(project, dt_s=.5, steps=1900)
+            self.assertEqual(rejected.exception.code, "replay.size")
+            self.assertEqual(rejected.exception.status, 413)
+            construct.assert_not_called()
+        # Async validation checks initial allocation, not synchronous output size.
+        simulation = prepare_project(project, dt_s=.5, steps=1900, validation_only=True)
+        self.assertEqual(simulation.current.cell_frame["time_s"], 0)
+
+    def test_nonfinite_duration_rejected_before_world_allocation(self):
+        with patch("friskoli_cad.replay_service.simulation_from_project") as construct:
+            for initial_only in (False, True):
+                with self.assertRaises(ReplayRequestError) as rejected:
+                    prepare_project(load("scheduled_inputs.project.json"), dt_s=1e308,
+                                    steps=2, validation_only=initial_only)
+                self.assertEqual(rejected.exception.code, "replay.duration")
+            construct.assert_not_called()
+
+    def test_growing_population_stops_at_cumulative_cell_frame_budget(self):
+        project = load("adder_division.project.json")
+        with patch("friskoli_cad.replay_service.MAX_REPLAY_CELL_FRAMES", 10):
+            # Initial admission is 9 cell-frames; division exceeds it at runtime.
+            with self.assertRaises(ReplayRequestError) as rejected:
+                build_replay(project, dt_s=.5, steps=8)
+            self.assertEqual(rejected.exception.code, "replay.cell_frames")
+            self.assertEqual(rejected.exception.status, 413)
+
+    def test_result_byte_estimate_rejects_before_advancing_solver(self):
+        project = load("scheduled_inputs.project.json")
+        simulation = prepare_project(project, dt_s=.5, steps=2)
+        with patch("friskoli_cad.replay_service.MAX_REPLAY_BYTES", 1), \
+             patch("friskoli_cad.replay_service.simulation_from_project", return_value=simulation), \
+             patch.object(type(simulation), "step") as step:
+            with self.assertRaises(ReplayRequestError) as rejected:
+                build_replay(project, dt_s=.5, steps=2)
+            self.assertEqual(rejected.exception.code, "replay.bytes")
+            step.assert_not_called()
+
+    def test_result_byte_budget_also_checks_growing_frames(self):
+        project = load("adder_division.project.json")
+        baseline = build_replay(project, dt_s=.5, steps=8)
+        estimate = _json_size(_replay_envelope(project)) + 1024
+        estimate += (_json_size(baseline["snapshots"][0]) + 2) * 9
+        self.assertGreater(_json_size(baseline) + 1024, estimate)
+        with patch("friskoli_cad.replay_service.MAX_REPLAY_BYTES", estimate):
+            with self.assertRaises(ReplayRequestError) as rejected:
+                build_replay(project, dt_s=.5, steps=8)
+            self.assertEqual(rejected.exception.code, "replay.bytes")
+            self.assertEqual(rejected.exception.status, 413)
+
     def test_new_population_can_run_with_registered_static_module(self):
         project = json.loads(EXAMPLE_PROJECT.read_text(encoding="utf-8"))
         project["groups"]["population_1"] = {
@@ -107,6 +190,9 @@ class ReplayServiceTests(unittest.TestCase):
             with urlopen(root + "/api/capabilities") as response:
                 capabilities = json.load(response)
             self.assertEqual(capabilities["api_version"], "0.2.0")
+            self.assertEqual(capabilities["limits"]["steps"], MAX_STEPS)
+            self.assertEqual(capabilities["limits"]["replay_bytes"], MAX_REPLAY_BYTES)
+            self.assertEqual(capabilities["limits"]["replay_cell_frames"], MAX_REPLAY_CELL_FRAMES)
             self.assertIn("0.3.0", capabilities["workspace_versions"])
             self.assertEqual(capabilities["catalog_versions"], ["0.1.0", "0.2.0", "0.3.0", "0.4.0"])
             with urlopen(root + "/api/catalog") as response:
@@ -125,6 +211,18 @@ class ReplayServiceTests(unittest.TestCase):
                                  data=json.dumps({"project": project, "dt_s": .5, "steps": 4}).encode())
             with urlopen(validation) as response:
                 self.assertTrue(json.load(response)["valid"])
+            long_validation = Request(root + "/api/validate", method="POST",
+                data=json.dumps({"project": project, "dt_s": .5, "steps": 1900}).encode())
+            with self.assertRaises(HTTPError) as rejected:
+                urlopen(long_validation)
+            self.assertEqual(rejected.exception.code, 413)
+            self.assertEqual(json.load(rejected.exception)["error"]["code"], "replay.size")
+            server.task_service = object()
+            try:
+                with urlopen(long_validation) as response:
+                    self.assertTrue(json.load(response)["valid"])
+            finally:
+                del server.task_service
             invalid = deepcopy(project)
             invalid["graph"]["edges"] = []
             with self.assertRaises(HTTPError) as rejected:
