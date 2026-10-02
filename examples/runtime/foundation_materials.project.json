@@ -2,7 +2,7 @@
   "project_version": "0.5.0",
   "execution_profile": "chemotaxis-spatial-v1",
   "random_seed": 42,
-  "id": "chemotaxis-mcp",
+  "id": "foundation-materials",
   "domain": {
     "geometry": "thin_layer",
     "counts_xyz": [
@@ -45,7 +45,7 @@
           1.0
         ],
         [
-          60.0,
+          79.0,
           45.0,
           1.0
         ],
@@ -200,22 +200,11 @@
     "nutrient": {
       "concentration_unit": "uM",
       "initial_concentration": {
-        "value": 1.0,
+        "value": 0.0,
         "unit": "uM",
         "provenance": {
           "kind": "example",
-          "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-        }
-      }
-    },
-    "ligand": {
-      "concentration_unit": "uM",
-      "initial_concentration": {
-        "value": 1.0,
-        "unit": "uM",
-        "provenance": {
-          "kind": "example",
-          "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+          "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
         }
       }
     }
@@ -223,12 +212,12 @@
   "controls": {},
   "graph": {
     "protocol_version": "0.1.0",
-    "id": "chemotaxis-mcp-graph",
+    "id": "foundation-materials-graph",
     "nodes": [
       {
         "id": "nutrient_field",
-        "module_id": "field.ideal_local_reservoir",
-        "module_version": "1.0.0",
+        "module_id": "field.diffusive_local",
+        "module_version": "2.0.0",
         "owner": {
           "kind": "environment",
           "id": "nutrient_field"
@@ -236,24 +225,6 @@
         "parameters": {
           "species": {
             "value": "nutrient",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          }
-        }
-      },
-      {
-        "id": "ligand_field",
-        "module_id": "field.diffusive_local",
-        "module_version": "2.0.0",
-        "owner": {
-          "kind": "environment",
-          "id": "ligand_field"
-        },
-        "parameters": {
-          "species": {
-            "value": "ligand",
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
@@ -268,11 +239,11 @@
             }
           },
           "gradient_x_um_per_um": {
-            "value": 0.008,
+            "value": 0.0,
             "unit": "uM/um",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
             }
           },
           "gradient_y_um_per_um": {
@@ -280,7 +251,7 @@
             "unit": "uM/um",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
             }
           },
           "gradient_z_um_per_um": {
@@ -288,7 +259,7 @@
             "unit": "uM/um",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
             }
           }
         }
@@ -433,8 +404,8 @@
         }
       },
       {
-        "id": "ligand_sample",
-        "module_id": "field.sample_local",
+        "id": "pts_signal",
+        "module_id": "signal.pts_accepted",
         "module_version": "1.0.0",
         "owner": {
           "kind": "population",
@@ -442,88 +413,46 @@
         },
         "parameters": {
           "species": {
-            "value": "ligand",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          }
-        }
-      },
-      {
-        "id": "motor_signal",
-        "module_id": "signal.mcp_adaptation",
-        "module_version": "2.0.0",
-        "owner": {
-          "kind": "population",
-          "id": "cells"
-        },
-        "parameters": {
-          "species": {
-            "value": "ligand",
+            "value": "nutrient",
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
             }
           },
-          "cluster_size": {
-            "value": 6.0,
-            "unit": "1",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          },
-          "inactive_binding_um": {
-            "value": 1.0,
+          "ei_total_um": {
+            "value": 1,
             "unit": "uM",
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
             }
           },
-          "active_binding_um": {
-            "value": 100.0,
-            "unit": "uM",
+          "ei_dephos_per_molecule": {
+            "value": 0.01,
+            "unit": "1/molecule",
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
             }
           },
-          "methylation_energy": {
-            "value": 1.0,
-            "unit": "1",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          },
-          "methylation_reference": {
-            "value": 0.0,
-            "unit": "1",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          },
-          "adaptation_rate_s": {
-            "value": 1.0,
+          "ei_rephos_s": {
+            "value": 1,
             "unit": "1/s",
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
             }
           },
-          "baseline_activity": {
-            "value": 0.5,
-            "unit": "1",
+          "ei_chea_inhibition_um": {
+            "value": 1,
+            "unit": "uM",
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
             }
           },
           "chea_total_um": {
-            "value": 1.0,
+            "value": 1,
             "unit": "uM",
             "provenance": {
               "kind": "example",
@@ -539,7 +468,7 @@
             }
           },
           "chey_phos_per_um_s": {
-            "value": 1.0,
+            "value": 1,
             "unit": "1/(uM*s)",
             "provenance": {
               "kind": "example",
@@ -547,7 +476,7 @@
             }
           },
           "chey_dephos_s": {
-            "value": 1.0,
+            "value": 1,
             "unit": "1/s",
             "provenance": {
               "kind": "example",
@@ -570,12 +499,62 @@
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
             }
           },
+          "initial_ei_fraction": {
+            "value": 0.0,
+            "unit": "1",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+            }
+          },
           "initial_chey_p_um": {
-            "value": 3.3333333333333335,
+            "value": 5.0,
             "unit": "uM",
             "provenance": {
               "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+            }
+          }
+        }
+      },
+      {
+        "id": "motor_signal",
+        "module_id": "signal.concentration_memory",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "cells"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "memory_tau_s": {
+            "value": 3.0,
+            "unit": "s",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "gradient_strength_per_um": {
+            "value": 20.0,
+            "unit": "1/uM",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "initial_memory_um": {
+            "value": 0.0,
+            "unit": "uM",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
             }
           }
         }
@@ -597,7 +576,7 @@
             }
           },
           "turn_kernel": {
-            "value": "isotropic",
+            "value": "rebuilt_normal",
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
@@ -633,6 +612,320 @@
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          }
+        }
+      },
+      {
+        "id": "attractant",
+        "module_id": "source.finite_local",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "attractant"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "center_x_um": {
+            "value": 160.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "center_y_um": {
+            "value": 50.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "center_z_um": {
+            "value": 1.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "radius_um": {
+            "value": 5.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "initial_molecules": {
+            "value": 10000.0,
+            "unit": "molecule",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "release_rate": {
+            "value": 100.0,
+            "unit": "molecule/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          }
+        }
+      },
+      {
+        "id": "substrate",
+        "module_id": "material.degradable_box",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "substrate"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "lower_x_um": {
+            "value": 80.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "lower_y_um": {
+            "value": 40.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "lower_z_um": {
+            "value": 0.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "upper_x_um": {
+            "value": 90.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "upper_y_um": {
+            "value": 60.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "upper_z_um": {
+            "value": 2.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "initial_molecules": {
+            "value": 10000.0,
+            "unit": "molecule",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          }
+        }
+      },
+      {
+        "id": "obstacle",
+        "module_id": "space.axis_aligned_obstacle",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "obstacle"
+        },
+        "parameters": {
+          "lower_x_um": {
+            "value": 110.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "lower_y_um": {
+            "value": 10.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "lower_z_um": {
+            "value": 0.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "upper_x_um": {
+            "value": 120.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "upper_y_um": {
+            "value": 30.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "upper_z_um": {
+            "value": 2.0,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          }
+        }
+      },
+      {
+        "id": "degradation",
+        "module_id": "reaction.direct_bulk_hydrolysis",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "environment",
+          "id": "degradation"
+        },
+        "parameters": {
+          "kcat_s": {
+            "value": 2.0,
+            "unit": "1/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          },
+          "contact_range_um": {
+            "value": 0.5,
+            "unit": "um",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          }
+        }
+      },
+      {
+        "id": "surface_enzyme",
+        "module_id": "surface.enzyme_activity",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "cells"
+        },
+        "parameters": {
+          "enzyme_copies": {
+            "value": 50.0,
+            "unit": "molecule",
+            "provenance": {
+              "kind": "example",
+              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            }
+          }
+        }
+      },
+      {
+        "id": "nutrient_reserve",
+        "module_id": "metabolism.reserve_balance",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "cells"
+        },
+        "parameters": {
+          "species": {
+            "value": "nutrient",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+            }
+          },
+          "initial_molecules": {
+            "value": 100.0,
+            "unit": "molecule",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+            }
+          },
+          "maintenance_molecules_s": {
+            "value": 10.0,
+            "unit": "molecule/s",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+            }
+          }
+        }
+      },
+      {
+        "id": "survival",
+        "module_id": "life.starvation_hazard",
+        "module_version": "1.0.0",
+        "owner": {
+          "kind": "population",
+          "id": "cells"
+        },
+        "parameters": {
+          "grace_s": {
+            "value": 60.0,
+            "unit": "s",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+            }
+          },
+          "recovery_rate": {
+            "value": 1.0,
+            "unit": "1",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+            }
+          },
+          "death_rate_per_min": {
+            "value": 0.1,
+            "unit": "1/min",
+            "provenance": {
+              "kind": "example",
+              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
             }
           }
         }
@@ -724,33 +1017,33 @@
         "timing": "same_step"
       },
       {
-        "id": "ligand_field_concentration_to_ligand_sample_field",
+        "id": "accepted_uptake_accepted_flux_to_pts_signal_accepted_flux",
         "from": {
-          "node": "ligand_field",
-          "port": "concentration"
+          "node": "accepted_uptake",
+          "port": "accepted_flux"
         },
         "to": {
-          "node": "ligand_sample",
-          "port": "field"
+          "node": "pts_signal",
+          "port": "accepted_flux"
         },
-        "timing": "previous_step"
+        "timing": "same_step"
       },
       {
-        "id": "motility_position_to_ligand_sample_position",
+        "id": "pts_signal_motor_bias_to_motor_signal_motor_bias",
         "from": {
-          "node": "motility",
-          "port": "position"
+          "node": "pts_signal",
+          "port": "motor_bias"
         },
         "to": {
-          "node": "ligand_sample",
-          "port": "position"
+          "node": "motor_signal",
+          "port": "motor_bias"
         },
-        "timing": "previous_step"
+        "timing": "same_step"
       },
       {
-        "id": "ligand_sample_concentration_to_motor_signal_concentration",
+        "id": "nutrient_sample_concentration_to_motor_signal_concentration",
         "from": {
-          "node": "ligand_sample",
+          "node": "nutrient_sample",
           "port": "concentration"
         },
         "to": {
@@ -770,13 +1063,37 @@
           "port": "motor_bias"
         },
         "timing": "previous_step"
+      },
+      {
+        "id": "accepted_uptake_accepted_amount_to_nutrient_reserve_accepted_amount",
+        "from": {
+          "node": "accepted_uptake",
+          "port": "accepted_amount"
+        },
+        "to": {
+          "node": "nutrient_reserve",
+          "port": "accepted_amount"
+        },
+        "timing": "same_step"
+      },
+      {
+        "id": "nutrient_reserve_unmet_duration_s_to_survival_unmet_duration_s",
+        "from": {
+          "node": "nutrient_reserve",
+          "port": "unmet_duration_s"
+        },
+        "to": {
+          "node": "survival",
+          "port": "unmet_duration_s"
+        },
+        "timing": "same_step"
       }
     ]
   },
   "run": {
     "protocol_version": "0.1.0",
-    "run_id": "chemotaxis-mcp-run",
-    "graph_id": "chemotaxis-mcp-graph",
+    "run_id": "foundation-materials-run",
+    "graph_id": "foundation-materials-graph",
     "groups": [
       "cells"
     ],
@@ -845,36 +1162,44 @@
         "quantity": "cumulative_uptake",
         "unit": "molecule"
       },
-      "ligand_sample.concentration": {
-        "node": "ligand_sample",
-        "port": "concentration",
+      "pts_signal.ei_fraction": {
+        "node": "pts_signal",
+        "port": "ei_fraction",
         "group_id": "cells",
         "shape": "cell.scalar",
-        "quantity": "concentration",
+        "quantity": "ei_dephosphorylated_fraction",
+        "unit": "1"
+      },
+      "pts_signal.chea_active": {
+        "node": "pts_signal",
+        "port": "chea_active",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "chea_active_concentration",
         "unit": "uM"
       },
-      "motor_signal.activity": {
-        "node": "motor_signal",
-        "port": "activity",
-        "group_id": "cells",
-        "shape": "cell.scalar",
-        "quantity": "receptor_activity",
-        "unit": "1"
-      },
-      "motor_signal.adaptation": {
-        "node": "motor_signal",
-        "port": "adaptation",
-        "group_id": "cells",
-        "shape": "cell.scalar",
-        "quantity": "receptor_methylation",
-        "unit": "1"
-      },
-      "motor_signal.chey_p": {
-        "node": "motor_signal",
+      "pts_signal.chey_p": {
+        "node": "pts_signal",
         "port": "chey_p",
         "group_id": "cells",
         "shape": "cell.scalar",
         "quantity": "chey_phosphorylated_concentration",
+        "unit": "uM"
+      },
+      "pts_signal.motor_bias": {
+        "node": "pts_signal",
+        "port": "motor_bias",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "motor_bias",
+        "unit": "1"
+      },
+      "motor_signal.memory": {
+        "node": "motor_signal",
+        "port": "memory",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "concentration_memory",
         "unit": "uM"
       },
       "motor_signal.motor_bias": {
@@ -916,6 +1241,62 @@
         "shape": "cell.scalar",
         "quantity": "remaining_hazard",
         "unit": "1"
+      },
+      "surface_enzyme.enzyme_copies": {
+        "node": "surface_enzyme",
+        "port": "enzyme_copies",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "enzyme_copies",
+        "unit": "molecule"
+      },
+      "nutrient_reserve.intracellular_molecules": {
+        "node": "nutrient_reserve",
+        "port": "intracellular_molecules",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "intracellular_amount",
+        "unit": "molecule"
+      },
+      "nutrient_reserve.used_molecules": {
+        "node": "nutrient_reserve",
+        "port": "used_molecules",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "maintenance_consumed_amount",
+        "unit": "molecule"
+      },
+      "nutrient_reserve.unmet_duration_s": {
+        "node": "nutrient_reserve",
+        "port": "unmet_duration_s",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "unmet_maintenance_duration",
+        "unit": "s"
+      },
+      "survival.starvation_time_s": {
+        "node": "survival",
+        "port": "starvation_time_s",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "starvation_exposure",
+        "unit": "s"
+      },
+      "survival.health": {
+        "node": "survival",
+        "port": "health",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "health",
+        "unit": "1"
+      },
+      "survival.death_hazard": {
+        "node": "survival",
+        "port": "death_hazard",
+        "group_id": "cells",
+        "shape": "cell.scalar",
+        "quantity": "death_hazard",
+        "unit": "1/min"
       }
     }
   },

@@ -359,6 +359,13 @@
         },
         "execution": {
           "$ref": "#/$defs/ExecutionSupport"
+        },
+        "task_contract_versions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
         }
       }
     },
@@ -1193,6 +1200,16 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740991
+        },
+        "available_backends": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "numpy-cpu",
+              "numpy-cupy-cuda"
+            ]
+          },
+          "uniqueItems": true
         }
       }
     },
@@ -1783,6 +1800,114 @@
                   "null"
                 ],
                 "minimum": 0
+              },
+              "radial": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "center_um",
+                  "mean_distance_um",
+                  "mean_inward_displacement_um",
+                  "live_founder_count",
+                  "live_descendant_count",
+                  "shells"
+                ],
+                "properties": {
+                  "center_um": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "minItems": 3,
+                    "maxItems": 3
+                  },
+                  "mean_distance_um": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0
+                  },
+                  "mean_inward_displacement_um": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "live_founder_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "live_descendant_count": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "shells": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 32,
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "radius_um",
+                        "live_count",
+                        "live_fraction",
+                        "volume_enrichment",
+                        "founder_ever_arrived_fraction",
+                        "founder_mean_residence_s",
+                        "founder_mean_first_arrival_s"
+                      ],
+                      "properties": {
+                        "radius_um": {
+                          "type": "number",
+                          "exclusiveMinimum": 0
+                        },
+                        "live_count": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "live_fraction": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "volume_enrichment": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "minimum": 0
+                        },
+                        "founder_ever_arrived_fraction": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "founder_mean_residence_s": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "minimum": 0
+                        },
+                        "founder_mean_first_arrival_s": {
+                          "type": [
+                            "number",
+                            "null"
+                          ],
+                          "minimum": 0
+                        }
+                      }
+                    }
+                  }
+                }
               }
             },
             "required": [
@@ -1843,12 +1968,16 @@
                 "minLength": 1
               },
               "module_id": {
-                "const": "life.health_balance"
+                "enum": [
+                  "life.health_balance",
+                  "life.starvation_hazard"
+                ]
               },
               "policy": {
                 "enum": [
                   "simplified",
-                  "rebuilt"
+                  "rebuilt",
+                  "reserve_starvation"
                 ]
               },
               "health": {

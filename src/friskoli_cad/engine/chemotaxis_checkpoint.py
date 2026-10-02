@@ -41,7 +41,7 @@ def _number(value, label, nonnegative=True):
 
 def export_checkpoint(sim):
     payload = {'version': CHECKPOINT_VERSION, 'execution_profile': sim.project['execution_profile'],
-        'project_sha256': _hash(sim.project), 'implementation_lock': _implementation_lock(sim.registry),
+        'project_sha256': _hash(sim.project), 'implementation_lock': _implementation_lock(sim.registry, sim.field_backend),
         'seed': sim.seed, 'time_s': sim.time_s, 'frame_index': sim.frame_index, 'last_dt_s': sim.last_dt_s,
         'world': {gid: {'ids': list(g.ids), 'positions_um': g.positions_um.tolist(), 'orientation_xyzw': g.orientation_xyzw.tolist(),
                          'geometry': [asdict(geom) for geom in g.geometry]} for gid, g in sim.world.groups.items()},
@@ -133,6 +133,19 @@ def _coherence(sim):
             volume = capsule_volume_um3([g.length_um for g in group.geometry], [g.diameter_um for g in group.geometry])
             if not np.allclose(output['volume'], volume, rtol=1e-13, atol=0):
                 _reject('Growth volume disagrees with geometry')
+        elif node.module_id == 'life.starvation_hazard':
+            expected_health = np.exp(-state['starvation_time_s'] / node.parameters['grace_s'].value)
+            if not np.array_equal(output['health'], expected_health):
+                _reject('Starvation readout differs from exposure state')
+        elif node.module_id == 'metabolism.reserve_balance':
+            high, low = state['intracellular_molecules'], state['reserve_correction_molecules']
+            if np.any(np.abs(low) > np.spacing(high) / 2) or np.any(high + low < 0):
+                _reject('Invalid compensated reserve')
+        elif node.module_id == 'division.area_adder':
+            if np.any(state['birth_area'] <= 0):
+                _reject('Division birth area must be positive')
+            if node.module_version == '2.0.0' and np.any(state['required_area'] < node.parameters['minimum_area_um2'].value):
+                _reject('Division threshold is below its positive floor')
         elif node.module_id == 'source.finite_local':
             value = next(s.remaining_molecules for s in sim.fields.sources if s.id == node.id)
             if float(output['inventory']) != value:
@@ -156,9 +169,14 @@ def restore_checkpoint(project, payload, registry=None):
             _reject('Checkpoint project mismatch')
         if type(payload['seed']) is not int or payload['seed'] < 0:
             _reject('Invalid execution seed')
-        sim = simulation_from_project(project, registry=registry, seed=payload['seed'])
+        if type(payload['local_fields']) is not dict:
+            _reject('Invalid local field state')
+        backend = payload['local_fields'].get('backend', 'numpy-cpu')
+        from .field_backend import validate_backend
+        validate_backend(backend)
+        sim = simulation_from_project(project, registry=registry, seed=payload['seed'], field_backend=backend)
         initial_field_amounts = {s: math.fsum(values) * sim.world.grid.molecules_per_uM_voxel for s, values in sim.fields.concentrations_uM.items()}
-        if payload['implementation_lock'] != _implementation_lock(sim.registry):
+        if payload['implementation_lock'] != _implementation_lock(sim.registry, sim.field_backend):
             _reject('Checkpoint source/catalog/environment lock mismatch')
         index, time = payload['frame_index'], _number(payload['time_s'], 'time')
         if type(index) is not int or index < 0 or (index == 0) != (time == 0):
@@ -214,16 +232,24 @@ def restore_checkpoint(project, payload, registry=None):
             _reject('Random seed disagrees with execution seed')
         initial_streams = RandomStreams(sim.seed)
         allowed = {'motion.hazard_run_tumble': {'run_hazard', 'tumble_direction'},
-                   'life.health_balance': {'death'}, 'division.area_adder': {'division_fraction'}}
+                   'life.health_balance': {'death'}, 'life.starvation_hazard': {'death'}, 'division.area_adder': {'division_fraction'}}
         for entry in payload['random_streams']['streams']:
             nid, gid, cid, purpose = entry['key']
             node = sim.plan.by_id.get(nid)
-            if node is None or gid != node.owner_id or cid not in validator.seen or purpose not in allowed.get(node.module_id, set()):
+            purposes = allowed.get(node.module_id, set()) if node is not None else set()
+            if node is not None and node.module_id == 'division.area_adder' and node.module_version == '2.0.0':
+                purposes = purposes | {'division_threshold'}
+            if node is None or gid != node.owner_id or cid not in validator.seen or purpose not in purposes:
                 _reject('Foreign RNG namespace')
             increment = initial_streams.stream(nid, gid, cid, purpose).bit_generator.state['state']['inc']
             if entry['state']['state']['inc'] != format(increment, '032x'):
                 _reject('RNG namespace increment differs from seed')
         namespaces = {tuple(entry['key']) for entry in payload['random_streams']['streams']}
+        for node in sim.plan.nodes:
+            if node.module_id == 'division.area_adder' and node.module_version == '2.0.0' and node.parameters['area_cv'].value > 0:
+                for cid in groups[node.owner_id].ids:
+                    if (node.id, node.owner_id, cid, 'division_threshold') not in namespaces:
+                        _reject('Cycle threshold is missing its RNG stream')
         for gid, group in groups.items():
             node = sim._motion_nodes[gid]
             for cid in group.ids:
@@ -259,18 +285,21 @@ def restore_checkpoint(project, payload, registry=None):
             rule = entry['death_rule']
             _keys(rule, {'node_id', 'module_id', 'policy', 'health', 'death_hazard_per_min', 'probability', 'random_draw'}, 'death rule')
             owner = sim.plan.by_id.get(rule['node_id'])
-            if (owner is None or owner.module_id != 'life.health_balance' or owner.module_id != rule['module_id'] or
-                owner.owner_id != entry['group_id'] or owner.parameters['policy'].value != rule['policy']):
+            if (owner is None or owner.module_id not in ('life.health_balance', 'life.starvation_hazard') or owner.module_id != rule['module_id'] or
+                owner.owner_id != entry['group_id'] or (owner.parameters['policy'].value if owner.module_id == 'life.health_balance' else 'reserve_starvation') != rule['policy']):
                 _reject('Death rule differs from declared health owner')
             if (not 0 <= _number(rule['health'], 'death health') <= 1 or
                 not 0 < _number(rule['random_draw'], 'death draw') < _number(rule['probability'], 'death probability') <= 1
                 or _number(rule['death_hazard_per_min'], 'death hazard') <= 0):
                 _reject('Invalid biological death trigger')
-        expected_biology = {n.parameters['species'].value for n in sim.plan.nodes if n.module_id.startswith('growth.nutrient_')}
+        from .chemotaxis_runtime import STOCK, RESERVE
+        expected_biology = {n.parameters['species'].value for n in sim.plan.nodes if n.module_id in STOCK}
         if type(payload['physiology_ledger']) is not dict or set(payload['physiology_ledger']) != expected_biology:
             _reject('Invalid physiological ledger')
         for species, values in payload['physiology_ledger'].items():
-            _keys(values, {'growth_consumed_molecules', 'removed_residual_molecules'}, 'physiology ledger')
+            reserve_species = {n.parameters['species'].value for n in sim.plan.nodes if n.module_id == RESERVE}
+            expected_keys = {'growth_consumed_molecules', 'removed_residual_molecules'} | ({'maintenance_consumed_molecules'} if species in reserve_species else set())
+            _keys(values, expected_keys, 'physiology ledger')
             for value in values.values():
                 _number(value, 'physiology amount')
             residual = math.fsum(d['residual_molecules'].get(species, 0.) for d in payload['dead_material'].values())
@@ -372,7 +401,7 @@ def restore_checkpoint(project, payload, registry=None):
 
 def _validate_material_balance(sim, initial_field_amounts):
     """Check cumulative owners, including uptake from cells that later died."""
-    from .chemotaxis_runtime import GROWTH
+    from .chemotaxis_runtime import STOCK
     for species in sim.fields.concentrations_uM:
         initial_amount = initial_field_amounts[species]
         source_initial = math.fsum(n.parameters['initial_molecules'].value for n in sim._source_nodes.values() if n.parameters['species'].value == species)
@@ -386,10 +415,11 @@ def _validate_material_balance(sim, initial_field_amounts):
             _reject('Cumulative material/field/uptake/supply balance disagrees')
     # Growth has its own initial available stock; statistics are never reused as stock.
     for species, record in sim.physiology_ledger.items():
-        nodes = [n for n in sim.plan.nodes if n.module_id in GROWTH and n.parameters['species'].value == species]
+        nodes = [n for n in sim.plan.nodes if n.module_id in STOCK and n.parameters['species'].value == species]
         initial = math.fsum(n.parameters['initial_molecules'].value * len(sim.project['groups'][n.owner_id]['ids']) for n in nodes)
         uptake = math.fsum(sim.uptake_totals[n.inputs['accepted_amount'].source_node] for n in nodes)
-        living = math.fsum(float(v) for n in nodes for v in sim.state[n.id]['intracellular_molecules'])
-        total = living + record['growth_consumed_molecules'] + record['removed_residual_molecules']
+        living = math.fsum(float(v) for n in nodes for key in ('intracellular_molecules', 'reserve_correction_molecules')
+                           for v in sim.state[n.id].get(key, ()))
+        total = living + record['growth_consumed_molecules'] + record['removed_residual_molecules'] + record.get('maintenance_consumed_molecules', 0.)
         if not math.isclose(total, initial + uptake, rel_tol=2e-11, abs_tol=1e-8):
             _reject('Intracellular/growth/death material balance disagrees')

@@ -294,7 +294,28 @@
         },
         "region_upper_um": {
           "$ref": "#/$defs/vector3"
+        },
+        "radial_center_um": {
+          "$ref": "#/$defs/vector3"
+        },
+        "radial_radii_um": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "description": "Strictly increasing cumulative sphere radii; spheres must remain inside domain."
         }
+      },
+      "dependentRequired": {
+        "radial_center_um": [
+          "radial_radii_um"
+        ],
+        "radial_radii_um": [
+          "radial_center_um"
+        ]
       }
     }
   },

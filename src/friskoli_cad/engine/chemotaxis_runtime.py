@@ -18,6 +18,7 @@ from .compiler import compile_graph
 from .collision import InitialOverlapError
 from .local_fields import FieldSpecies, propose_local_field_step
 from .motion import orientation_after_heading
+from .growth_system import realize_capsule_growth
 from .pts_runtime import parameters, _freeze, _check_transfer_rounding
 from .runtime import CellGroup, World, SimulationError, CapsuleGeometry
 from .spatial_runtime import SpatialSimulation, MAX_CELLS, MAX_VOXELS, MAX_SPECIES, MAX_TUMBLES, MAX_MOTION_PAIRS, _degradation_providers
@@ -27,10 +28,28 @@ PROFILE = 'chemotaxis-spatial-v1'
 BASE_PREPARE = frozenset(('space.axis_aligned_obstacle', 'source.finite_local',
     'material.degradable_box', 'reaction.contact_degradation', 'surface.enzyme_activity',
     'field.diffusive_local', 'pts.capsule_area', 'pts.capacity_rebuilt', 'pts.capacity_simplified',
-    'field.sample_local', 'uptake.pts_request'))
+    'field.sample_local', 'uptake.pts_request', 'uptake.saturating_request'))
 SIGNALS = frozenset(('signal.pts_accepted', 'signal.constant_bias', 'signal.concentration_memory',
                      'signal.chey_memory', 'signal.mcp_adaptation'))
 GROWTH = frozenset(('growth.nutrient_monod', 'growth.nutrient_yield'))
+RESERVE = 'metabolism.reserve_balance'
+SURVIVAL = 'life.starvation_hazard'
+STOCK = GROWTH | {RESERVE}
+
+
+def _normal_draw(stream):
+    """Uncached Box-Muller: exactly two open-uniform draws per normal sample."""
+    return math.sqrt(-2 * math.log(stream.uniform_open())) * math.cos(2 * math.pi * stream.uniform_open())
+
+
+def _division_threshold(node, geometry, streams, cell_id):
+    from friskoli_cad.science import physiology
+    p = {key: value.value for key, value in node.parameters.items()}
+    draw = _normal_draw(streams.stream(node.id, node.owner_id, cell_id, 'division_threshold')) if p['area_cv'] > 0 else 0.
+    volume = float(physiology.capsule_volume_um3(geometry.length_um, geometry.diameter_um))
+    return float(physiology.surface_adder_delta(reference_birth_volume_um3=volume,
+        target_volume_um3=p['target_volume_um3'], radius_um=geometry.diameter_um / 2,
+        cv=p['area_cv'], normal_deviate=draw, minimum_area_um2=p['minimum_area_um2']))
 
 
 def _error(message, code='chemotaxis.contract'):
@@ -71,8 +90,8 @@ def validate_chemotaxis_project(project, manifests, registry=None):
         p = {key: value.value for key, value in n.parameters.items()}
         if n.owner_kind == 'population' and n.owner_id not in project['groups']:
             _error('Foreign population owner')
-        if n.module_id in ('uptake.local_settlement', *GROWTH, 'expression.surface_copies', 'life.health_balance', 'division.area_adder'):
-            role = 'growth' if n.module_id in GROWTH else n.module_id
+        if n.module_id in ('uptake.local_settlement', *STOCK, SURVIVAL, 'expression.surface_copies', 'life.health_balance', 'division.area_adder'):
+            role = 'intracellular_stock' if n.module_id in STOCK else 'death_owner' if n.module_id in (SURVIVAL, 'life.health_balance') else n.module_id
             key = (n.owner_id, role, n.parameters['species'].value if role == 'uptake.local_settlement' else '')
             if key in inventories:
                 _error('Duplicate physiological or uptake owner')
@@ -92,13 +111,15 @@ def validate_chemotaxis_project(project, manifests, registry=None):
                 _error('Sampler requires its own motion and registered field')
         if n.module_id == 'uptake.local_settlement':
             request = plan.by_id[n.inputs['requested_flux'].source_node]
-            if request.module_id != 'uptake.pts_request':
-                _error('Settlement requires a PTS request')
+            if request.module_id not in ('uptake.pts_request', 'uptake.saturating_request'):
+                _error('Settlement requires a registered uptake request')
             sampler = plan.by_id[request.inputs['concentration'].source_node]
             if sampler.module_id != 'field.sample_local' or sampler.inputs['field'].source_node != n.inputs['field'].source_node:
                 _error('Request and settlement must read the same field')
-        if n.module_id in GROWTH and plan.by_id[n.inputs['accepted_amount'].source_node].module_id != 'uptake.local_settlement':
-            _error('Growth must receive the actual accepted uptake amount')
+        if n.module_id in STOCK and plan.by_id[n.inputs['accepted_amount'].source_node].module_id != 'uptake.local_settlement':
+            _error('Intracellular stock must receive the actual accepted uptake amount')
+        if n.module_id == SURVIVAL and plan.by_id[n.inputs['unmet_duration_s'].source_node].module_id != RESERVE:
+            _error('Starvation survival requires an explicit nutrient reserve owner')
         if n.module_id == 'division.area_adder' and plan.by_id[n.inputs['volume'].source_node].module_id not in GROWTH:
             _error('Division must read its nutrient growth volume owner')
         if n.module_id in ('expression.surface_copies', 'life.health_balance') and plan.by_id[n.inputs['growth_rate'].source_node].module_id not in GROWTH:
@@ -109,8 +130,11 @@ def validate_chemotaxis_project(project, manifests, registry=None):
             _error('Finite sources/materials require a registered active field')
         try:
             from friskoli_cad.science import physiology
+            from friskoli_cad.science import survival
             empty = np.asarray([], dtype=float)
-            if n.module_id == 'motion.hazard_run_tumble':
+            if n.module_id == SURVIVAL:
+                survival.advance_starvation(empty, empty, 0., grace_s=p['grace_s'], recovery_rate=p['recovery_rate'], death_rate_per_min=p['death_rate_per_min'])
+            elif n.module_id == 'motion.hazard_run_tumble':
                 science.tumble_hazard(0., minimum_s=p['minimum_tumble_rate_s'], maximum_s=p['maximum_tumble_rate_s'])
                 HazardWalkParameters(p['speed_um_s'], p['minimum_tumble_rate_s'], 2,
                     p['tumble_mode'], p['tumble_duration_s'] if p['tumble_mode'] == 'dwell' else 0., p['turn_kernel'])
@@ -133,6 +157,11 @@ def validate_chemotaxis_project(project, manifests, registry=None):
                         'health_floor', 'health_hill', 'metabolic_floor', 'metabolic_half_growth_per_min', 'burden_half_fraction', 'burden_hill')})
             elif n.module_id == 'division.area_adder' and not 0 < p['minimum_fraction'] <= p['maximum_fraction'] < 1:
                 raise ValueError('Division fractions must lie strictly inside (0,1), in increasing order')
+            if n.module_id == 'division.area_adder' and n.module_version == '2.0.0':
+                if p['minimum_area_um2'] <= 0:
+                    raise ValueError('Division minimum added area must be positive')
+                for geometry in project['groups'][n.owner_id]['initial_geometry']:
+                    physiology.capsule_geometry_from_volume(p['target_volume_um3'], geometry['diameter_um'] / 2)
         except ValueError as error:
             _error(f'{n.id}: {error}', 'chemotaxis.parameter')
     reservoirs = {n.parameters['species'].value for n in fields if n.module_id == 'field.ideal_local_reservoir'}
@@ -230,13 +259,22 @@ class ChemotaxisSimulation(SpatialSimulation):
         from friskoli_cad.science import physiology
         for node in self.plan.nodes:
             m, nid = node.module_id, node.id
-            if m not in GROWTH | {'expression.surface_copies', 'life.health_balance', 'division.area_adder'}:
+            if m not in STOCK | {SURVIVAL, 'expression.surface_copies', 'life.health_balance', 'division.area_adder'}:
                 continue
             group = self.world.groups[node.owner_id]
             count = len(group.ids)
             p = {k: v.value for k, v in node.parameters.items()}
             old = self.state.get(nid)
-            if m in GROWTH:
+            if m == RESERVE:
+                available = old['intracellular_molecules'].copy() if old else np.full(count, p['initial_molecules'])
+                outputs[nid] = {'intracellular_molecules': available, 'used_molecules': np.zeros(count), 'unmet_duration_s': np.zeros(count)}
+                correction = old['reserve_correction_molecules'].copy() if old else np.zeros(count)
+                state[nid] = {'intracellular_molecules': available, 'reserve_correction_molecules': correction}
+            elif m == SURVIVAL:
+                exposure = old['starvation_time_s'].copy() if old else np.zeros(count)
+                outputs[nid] = {'starvation_time_s': exposure, 'health': np.exp(-exposure / p['grace_s']), 'death_hazard': np.zeros(count)}
+                state[nid] = {'starvation_time_s': exposure}
+            elif m in GROWTH:
                 volume = physiology.capsule_volume_um3([g.length_um for g in group.geometry], [g.diameter_um for g in group.geometry])
                 available = old['intracellular_molecules'].copy() if old else np.full(count, p['initial_molecules'])
                 outputs[nid] = {'intracellular_molecules': available, 'volume': volume,
@@ -252,13 +290,31 @@ class ChemotaxisSimulation(SpatialSimulation):
                 area = np.asarray([math.pi * g.length_um * g.diameter_um for g in group.geometry])
                 birth = old['birth_area'].copy() if old else area
                 outputs[nid], state[nid] = {'divide': np.zeros(count), 'birth_area': birth, 'blocked': np.zeros(count)}, {'birth_area': birth}
+                if node.module_version == '2.0.0':
+                    required = old['required_area'].copy() if old else np.asarray([
+                        _division_threshold(node, geometry, self.streams, cid)
+                        for cid, geometry in zip(group.ids, group.geometry, strict=True)])
+                    outputs[nid]['required_area'] = state[nid]['required_area'] = required
 
     def _physiology(self, world, walks, outputs, state, dt, streams, next_time):
         from friskoli_cad.science import physiology
+        from friskoli_cad.science import survival
         groups = dict(world.groups)
         records = deepcopy(self.physiology_ledger)
         dead_material = deepcopy(self.dead_material)
         growth_proposals, available_before = {}, {}
+        for node in self.plan.nodes:
+            if node.module_id != RESERVE:
+                continue
+            p = {k: v.value for k, v in node.parameters.items()}
+            before = state[node.id]['intracellular_molecules']
+            accepted = self._input(node, 'accepted_amount', outputs)
+            value = survival.advance_reserve(before, accepted, dt, p['maintenance_molecules_s'], state[node.id]['reserve_correction_molecules'])
+            outputs[node.id] = {'intracellular_molecules': value.reserve_molecules,
+                                'used_molecules': value.used_molecules, 'unmet_duration_s': value.unmet_duration_s}
+            state[node.id] = {'intracellular_molecules': value.reserve_molecules, 'reserve_correction_molecules': value.correction_molecules}
+            record = records.setdefault(p['species'], {'growth_consumed_molecules': 0., 'removed_residual_molecules': 0.})
+            record['maintenance_consumed_molecules'] = record.get('maintenance_consumed_molecules', 0.) + math.fsum(float(v) for v in value.used_molecules)
         for node in self.plan.nodes:
             if node.module_id not in GROWTH:
                 continue
@@ -272,8 +328,11 @@ class ChemotaxisSimulation(SpatialSimulation):
                 policy='rebuilt_monod' if node.module_id.endswith('monod') else 'simplified_yield',
                 max_growth_per_min=p['max_growth_per_min'], volume_yield_um3_molecule=p['volume_yield_um3_molecule'],
                 half_saturation_uM=p.get('half_saturation_um'))
-            geometry = tuple(CapsuleGeometry(float(physiology.capsule_geometry_from_volume(v, g.diameter_um / 2).total_length_um), g.diameter_um)
-                             for v, g in zip(proposed.volume_um3, group.geometry, strict=True))
+            proposed, realized_lengths = realize_capsule_growth(available,
+                [g.length_um for g in group.geometry], [g.diameter_um for g in group.geometry],
+                proposed.used_molecules, dt, p['volume_yield_um3_molecule'])
+            geometry = tuple(CapsuleGeometry(float(length), g.diameter_um)
+                             for length, g in zip(realized_lengths, group.geometry, strict=True))
             groups[gid] = CellGroup(gid, group.ids, group.positions_um, group.orientation_xyzw, geometry)
             growth_proposals[gid], available_before[gid] = (node, proposed), available
         blocked_growth = set()
@@ -322,11 +381,16 @@ class ChemotaxisSimulation(SpatialSimulation):
         deaths, death_details = set(), {}
         for node in self.plan.nodes:
             gid, nid, m = node.owner_id, node.id, node.module_id
-            if m not in ('expression.surface_copies', 'life.health_balance'):
+            if m not in ('expression.surface_copies', 'life.health_balance', SURVIVAL):
                 continue
             p = {k: v.value for k, v in node.parameters.items()}
-            rate = self._input(node, 'growth_rate', outputs)
-            if m == 'expression.surface_copies':
+            rate = self._input(node, 'growth_rate', outputs) if m != SURVIVAL else None
+            if m == SURVIVAL:
+                value = survival.advance_starvation(state[nid]['starvation_time_s'], self._input(node, 'unmet_duration_s', outputs), dt,
+                    grace_s=p['grace_s'], recovery_rate=p['recovery_rate'], death_rate_per_min=p['death_rate_per_min'])
+                outputs[nid] = {'starvation_time_s': value.starvation_time_s, 'health': value.health, 'death_hazard': value.death_hazard_per_min}
+                state[nid] = {'starvation_time_s': value.starvation_time_s}
+            elif m == 'expression.surface_copies':
                 synthesis = p['synthesis_copies_min']
                 if p.get('policy') == 'rebuilt':
                     health = self._input(node, 'health', self.outputs)
@@ -360,6 +424,7 @@ class ChemotaxisSimulation(SpatialSimulation):
                 else:
                     raise ValueError('Unknown health policy')
                 outputs[nid], state[nid] = {'health': value.health, 'death_hazard': value.death_hazard_per_min}, {'health': value.health}
+            if m in ('life.health_balance', SURVIVAL):
                 for cid, hazard in zip(groups[gid].ids, value.death_hazard_per_min, strict=True):
                     if hazard > 0:
                         draw = streams.stream(nid, gid, cid, 'death').uniform_open()
@@ -367,7 +432,7 @@ class ChemotaxisSimulation(SpatialSimulation):
                         if draw < probability:
                             deaths.add(cid)
                             i = groups[gid].ids.index(cid)
-                            death_details[cid] = {'node_id': nid, 'module_id': m, 'policy': p['policy'],
+                            death_details[cid] = {'node_id': nid, 'module_id': m, 'policy': p.get('policy', 'reserve_starvation'),
                                 'health': float(value.health[i]), 'death_hazard_per_min': float(hazard),
                                 'probability': probability, 'random_draw': draw}
         events, inherited, next_id = [], {}, self.next_cell_index
@@ -383,9 +448,10 @@ class ChemotaxisSimulation(SpatialSimulation):
                 for node in self.plan.nodes:
                     if node.owner_id != gid:
                         continue
-                    if node.module_id in GROWTH:
+                    if node.module_id in STOCK:
                         species = node.parameters['species'].value
-                        residual[species] = float(state[node.id]['intracellular_molecules'][i])
+                        residual[species] = math.fsum((float(state[node.id]['intracellular_molecules'][i]),
+                            float(state[node.id]['reserve_correction_molecules'][i]) if node.module_id == RESERVE else 0.))
                         records.setdefault(species, {'growth_consumed_molecules': 0., 'removed_residual_molecules': 0.})['removed_residual_molecules'] += residual[species]
                     if node.module_id == 'expression.surface_copies':
                         copies = float(state[node.id]['enzyme_copies'][i])
@@ -410,7 +476,8 @@ class ChemotaxisSimulation(SpatialSimulation):
                 old_index = inherited[gid][index][0]
                 geometry = group.geometry[index]
                 area = math.pi * geometry.length_um * geometry.diameter_um
-                if area - state[node.id]['birth_area'][old_index] < p['added_area_um2']:
+                threshold = state[node.id]['required_area'][old_index] if node.module_version == '2.0.0' else p['added_area_um2']
+                if area - state[node.id]['birth_area'][old_index] < threshold:
                     continue
                 outputs[node.id]['blocked'][old_index] = 1.
                 if sum(len(g.ids) for g in groups.values()) >= MAX_CELLS:
@@ -423,7 +490,11 @@ class ChemotaxisSimulation(SpatialSimulation):
                 lo, hi = max(float(lo), p['minimum_fraction']), min(float(hi), p['maximum_fraction'])
                 if lo > hi:
                     continue
-                fraction = lo + (hi - lo) * streams.stream(node.id, gid, cid, 'division_fraction').uniform_open()
+                if node.module_version == '2.0.0':
+                    draw = _normal_draw(streams.stream(node.id, gid, cid, 'division_fraction')) if p['split_sd'] > 0 else 0.
+                    fraction = float(np.clip(p['split_mean'] + p['split_sd'] * draw, lo, hi))
+                else:
+                    fraction = lo + (hi - lo) * streams.stream(node.id, gid, cid, 'division_fraction').uniform_open()
                 volumes = volume * fraction, volume * (1 - fraction)
                 geometry_pair = tuple(CapsuleGeometry(float(physiology.capsule_geometry_from_volume(v, geometry.diameter_um / 2).total_length_um), geometry.diameter_um) for v in volumes)
                 separation = (geometry_pair[0].length_um + geometry_pair[1].length_um) / 2
@@ -461,7 +532,7 @@ class ChemotaxisSimulation(SpatialSimulation):
                 outputs[node.id]['blocked'][old_index] = 0.
         # Apply declared state inheritance. Extensive observed interval outputs
         # follow the same volume split; intensive signals remain copied.
-        extensive = {'accepted_amount', 'accepted_flux', 'cumulative_uptake', 'intracellular_molecules', 'volume', 'used_molecules', 'enzyme_copies'}
+        extensive = {'accepted_amount', 'accepted_flux', 'cumulative_uptake', 'intracellular_molecules', 'reserve_correction_molecules', 'volume', 'used_molecules', 'enzyme_copies'}
         for node in self.plan.nodes:
             if node.owner_kind != 'population':
                 continue
@@ -479,7 +550,11 @@ class ChemotaxisSimulation(SpatialSimulation):
                 for i, cid in enumerate(groups[gid].ids):
                     if cid in division_resets:
                         state[node.id]['birth_area'][i] = division_resets[cid]
+                        if node.module_version == '2.0.0':
+                            state[node.id]['required_area'][i] = _division_threshold(node, groups[gid].geometry[i], streams, cid)
                 outputs[node.id]['birth_area'] = state[node.id]['birth_area']
+                if node.module_version == '2.0.0':
+                    outputs[node.id]['required_area'] = state[node.id]['required_area']
                 outputs[node.id]['divide'] = np.asarray([float(cid in division_resets) for cid in groups[gid].ids])
             if node.module_id in GROWTH:
                 actual_volume = np.asarray([float(physiology.capsule_volume_um3(g.length_um, g.diameter_um)) for g in groups[gid].geometry])
@@ -539,7 +614,10 @@ class ChemotaxisSimulation(SpatialSimulation):
                 old = science.mcp_adapted_methylation(ligand, par) if dt is None else self.state[n]['adaptation']
                 value = science.advance_mcp_adaptation(ligand, old, 0. if dt is None else dt, par)
                 chey_old = np.full(count, p['initial_chey_p_um']) if dt is None else self.state[n]['chey_p']
-                chey = science.advance_chey_from_activity(value.activity, chey_old, 0. if dt is None else dt, parameters(node, pts.SignalParameters))
+                # v1 retains validation of its legacy EI parameters; v2 exposes
+                # only the parameters that the MCP branch actually consumes.
+                chey_parameters = pts.SignalParameters if node.module_version == '1.0.0' else science.CheYParameters
+                chey = science.advance_chey_from_activity(value.activity, chey_old, 0. if dt is None else dt, parameters(node, chey_parameters))
                 outputs[n] = {'activity': value.activity, 'adaptation': value.methylation, 'chey_p': chey,
                               'motor_bias': science.motor_bias(chey, half_uM=p['motor_half_um'], hill=p['motor_hill'])}
                 state[n] = {'adaptation': value.methylation, 'chey_p': chey}

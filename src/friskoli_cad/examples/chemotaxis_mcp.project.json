@@ -453,7 +453,7 @@
       {
         "id": "motor_signal",
         "module_id": "signal.mcp_adaptation",
-        "module_version": "1.0.0",
+        "module_version": "2.0.0",
         "owner": {
           "kind": "population",
           "id": "cells"
@@ -517,38 +517,6 @@
           "baseline_activity": {
             "value": 0.5,
             "unit": "1",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          },
-          "ei_total_um": {
-            "value": 1.0,
-            "unit": "uM",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          },
-          "ei_dephos_per_molecule": {
-            "value": 0.01,
-            "unit": "1/molecule",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          },
-          "ei_rephos_s": {
-            "value": 1.0,
-            "unit": "1/s",
-            "provenance": {
-              "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
-            }
-          },
-          "ei_chea_inhibition_um": {
-            "value": 1.0,
-            "unit": "uM",
             "provenance": {
               "kind": "example",
               "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"

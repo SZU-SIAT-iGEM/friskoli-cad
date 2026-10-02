@@ -76,7 +76,7 @@ def chemotaxis_registry():
         ChemotaxisModule('signal.constant_bias', '无趋化对照 / Constant motor bias', 5, 'population', {},
             {'motor_bias': BIAS}, {'bias': number(maximum=1)}, {}, r'b_i=b_0', {'b_0': 'parameters.bias'},
             'Explicit constant-bias control. Nutrient uptake can remain active without feeding back to movement.', defaults={'bias': .25}),
-        ChemotaxisModule('signal.concentration_memory', '浓度记忆 A / Concentration memory A', 6, 'population',
+        ChemotaxisModule('signal.concentration_memory', '浓度记忆·重建版 / Concentration memory · rebuilt', 6, 'population',
             {'concentration': port('cell.scalar', 'concentration', 'uM', True), 'motor_bias': BIAS},
             {'memory': port('cell.scalar', 'concentration_memory', 'uM', True), 'motor_bias': BIAS},
             {'species': SPECIES, 'memory_tau_s': number('s'), 'gradient_strength_per_um': number('1/uM'), 'initial_memory_um': number('uM')},
@@ -84,7 +84,7 @@ def chemotaxis_registry():
             {'C': 'inputs.concentration [uM]', 'm': 'state.memory [uM]', 'g': 'parameters.gradient_strength_per_um [1/uM]'},
             'Source A concentration memory and exponential motor modulation; exponent is explicitly bounded to ±20 as in the source.',
             defaults={'species': 'nutrient', 'memory_tau_s': 3., 'gradient_strength_per_um': 3., 'initial_memory_um': 1.}, evidence='source A motion'),
-        ChemotaxisModule('signal.chey_memory', 'CheY-P 记忆 B / CheY-P memory B', 6, 'population',
+        ChemotaxisModule('signal.chey_memory', 'CheY-P 记忆·简化版 / CheY-P memory · simplified', 6, 'population',
             {'chey_p': CHEY}, {'memory': port('cell.scalar', 'chey_memory', 'uM'), 'effective_chey': CHEY, 'motor_bias': BIAS},
             {'adaptation_tau_s': number('s'), 'baseline_um': number('uM'), 'total_um': number('uM'),
              'motor_hill': number(), 'motor_half_um': number('uM'), 'initial_memory_um': number('uM')},
@@ -133,17 +133,121 @@ def chemotaxis_registry():
             'Source-B remaining-stock hydrolysis law with conservative shared contact allocation. The frozen initial material amount is an explicit global registry read. Soluble equivalents enter the external field, then uptake settles separately.',
             defaults={'kcat_s': 2., 'contact_range_um': .5}, evidence='reviewed source B direct-bulk active path'),
     ])
+    legacy_mcp = next(m for m in modules if m.manifest['id'] == 'signal.mcp_adaptation')
+    current_mcp = deepcopy(legacy_mcp)
+    current_mcp.manifest['version'] = '2.0.0'
+    for key in tuple(current_mcp.manifest['parameters']):
+        if key.startswith('ei_'):
+            del current_mcp.manifest['parameters'][key]
+            del current_mcp.default_parameters[key]
+    current_mcp.declaration['mathematics']['assumptions'].append(
+        'MCP v2 exposes only active parameters; EI belongs to the separate PTS signal model. '
+        'Legacy v1 remains executable; migrate_mcp_parameters removes its four unused EI parameters explicitly.')
+    legacy_mcp.declaration['label'] += ' · legacy v1'
+    legacy_mcp.declaration['mathematics']['assumptions'].append(
+        'Legacy compatibility: the four ei_* parameters are validated but have no effect on MCP activity or CheY. '
+        'Use v2 for new graphs; explicit project migration is documented in docs/science/n4-semantics-audit.md.')
+    modules.append(current_mcp)
+    modules.extend(_foundation_modules())
     modules.extend(_physiology_modules())
+    division_v2 = deepcopy(next(m for m in modules if m.manifest['id'] == 'division.area_adder'))
+    division_v2.manifest['version'] = '2.0.0'
+    division_v2.manifest['parameters'] = {
+        'target_volume_um3': number('um^3'), 'area_cv': number(), 'minimum_area_um2': number('um^2'),
+        'split_mean': number(maximum=1), 'split_sd': number(),
+        'minimum_fraction': number(maximum=.5), 'maximum_fraction': number(maximum=1)}
+    division_v2.default_parameters = {'target_volume_um3': 1., 'area_cv': .15, 'minimum_area_um2': 1e-6,
+        'split_mean': .5, 'split_sd': .05, 'minimum_fraction': .35, 'maximum_fraction': .65}
+    division_v2.manifest['state']['required_area'] = {'shape': 'cell.scalar', 'unit': 'um^2', 'on_division': 'copy'}
+    division_v2.manifest['outputs']['required_area'] = port('cell.scalar', 'surface_area', 'um^2')
+    division_v2.manifest['initial_outputs'].append('required_area')
+    division_v2.manifest['description'] = ('Source B cycle-specific folded-normal added-area threshold and clipped-normal volume split; '
+        'daughter cycles are resampled only after accepted division. Conservative collision guards retain CAD geometry semantics.')
+    division_v2.declaration['label'] = '随机面积 adder 分裂·简化版 / Stochastic area adder · simplified'
+    division_v2.declaration['mathematics']['algorithm'] = division_v2.manifest['description']
+    division_v2.declaration['mathematics']['equations'] = [{'latex': r'\Delta A=\max(\epsilon,|m(1+CV Z)|),\quad m=\max(\epsilon,A(V_{target})-A(V_{birth})),\quad f=\operatorname{clip}(\mu_f+\sigma_f Z_f)',
+        'symbols': {'Z': 'standard normal; fresh per cell cycle', 'Z_f': 'independent standard normal per split attempt'}}]
+    division_v2.declaration['mathematics']['verification']['tests'] = ['tests/test_n5_b_lifecycle.py']
+    modules.append(division_v2)
     for module in modules:
+        if module.manifest['id'] in ('uptake.saturating_request', 'metabolism.reserve_balance', 'life.starvation_hazard'):
+            module.declaration['mathematics']['verification']['tests'] = ['tests/test_foundation_survival.py']
+            module.declaration['mathematics']['assumptions'].extend([
+                'Composition, state ownership and parameter provenance: docs/science/foundation-composition.md. '
+                'All new maintenance, recovery, grace and death values are constructed, not literature-calibrated.',
+                'Unit reference only: https://www.bipm.org/en/si-base-units/mole ; '
+                '1 uM*um^3 = 602.214076 molecule-equivalents.'])
+        if module.manifest['id'] == 'life.starvation_hazard':
+            module.declaration['mathematics']['assumptions'].append(
+                'Probability identity only: NIST exponential CDF/survival/hazard, '
+                'https://www.itl.nist.gov/div898/handbook/eda/section3/eda3667.htm . '
+                'This reference does not support the biological threshold, recovery rule or numerical parameter values.')
+        if module.manifest['id'] == 'metabolism.reserve_balance':
+            module.manifest['state']['intracellular_molecules']['on_division'] = 'split'
+            module.manifest['state']['reserve_correction_molecules']['on_division'] = 'split'
+        stochastic_purposes = {
+            'motion.hazard_run_tumble': 'run_hazard (unit-exponential clock), tumble_direction (turn angle/azimuth)',
+            'life.health_balance': 'death (uniform draw against 1-exp(-hazard*dt_min))',
+            'life.starvation_hazard': 'death (uniform draw against 1-exp(-integrated starvation hazard))',
+            'division.area_adder': 'division_fraction (bounded uniform volume fraction)',
+        }
+        purpose = stochastic_purposes.get(module.manifest['id'])
+        if module.manifest['id'] == 'division.area_adder' and module.manifest['version'] == '2.0.0':
+            purpose = 'division_threshold (cycle folded-normal), division_fraction (clipped-normal); independent uncached Box-Muller transforms'
+        if purpose:
+            module.declaration['mathematics']['assumptions'].append(
+                'RNG service: friskoli_cad.engine.random_streams.RandomStreams; pcg64-sha256-key-v1; '
+                'project random_seed or explicit run seed, keyed by node ID, population ID, stable cell ID and purpose: '
+                + purpose + '. Candidate streams commit only with a successful numerical step; '
+                'complete state is checkpointed. Signal ODEs and Hill motor bias do not draw random numbers.')
         if module.manifest['id'] == 'reaction.direct_bulk_hydrolysis':
             module.provides_roles = ['material.degradation']
             module.propose_degradation = direct_bulk_hydrolysis_adapter
     return ModuleRegistry(modules, execution_semantics=PROFILE)
 
 
+def _foundation_modules():
+    amount = port('cell.scalar', 'accepted_amount', 'molecule', True)
+    reserve = port('cell.scalar', 'intracellular_amount', 'molecule', True)
+    unmet = port('cell.scalar', 'unmet_maintenance_duration', 's')
+    return [
+        ChemotaxisModule('uptake.saturating_request', '通用饱和摄取 / Saturating uptake request', 3, 'population',
+            {'concentration': port('cell.scalar', 'concentration', 'uM', True)},
+            {'requested_flux': port('cell.scalar', 'requested_flux', 'molecule/s', True)},
+            {'species': SPECIES, 'maximum_flux_molecules_s': number('molecule/s'), 'half_saturation_um': number('uM')}, {},
+            r'J_{req}=J_{max}C/(K+C)', {'C': 'inputs.concentration', 'J_{max}': 'parameters.maximum_flux_molecules_s'},
+            'Generic phenomenological saturating nutrient transport request. Requires finite/reservoir settlement; not a PTS pathway claim.',
+            defaults={'species': 'nutrient', 'maximum_flux_molecules_s': 200., 'half_saturation_um': 1.}),
+        ChemotaxisModule('metabolism.reserve_balance', '营养储备与维持 / Nutrient reserve and maintenance', 8, 'population',
+            {'accepted_amount': amount}, {'intracellular_molecules': reserve,
+             'used_molecules': port('cell.scalar', 'maintenance_consumed_amount', 'molecule', True), 'unmet_duration_s': unmet},
+            {'species': SPECIES, 'initial_molecules': number('molecule'), 'maintenance_molecules_s': number('molecule/s')},
+            {'intracellular_molecules': ('cell.scalar', 'molecule'), 'reserve_correction_molecules': ('cell.scalar', 'molecule')},
+            r'R^+=R+U,\quad Q=\min(R^+,q\Delta t),\quad R^{new}=R^+-Q,\quad t_u=\Delta t-Q/q',
+            {'R': 'state.intracellular_molecules', 'U': 'inputs.accepted_amount', 'q': 'parameters.maintenance_molecules_s'},
+            'Finite nutrient-equivalent reserve. Accepted uptake arrives at interval start; maintenance consumes actual available stock. '
+            'When q=0, unmet duration is zero. Consumed equivalents enter a maintenance ledger, not an external recycling pool. '
+            'One intracellular stock owner per population; cannot also use legacy nutrient growth. Constructed phenomenological model, not full metabolism.',
+            defaults={'species': 'nutrient', 'initial_molecules': 100., 'maintenance_molecules_s': 10.}),
+        ChemotaxisModule('life.starvation_hazard', '持续匮乏生存 / Delayed starvation survival', 9, 'population',
+            {'unmet_duration_s': unmet}, {'starvation_time_s': port('cell.scalar', 'starvation_exposure', 's'),
+             'health': port('cell.scalar', 'health', '1'), 'death_hazard': port('cell.scalar', 'death_hazard', '1/min')},
+            {'grace_s': number('s'), 'recovery_rate': number(), 'death_rate_per_min': number('1/min')},
+            {'starvation_time_s': ('cell.scalar', 's')},
+            r'\dot S=-r\ (fed,S>0),\quad\dot S=1\ (unmet),\quad\lambda=k\mathbf{1}_{S>g},\quad P=1-e^{-\int\lambda dt}',
+            {'S': 'state.starvation_time_s', 'g': 'parameters.grace_s > 0', 'r': 'parameters.recovery_rate',
+             'k': 'parameters.death_rate_per_min / 60'},
+            'Recover exposure during the maintenance-met prefix, then accumulate unmet duration. '
+            'Integrate threshold hazard in both segments; no death before positive grace expires. '
+            'health=exp(-S/grace) is only a dimensionless exposure readout, not a measured health scale. '
+            'death_hazard is the equivalent interval-average rate. Constructed phenomenological survival, no strain calibration.',
+            defaults={'grace_s': 60., 'recovery_rate': 1., 'death_rate_per_min': .1}),
+    ]
+
+
 def _physiology_modules():
     modules = []
-    for suffix, title in [('monod', 'A Monod + yield'), ('yield', 'B yield-limited')]:
+    for suffix, title in [('monod', '重建版 Monod + yield / rebuilt Monod + yield'), ('yield', '通用产率限制（简化版采用）/ generic yield-limited (used by simplified)')]:
         modules.append(ChemotaxisModule('growth.nutrient_' + suffix, '营养生长 / ' + title, 8, 'population',
             {'accepted_amount': port('cell.scalar', 'accepted_amount', 'molecule', True)},
             {'intracellular_molecules': port('cell.scalar', 'intracellular_amount', 'molecule', True), 'volume': VOLUME,
@@ -154,7 +258,7 @@ def _physiology_modules():
             {'intracellular_molecules': ('cell.scalar', 'molecule'), 'volume': ('cell.scalar', 'um^3')},
             r'\Delta V=\min[\mu(C)V\Delta t,Y N],\quad N\leftarrow N-\Delta V/Y',
             {'V': 'cell volume [um^3]', 'N': 'available intracellular nutrient [molecule]', 'Y': 'parameters.volume_yield_um3_molecule'},
-            'Source-specific growth. Accepted uptake enters the available pool; cumulative uptake is a separate statistic. Fixed-radius capsule geometry is checked before growth consumes nutrient. Blocked growth keeps its available nutrient.',
+            'Source-specific ideal growth is realized conservatively on float64 capsule geometry. Actual volume gain determines consumed nutrient and growth rate; sub-resolution gain remains in the existing intracellular inventory. Accepted uptake enters this pool; cumulative uptake is separate. Blocked growth retains nutrient.',
             defaults={'species': 'nutrient', 'initial_molecules': 0., 'max_growth_per_min': .1,
                 'volume_yield_um3_molecule': .0001, **({'half_saturation_um': 1.} if suffix == 'monod' else {})}, evidence='source A/B reviewed growth'))
     modules.extend([

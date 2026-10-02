@@ -82,6 +82,40 @@
             "items": {
               "type": "string"
             }
+          },
+          "recommended_settings": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "dt_s": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "steps": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "frame_every_steps": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "field_stride_xyz": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "include_final_fields": {
+                "type": "boolean"
+              },
+              "backend": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
           }
         }
       }

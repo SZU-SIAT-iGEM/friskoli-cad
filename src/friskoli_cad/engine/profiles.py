@@ -41,7 +41,7 @@ def chemotaxis_schedule(plan, registry):
     schedule.update(schedule_version="0.3.0",
         signal_nodes=[n.id for n in plan.nodes if n.module_id.startswith('signal.')],
         motion_nodes=[n.id for n in plan.nodes if n.module_id == 'motion.hazard_run_tumble'],
-        physiology_nodes=[n.id for n in plan.nodes if n.module_id.startswith(('growth.', 'expression.', 'life.', 'division.'))],
+        physiology_nodes=[n.id for n in plan.nodes if n.module_id.startswith(('growth.', 'metabolism.', 'expression.', 'life.', 'division.'))],
         motor_read_boundary='committed_step_start', observation_interval='every_committed_step')
     schedule['settlements'] = [{"inventory_node": n.id, "participant_nodes": [p.id for p in plan.nodes
         if p.module_id == 'uptake.local_settlement' and p.inputs['field'].source_node == n.id]}

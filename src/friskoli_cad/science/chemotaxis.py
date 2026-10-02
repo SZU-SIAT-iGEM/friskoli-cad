@@ -172,10 +172,26 @@ def advance_mcp_adaptation(ligand_uM, methylation, dt_s, p: MWCParameters):
     return MCPReadout(new, mcp_activity(ligand, new, p))
 
 
-def advance_chey_from_activity(activity, chey_uM, dt_s, p: SignalParameters):
+@dataclass(frozen=True)
+class CheYParameters:
+    """Only parameters read by activity-to-CheY integration and motor readout."""
+    chea_total_uM: float
+    chey_total_uM: float
+    chey_phos_per_uM_s: float
+    chey_dephos_s: float
+    motor_hill: float
+    motor_half_uM: float
+
+    def __post_init__(self):
+        for field in fields(self):
+            _value(field.name, getattr(self, field.name), scalar=True,
+                   positive=field.name in {'motor_hill', 'motor_half_uM'})
+
+
+def advance_chey_from_activity(activity, chey_uM, dt_s, p: SignalParameters | CheYParameters):
     """Freeze MCP receptor activity, set CheA=A_total*activity, advance CheY."""
-    if not isinstance(p, SignalParameters):
-        raise ValueError("CheY integration requires SignalParameters")
+    if not isinstance(p, (SignalParameters, CheYParameters)):
+        raise ValueError("CheY integration requires CheYParameters or legacy SignalParameters")
     a, y = _align(_value("activity", activity, upper=1),
                  _value("chey_uM", chey_uM, upper=p.chey_total_uM))
     dt = _value("dt_s", dt_s, scalar=True)
