@@ -2,10 +2,13 @@ import * as THREE from 'three';
 import { OrbitControls } from './vendor/three/examples/jsm/controls/OrbitControls.js';
 import { TransformControls } from './vendor/three/examples/jsm/controls/TransformControls.js';
 import { nextHit } from './catalog.mjs';
+import { environmentTransformGeometry, isEnvironmentObject } from './placeables.mjs';
 
 const fmt = value => Number(value.toFixed(2)).toString();
 
 export const canTransformBlock = (block, mode) => mode === 'space' && Boolean(block && !block.hidden && !block.locked);
+export const canTransformEnvironment = (object, mode, tool) => mode === 'space' &&
+  ['move','scale'].includes(tool) && Boolean(object && !object.hidden && !object.locked && isEnvironmentObject(object.declaration));
 
 export class SpatialViewport {
   constructor(canvas, annotations, callbacks) {
@@ -43,9 +46,10 @@ export class SpatialViewport {
     this.measureGroup = new THREE.Group();
     this.measurePoints = [];
     this.world.add(this.environment, this.field, this.cells, this.blocks, this.objects, this.measureGroup);
-    // Gizmo edits a block mesh live; the block itself is only updated once the drag ends.
+    // Gizmo previews geometry live; the document changes once when the drag ends.
     this.transform = new TransformControls(this.camera, canvas);
     this.transform.addEventListener('change', () => this.request());
+    this.transform.addEventListener('objectChange', () => this.constrainEnvironmentTransform());
     this.transform.addEventListener('dragging-changed', event => {
       this.orbit.enabled = !event.value;
       if (!event.value) { this.justTransformed = true; this.commitTransform(); }
@@ -253,6 +257,9 @@ export class SpatialViewport {
   // Shapes are derived from the same graph parameters submitted to the solver.
   // Source spheres mark release support, never a fabricated concentration field.
   setObjects(objects, selectedId) {
+    if (this.transform.object?.userData.nodeId) this.transform.detach();
+    this.objectData = objects;
+    this.selectedEnvironment = selectedId;
     this.clear(this.objects);
     this.objectHits = [];
     for (const object of objects) {
@@ -272,11 +279,21 @@ export class SpatialViewport {
       mesh.add(outline);
       this.objects.add(mesh); this.objectHits.push(mesh);
     }
+    this.attachGizmo();
     this.request();
   }
 
-  // Shows the move/scale gizmo on the selected block while a transform tool is active in Space.
+  // Each object adapter exposes only transformations representable by its protocol.
   attachGizmo() {
+    const object = this.objectData?.find(item => item.id === this.selectedEnvironment);
+    const objectMesh = this.objectHits?.find(item => item.userData.nodeId === this.selectedEnvironment);
+    if (object && objectMesh && canTransformEnvironment(object, this.mode, this.tool)) {
+      this.transform.setMode(this.tool === 'move' ? 'translate' : 'scale');
+      this.transform.showX = true; this.transform.showY = true;
+      this.transform.showZ = this.domain.geometry !== 'thin_layer';
+      this.transform.attach(objectMesh);
+      return;
+    }
     const mesh = this.blocks.children.find(item => item.userData.blockId === this.selectedBlock);
     const block = this.blockData?.find(item => item.id === this.selectedBlock);
     if (mesh && canTransformBlock(block, this.mode) && ['move','rotate','scale'].includes(this.tool)) {
@@ -290,10 +307,35 @@ export class SpatialViewport {
 
   commitTransform() {
     const mesh = this.transform.object;
+    const object = this.objectData?.find(item => item.id === mesh?.userData.nodeId);
+    if (object) {
+      if (!canTransformEnvironment(object, this.mode, this.tool)) return;
+      const geometry = this.constrainEnvironmentTransform();
+      if (geometry) this.callbacks.transformEnvironment?.(object.id, geometry);
+      return;
+    }
     const block = this.blockData?.find(item => item.id === mesh?.userData.blockId);
     if (!canTransformBlock(block, this.mode)) return;
     const size = block.size.map((value, axis) => value * Math.abs(mesh.scale.getComponent(axis)));
     this.callbacks.transformBlock(block.id, mesh.position.toArray(), size, [mesh.rotation.x,mesh.rotation.y,mesh.rotation.z].map(v => v * 180 / Math.PI));
+  }
+
+  constrainEnvironmentTransform() {
+    const mesh=this.transform.object, object=this.objectData?.find(item=>item.id===mesh?.userData.nodeId);
+    if (!object || !canTransformEnvironment(object,this.mode,this.tool)) return null;
+    const size=object.kind==='local_source' ? null : object.upper.map((v,i)=>v-object.lower[i]);
+    // Keep scaling anchored to the stored center: repeated odd/even voxel widths
+    // must not accumulate half-voxel translations while the pointer moves.
+    const center=this.tool==='scale' ? (size ? object.lower.map((v,i)=>(v+object.upper[i])/2) : object.center) : mesh.position.toArray();
+    const axis=Math.max(0,'XYZ'.indexOf(this.transform.axis?.[0] ?? 'X'));
+    const radius=object.radius*Math.max(Number.EPSILON,Math.abs(mesh.scale.getComponent(axis)));
+    let geometry;
+    try {geometry=environmentTransformGeometry(object,this.domain,{center,size:size?.map((v,i)=>Math.max(Number.EPSILON,v*mesh.scale.getComponent(i))),radius});}
+    catch {return null;}
+    mesh.position.fromArray(geometry.center);
+    if (object.kind==='local_source') mesh.scale.setScalar(geometry.radius/object.radius);
+    else mesh.scale.fromArray(geometry.size.map((v,i)=>v/size[i]));
+    return geometry;
   }
 
   setSnap(on) {
@@ -325,19 +367,40 @@ export class SpatialViewport {
 
   clearMeasure() {
     this.measurePoints = [];
+    this.measureEndpoints = [];
     this.clear(this.measureGroup);
     this.callbacks.measure?.(null);
   }
 
-  // Measures on the mid-depth plane of the domain; a third click starts a new measurement.
-  addMeasurePoint() {
-    if (!this.size) return;
+  // Only rendered object/cell surfaces are eligible, never population proxy volumes.
+  measurementEndpoint() {
+    const visible = mesh => {
+      for (let parent=mesh; parent; parent=parent.parent) if (!parent.visible) return false;
+      return (Array.isArray(mesh.material) ? mesh.material : [mesh.material]).some(material => material?.visible);
+    };
+    const candidates = [...(this.objectHits ?? []), ...(this.meshes ?? [])].filter(visible);
+    for (const mesh of candidates) mesh.updateWorldMatrix(true, false);
+    const knownCells = new Map((this.snapshot?.frame?.cells ?? []).map(cell => [cell.id, cell]));
+    for (const hit of this.raycaster.intersectObjects(candidates, false)) {
+      const id = hit.object.userData.nodeId;
+      if (id) return {point:hit.point.clone(), source:'surface', id};
+      const cellId = hit.object.userData.cellIds?.[hit.instanceId];
+      if (cellId && knownCells.get(cellId)?.geometry) return {point:hit.point.clone(), source:'cell', id:cellId};
+    }
     const normal = this.camera.getWorldDirection(new THREE.Vector3());
     const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, new THREE.Vector3(...this.size.map(v => v/2)));
     const point = this.raycaster.ray.intersectPlane(plane, new THREE.Vector3());
-    if (!point) return;
+    return point ? {point, source:'reference-plane'} : null;
+  }
+
+  // World-space surface hits take priority; a third click starts a new measurement.
+  addMeasurePoint() {
+    if (!this.size || this.mode !== 'space') return;
+    const endpoint = this.measurementEndpoint();
+    if (!endpoint) return;
     if (this.measurePoints.length >= 2) this.clearMeasure();
-    this.measurePoints.push(point);
+    this.measurePoints.push(endpoint.point);
+    (this.measureEndpoints ??= []).push({position:endpoint.point.toArray(),source:endpoint.source,...(endpoint.id ? {id:endpoint.id} : {})});
     this.clear(this.measureGroup);
     const radius = Math.min(...this.domain.spacing_um_xyz) * .18;
     for (const p of this.measurePoints) {
@@ -350,7 +413,9 @@ export class SpatialViewport {
         new THREE.LineBasicMaterial({ color: 0xf1bb7b }));
       this.measureGroup.add(line);
       const [a, b] = this.measurePoints;
-      this.callbacks.measure?.({ distance: a.distanceTo(b), delta: b.clone().sub(a).toArray() });
+      this.callbacks.measure?.({ distance: a.distanceTo(b), delta: b.clone().sub(a).toArray(), endpoints:structuredClone(this.measureEndpoints) });
+    } else {
+      this.callbacks.measure?.({distance:null, delta:null, endpoints:structuredClone(this.measureEndpoints)});
     }
     this.request();
   }

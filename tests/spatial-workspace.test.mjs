@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {registerCatalog} from '../src/friskoli_cad/web/catalog.mjs';
 import {readWorkspace,writeWorkspace} from '../src/friskoli_cad/web/workspace.mjs';
-import {availablePlaceables,availableSourceSpecies,environmentObjects,initializeEnvironmentObject,deleteEnvironmentObject,requiredRoleRemovalProblem} from '../src/friskoli_cad/web/placeables.mjs';
+import {availablePlaceables,availableSourceSpecies,environmentObjects,initializeEnvironmentObject,deleteEnvironmentObject,requiredRoleRemovalProblem,environmentTransformGeometry,transformEnvironmentObject} from '../src/friskoli_cad/web/placeables.mjs';
 
 const number = unit => ({type:'number',unit,minimum:0});
 const xyz = prefix => Object.fromEntries([...'xyz'].map(axis => [`${prefix}_${axis}_um`,number('um')]));
@@ -69,6 +69,90 @@ test('obstacle uses grid-aligned graph bounds, edits and undo do not introduce a
   assert.equal(environmentObjects(readWorkspace(saved).project,registry.objects,registry.modules)[0].upper[0],8);
   deleteEnvironmentObject(p,id); assert.equal(p.graph.nodes.length,0);
   assert.equal(environmentObjects(readWorkspace(saved).project,registry.objects,registry.modules).length,1);
+});
+
+test('environment transforms update registered graph parameters atomically without separate display geometry',()=>{
+  for(const declaration of [objects[0],objects[2]]) {
+    const p=project(),id=initializeEnvironmentObject(p,declaration,registry.modules,[7,11,9],'substrate');
+    const before=writeWorkspace(readWorkspace(p));
+    const geometry=transformEnvironmentObject(p,id,registry.objects,registry.modules,{center:[100,-4,13.4],size:[3.1,.01,4.7]});
+    assert.deepEqual(geometry.lower,[20,0,12]);assert.deepEqual(geometry.upper,[24,2,16]);
+    const item=environmentObjects(p,registry.objects,registry.modules).find(item=>item.id===id);
+    assert.deepEqual(item.lower,geometry.lower);assert.deepEqual(item.upper,geometry.upper);
+    assert.equal(item.node.parameters.lower_x_um.unit,'um');assert.equal(item.node.parameters.lower_x_um.provenance.kind,'user');
+    const after=writeWorkspace(readWorkspace(p));
+    assert.deepEqual(environmentObjects(readWorkspace(before).project,registry.objects,registry.modules).find(item=>item.id===id).lower,[6,10,8]);
+    assert.deepEqual(environmentObjects(readWorkspace(after).project,registry.objects,registry.modules).find(item=>item.id===id).upper,[24,2,16]);
+    assert.deepEqual(after.project.graph.edges,before.project.graph.edges);
+  }
+});
+
+test('source transform retains inventory, release rate and shared field and allows support outside a thin layer',()=>{
+  const p=project();p.domain={geometry:'thin_layer',counts_xyz:[12,12,1],spacing_um_xyz:[2,2,2]};
+  const id=initializeEnvironmentObject(p,objects[1],registry.modules,[7,11,1],'substrate');
+  const field=structuredClone(p.graph.nodes.find(n=>n.module_id==='field.diffusive_local'));
+  const original=structuredClone(p.graph.nodes.find(n=>n.id===id));
+  transformEnvironmentObject(p,id,registry.objects,registry.modules,{center:[100,-10,100],radius:5});
+  const object=environmentObjects(p,registry.objects,registry.modules).find(item=>item.id===id);
+  assert.ok(object.center[0] < 24 && object.center[0] > 23.99);assert.equal(object.center[1],0);assert.equal(object.center[2],1);
+  assert.equal(object.radius,5);
+  for(const key of ['species','initial_molecules','release_rate'])assert.deepEqual(object.node.parameters[key],original.parameters[key]);
+  assert.deepEqual(p.graph.nodes.find(n=>n.module_id==='field.diffusive_local'),field);
+});
+
+test('invalid or colliding environment transforms leave every graph parameter unchanged',()=>{
+  const p=project(),id=initializeEnvironmentObject(p,objects[0],registry.modules,[3,3,3],'substrate');
+  const source=initializeEnvironmentObject(p,objects[1],registry.modules,[15,15,15],'substrate');
+  const before=structuredClone(p);
+  for(const transform of [{center:[NaN,3,3],size:[2,2,2]},{center:[3,3,3],size:[0,2,2]},
+    {center:[15,15,15],size:[2,2,2]}]) {
+    assert.throws(()=>transformEnvironmentObject(p,id,registry.objects,registry.modules,transform));assert.deepEqual(p,before);
+  }
+  assert.throws(()=>transformEnvironmentObject(p,source,registry.objects,registry.modules,{center:[3,3,3],radius:1}),/sourcePlacementOverlap/);
+  assert.deepEqual(p,before);
+  assert.throws(()=>transformEnvironmentObject(p,id,new Map(),registry.modules,{center:[3,3,3],size:[2,2,2]}));
+  const restricted=new Map(registry.modules),spec=structuredClone(restricted.get(objects[0].initializer.module));
+  spec.parameters.upper_z_um.maximum=6;restricted.set(objects[0].initializer.module,spec);
+  assert.throws(()=>transformEnvironmentObject(p,id,registry.objects,restricted,{center:[7,7,7],size:[2,2,2]}),/parameter.range/);
+  assert.deepEqual(p,before);
+});
+
+test('box normalization uses each axis spacing, preserves thin-layer thickness and never emits fractional voxels',()=>{
+  const domain={geometry:'thin_layer',counts_xyz:[10,8,1],spacing_um_xyz:[2,3,1]};
+  const object={kind:'obstacle_box',lower:[2,3,0],upper:[4,6,1]};
+  for(const center of [[-100,100,5],[3.1,4.9,1],[20,24,-5]])for(const size of [[.01,.01,.01],[100,100,100],[5.1,7.2,3]]) {
+    const next=environmentTransformGeometry(object,domain,{center,size});
+    for(let i=0;i<3;i++) {
+      assert.equal(next.lower[i]/domain.spacing_um_xyz[i],Math.round(next.lower[i]/domain.spacing_um_xyz[i]));
+      assert.equal(next.upper[i]/domain.spacing_um_xyz[i],Math.round(next.upper[i]/domain.spacing_um_xyz[i]));
+      assert.ok(next.lower[i]>=0 && next.upper[i]<=domain.counts_xyz[i]*domain.spacing_um_xyz[i]);
+      assert.ok(next.size[i]>=domain.spacing_um_xyz[i]);
+    }
+    assert.deepEqual([next.lower[2],next.upper[2]],[0,1]);
+  }
+});
+
+test('environment edits use the real editor transaction and Undo/Redo restores solver parameters and draft revision',()=>{
+  const p=project(),id=initializeEnvironmentObject(p,objects[0],registry.modules,[3,3,3],'substrate');
+  const state={...readWorkspace(p),history:[],future:[],revision:0,checks:['old check'],selectedEnvironment:id};
+  const app=readFileSync(new URL('../src/friskoli_cad/web/app.mjs',import.meta.url),'utf8');
+  // Run production history/transaction functions, replacing only browser effects.
+  const historySource=app.slice(app.indexOf('const snapshot ='),app.indexOf('applyLanguage();'));
+  const history=new Function('state','writeWorkspace',`
+    const localStorage={setItem(){}}, RECOVERY_KEY='test', $=()=>({});
+    const renderAll=()=>{},status=()=>{},t=value=>value;
+    ${historySource}
+    return {edit,undo,redo};`)(state,writeWorkspace);
+  const geometry=()=>environmentObjects(state.project,registry.objects,registry.modules).find(o=>o.id===id);
+  assert.equal(history.edit('updated',()=>transformEnvironmentObject(state.project,id,registry.objects,registry.modules,
+    {center:[9,9,9],size:[4,4,4]})),true);
+  assert.deepEqual(geometry().lower,[8,8,8]);assert.equal(state.history.length,1);assert.equal(state.revision,1);assert.deepEqual(state.checks,[]);
+  history.undo();assert.deepEqual(geometry().lower,[2,2,2]);assert.equal(state.future.length,1);assert.equal(state.revision,2);
+  history.redo();assert.deepEqual(geometry().upper,[12,12,12]);assert.equal(state.history.length,1);assert.equal(state.revision,3);
+  const before=structuredClone(state.project);
+  assert.equal(history.edit('updated',()=>transformEnvironmentObject(state.project,id,registry.objects,registry.modules,
+    {center:[Infinity,9,9],size:[4,4,4]})),false);
+  assert.deepEqual(state.project,before);assert.equal(state.history.length,1);assert.equal(state.revision,3);
 });
 
 test('multiple sources share one registered nutrient field and deletion preserves the remaining source field',() => {

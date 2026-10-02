@@ -6,20 +6,20 @@ import { renderModuleDocumentation } from './math-inspector.mjs';
 import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
 import { readWorkspace, writeWorkspace, validateDesignBrief, validateDesignDocument, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
-import { TaskStore, buildSubmission, matchesDraft, supportsTasks, taskCapability, executionStepLimit } from './task-store.mjs';
+import { TaskStore, preflightSubmission, matchesDraft, supportsTasks, taskCapability, executionStepLimit } from './task-store.mjs';
 import { renderResultData } from './results.mjs';
 import { compareRuns, METRIC_KEYS, csvCell } from './metrics.mjs';
 import { copyPopulationBranch } from './templates.mjs';
 import { renderComparison } from './metric-results.mjs';
 import { installDockSizing } from './panels.mjs';
-import { SpatialViewport, canTransformBlock } from './scene3d.mjs';
+import { SpatialViewport, canTransformBlock, canTransformEnvironment } from './scene3d.mjs';
 import { GraphEditor, autoLayout } from './workflow.mjs';
 import { moduleName } from './workflow-components.mjs';
 import { addNode, connect, connectionProblem, disconnect, missingInputs, missingParameters, preferredTiming, removeNode,
   setParameter } from './graph-edit.mjs';
 import { applyLanguage, currentLanguage, setLanguage, t } from './i18n.mjs';
 import { availablePlaceables, objectForBlock, initializeObject, environmentObjects,
-  initializeEnvironmentObject, deleteEnvironmentObject, roleProviders, requiredRoleRemovalProblem, applyRegisteredDefaults } from './placeables.mjs';
+  initializeEnvironmentObject, deleteEnvironmentObject, transformEnvironmentObject, roleProviders, requiredRoleRemovalProblem, applyRegisteredDefaults } from './placeables.mjs';
 import { icon } from './icons.mjs';
 
 const $ = id => document.getElementById(id);
@@ -133,15 +133,26 @@ function selectedBlockTransformable() {
   return canTransformBlock(block, state.view) && Boolean(objectForBlock(block, state.objects));
 }
 
+function selectedEnvironmentObject() {
+  return visibleEnvironment().find(item => item.id === state.selectedEnvironment);
+}
+
+function selectedTransformable(tool) {
+  return state.selectedEnvironment ? canTransformEnvironment(selectedEnvironmentObject(),state.view,tool) : selectedBlockTransformable();
+}
+
 function updateTransformTools() {
-  const enabled = selectedBlockTransformable();
-  for (const id of ['move-tool','scale-tool','rotate-tool']) $(id).disabled = !enabled;
-  if (!enabled && ['move','scale','rotate'].includes(state.tool)) useTool('select');
+  for (const tool of ['move','scale','rotate']) $(`${tool}-tool`).disabled = !selectedTransformable(tool);
+  $('rotate-tool').title = t(state.selectedEnvironment ? 'environmentRotationUnsupported' : 'rotate');
+  if (['move','scale','rotate'].includes(state.tool) && !selectedTransformable(state.tool)) useTool('select');
 }
 
 function useTool(tool) {
   if (!state.project) return;
-  if (['move','scale','rotate'].includes(tool) && !selectedBlockTransformable()) return;
+  if (['move','scale','rotate'].includes(tool) && !selectedTransformable(tool)) {
+    if (tool === 'rotate' && state.selectedEnvironment) status('environmentRotationUnsupported',{},true);
+    return;
+  }
   if (tool === 'population' && !availablePlaceables(state.modules,state.capabilities,state.objects,state.project).some(item => item.kind === 'population' && item.status === 'ready')) {
     status('populationAdapterMissing',{},true); return;
   }
@@ -150,6 +161,11 @@ function useTool(tool) {
   viewport?.setTool(tool);
   for (const [name, id] of Object.entries(TOOLS)) $(id).classList.toggle('active', name === tool);
   if (tool === 'measure') status('measureHint');
+  if (state.selectedEnvironment && ['move','scale'].includes(tool)) {
+    const object=selectedEnvironmentObject();
+    if (object?.kind !== 'local_source') status('environmentBoxGridSnap');
+    else if (tool === 'scale') status('sourceUniformScale');
+  }
   if (state.project && state.view === 'space') renderLeft();
 }
 
@@ -561,6 +577,8 @@ function renderEnvironmentInspector(root,object) {
   const manifest = (registry?.modules ?? state.modules).get(object.declaration.initializer.module);
   root.append(el('div','inspector-title',object.id),el('div','inspector-subtitle',t(object.declaration.label)));
   root.append(el('p','empty-message',t(object.kind === 'obstacle_box' ? 'obstacleScope' : object.kind === 'degradable_box' ? 'materialScope' : 'sourceScope')));
+  root.append(el('p','empty-message',t('environmentRotationUnsupported')));
+  root.append(el('p','empty-message',t(object.kind === 'local_source' ? 'sourceUniformScale' : 'environmentBoxGridSnap')));
   const part = section(root,t('parameters'));
   if (state.view === 'results' && ['degradable_box','local_source'].includes(object.kind)) {
     kv(part,t('remainingNutrient'),object.remaining_molecules === null ? t('objectStateUnavailable') : `${fmt(object.remaining_molecules,4)} molecule`);
@@ -840,7 +858,8 @@ async function nextSeed(batch) {
   const entry=batch.queue?.shift();
   const seed=batch.queue ? entry?.seed : batch.seeds.shift();if(seed===undefined){state.batch=null;state.designBatchStatus='Completed';renderDiagnostics();if(state.view==='design')renderDesign();return;}
   try {
-    const submission=buildSubmission(state.capabilities,entry?.project??batch.project,{...batch.settings,seed},`${batch.draftToken}:${batch.revision}`);
+    const {submission}=await preflightSubmission(kernel,state.capabilities,entry?.project??batch.project,{...batch.settings,seed},`${batch.draftToken}:${batch.revision}`);
+    if(state.batch!==batch)return;
     const record=taskStore.create(submission,{draftToken:batch.draftToken,revision:batch.revision,design_ref:entry?.design_ref,idempotencyRetentionSeconds:taskCapability(state.capabilities,entry?.project??batch.project).limits.idempotency_retention_seconds});
     batch.records.add(record.localId);batch.active=record.localId;state.latestTask=record.localId;showBottom('runs');renderDiagnostics();await taskStore.submit(record.localId);taskStore.start();
   }catch(error){state.batch=null;state.designBatchStatus=error.message;status('runFailed',{message:t(error.code??error.message)},true);renderDiagnostics();}
@@ -960,15 +979,20 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
 
 async function checkProject() {
   if (!state.project || state.busy) return;
-  const revision = state.revision;
+  const revision = state.revision, draftToken = state.draftToken;
   state.checks = [];
   for (const b of state.blocks) if (b.dirty) state.checks.push({code:'scatter.pending',path:b.id,message:t('pending')});
   try {
-    const result = await kernel.validate(structuredClone(state.project), state.settings);
-    if (revision !== state.revision) return;
-    if (!state.checks.length) state.checks = [{code:'valid', message:t('checkPassed', result)}];
+    const asynchronous = supportsTasks(state.capabilities, state.project);
+    const result = asynchronous ? (await preflightSubmission(kernel, state.capabilities,
+      structuredClone(state.project), structuredClone(state.settings), `${draftToken}:${revision}`)).result :
+      await kernel.validate(structuredClone(state.project), state.settings);
+    if (revision !== state.revision || draftToken !== state.draftToken) return;
+    if (!state.checks.length) state.checks = [{code:'valid', message:t(asynchronous ? 'preflightPassed' : 'checkPassed',
+      {...result, outputMiB:result.estimate ? (result.estimate.output_bytes / 1048576).toFixed(1) : '',
+        wallTimeSeconds:result.limits?.wall_time_s ?? ''})}];
   } catch (error) {
-    if (revision !== state.revision) return;
+    if (revision !== state.revision || draftToken !== state.draftToken) return;
     state.checks.push(...(error.issues?.length ? error.issues : [error.issue ?? {code:'connection.failed',message:error.message}]));
   }
   $('diagnostics').hidden = false; showBottom('checks'); renderDiagnostics();
@@ -1393,15 +1417,18 @@ async function executeProject(candidate) {
   try { resolveGraph(submitted.graph, state.modules); }
   catch (error) { status('runFailed', {message:error.message}, true); return false; }
   if (supportsTasks(state.capabilities, submitted)) {
+    const draftToken = state.draftToken, revision = state.revision;
+    state.busy = true; updateRunButton();
     try {
-      const submission = buildSubmission(state.capabilities, submitted, settings, `${state.draftToken}:${state.revision}`);
-      const record = taskStore.create(submission, {draftToken:state.draftToken, revision:state.revision,
+      const {submission} = await preflightSubmission(kernel, state.capabilities, submitted, settings, `${draftToken}:${revision}`);
+      const record = taskStore.create(submission, {draftToken, revision,
         idempotencyRetentionSeconds:taskCapability(state.capabilities, submitted).limits.idempotency_retention_seconds});
       state.latestTask = record.localId;
       showBottom('runs'); renderDiagnostics(); status('taskSubmitted');
       await taskStore.submit(record.localId);
       taskStore.start(); return true;
     } catch (error) { status('runFailed', {message:error.message}, true); return false; }
+    finally { state.busy = false; updateRunButton(); }
   }
   const id = `run-${Date.now()}-${state.runs.length + 1}`;
   submitted.run.run_id = id;
@@ -1525,8 +1552,19 @@ try {
       if (!canTransformBlock(block, state.view) || !objectForBlock(block, state.objects)) return;
       edit('blockMoved', () => { Object.assign(block, {center, size, rotation, dirty:true}); checkBlock(state.project.domain, block); });
     },
+    transformEnvironment(id, geometry) {
+      const object=visibleEnvironment().find(item=>item.id===id);
+      if (!canTransformEnvironment(object,state.view,state.tool)) return;
+      edit('updated', () => transformEnvironmentObject(state.project,id,state.objects,state.modules,geometry));
+    },
     measure(result) {
-      $('measure-readout').textContent = result ? `${fmt(result.distance, 3)} µm · Δ ${result.delta.map(v => fmt(v, 3)).join(' / ')}` : '';
+      const readout = $('measure-readout');
+      const endpoints = result?.endpoints.map((endpoint,index) => {
+        const source = t({surface:'measureSurface',cell:'measureCellSurface','reference-plane':'measureReferencePlane'}[endpoint.source]);
+        return `${index ? 'B' : 'A'} (${endpoint.position.map(v => fmt(v,3)).join(', ')}) µm · ${source}${endpoint.id ? ` · ${endpoint.id}` : ''}`;
+      }).join(' → ');
+      readout.textContent = result ? `${result.distance === null ? t('measureSecondPoint') : `${fmt(result.distance,3)} µm · Δ ${result.delta.map(v => fmt(v,3)).join(' / ')}`} · ${endpoints}` : '';
+      readout.title = readout.textContent;
     },
   });
 } catch (error) {
@@ -1638,14 +1676,19 @@ document.addEventListener('keydown', event => {
   }
   if (event.key === 'Escape') { $('context-menu').hidden = true; graphEditor.armed = null; closeDocks(); useTool('select'); }
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); saveWorkspace(); return; }
-  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName)) return;
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
   const mod = event.ctrlKey || event.metaKey;
   const key = event.key.toLowerCase();
   if (mod && key === 'z') { event.preventDefault(); if (event.shiftKey) redo(); else undo(); return; }
   if (mod && key === 'y') { event.preventDefault(); redo(); return; }
   if (mod && key === 's') { event.preventDefault(); saveWorkspace(); return; }
   if (mod && event.key === 'Enter') { event.preventDefault(); if (!$('run-button').disabled) $('run-button').click(); return; }
-  if (key === 'f') { event.preventDefault(); viewport?.fit(); return; }
+  if (mod || event.altKey || event.shiftKey) return;
+  if (key === 'f') {
+    if (state.view === 'workflow') { event.preventDefault(); graphEditor.fit(); }
+    else if (state.view === 'space' || state.view === 'results') { event.preventDefault(); viewport?.fit(); }
+    return;
+  }
   if (key === 'g') { viewport?.toggleGrid(); return; }
   if (state.view === 'space') {
     const tool = {v:'select',b:'population',t:'move',w:'move',e:'rotate',r:'scale',m:'measure',h:'hand',o:'orbit'}[key];

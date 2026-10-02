@@ -114,6 +114,65 @@ export function environmentObjects(project, objects, modules, objectStates = nul
   });
 }
 
+// Solid boxes occupy whole voxels. A source radius is release support, which may
+// extend beyond the domain; only its center must remain inside the field grid.
+export function environmentTransformGeometry(object, domain, transform) {
+  const vector = value => Array.isArray(value) && value.length === 3 && value.every(Number.isFinite);
+  const spacing = domain?.spacing_um_xyz, counts = domain?.counts_xyz;
+  if (!vector(spacing) || spacing.some(v => v <= 0) || !vector(counts) || counts.some(v => !Number.isSafeInteger(v) || v < 1) ||
+      !vector(transform?.center)) throw new Error('environmentTransformOutside');
+  const extent = counts.map((n,i) => n*spacing[i]);
+  if (!extent.every(Number.isFinite)) throw new Error('environmentTransformOutside');
+  const thin = domain.geometry === 'thin_layer', clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
+  if (object.kind === 'local_source') {
+    if (!Number.isFinite(transform.radius) || transform.radius <= 0 || !vector(object.center)) throw new Error('environmentTransformOutside');
+    const center = transform.center.map((value,i) => thin && i === 2 ? object.center[i] :
+      clamp(value,0,extent[i] - Math.max(Number.EPSILON*extent[i]*2,Number.MIN_VALUE)));
+    if (center.some((value,i) => value < 0 || value >= extent[i])) throw new Error('environmentTransformOutside');
+    return {center,radius:transform.radius};
+  }
+  if (!['obstacle_box','degradable_box'].includes(object.kind) || !vector(transform.size) || transform.size.some(v => v <= 0) ||
+      !vector(object.lower) || !vector(object.upper)) throw new Error('environmentTransformOutside');
+  const lower=[], upper=[];
+  for (let i=0;i<3;i++) {
+    if (thin && i === 2) {lower[i]=object.lower[i];upper[i]=object.upper[i];}
+    else {
+      const cells=clamp(Math.round(transform.size[i]/spacing[i]),1,counts[i]);
+      const first=clamp(Math.round(transform.center[i]/spacing[i]-cells/2),0,counts[i]-cells);
+      lower[i]=first*spacing[i];upper[i]=(first+cells)*spacing[i];
+    }
+    if (lower[i] < 0 || upper[i] > extent[i] || lower[i] >= upper[i]) throw new Error('environmentTransformOutside');
+  }
+  return {lower,upper,center:lower.map((v,i)=>(v+upper[i])/2),size:lower.map((v,i)=>upper[i]-v)};
+}
+
+export function transformEnvironmentObject(project, id, objects, modules, transform) {
+  const object=environmentObjects(project,objects,modules).find(item=>item.id===id);
+  if (!object) throw new Error('Unsupported object initializer');
+  const geometry=environmentTransformGeometry(object,project.domain,transform);
+  // Exclude the edited object when applying the same collision policy as placement.
+  const others={...project,graph:{...project.graph,nodes:project.graph.nodes.filter(node=>node.id!==id)}};
+  if (object.kind !== 'local_source') {
+    const problem=obstaclePlacementProblem(others,geometry.lower,geometry.upper);
+    if (problem) throw new Error(problem);
+  } else {
+    for (const obstacle of environmentObjects(others,objects,modules).filter(item=>item.kind!=='local_source')) {
+      if (segmentBoxDistanceSquared(geometry.center,geometry.center,obstacle.lower,obstacle.upper) <= geometry.radius**2)
+        throw new Error('sourcePlacementOverlap');
+    }
+  }
+  const node=structuredClone(object.node), manifest=modules.get(object.declaration.initializer.module);
+  const values=object.kind === 'local_source' ? {radius_um:geometry.radius,
+    ...Object.fromEntries([...'xyz'].map((axis,i)=>[`center_${axis}_um`,geometry.center[i]]))} :
+    Object.fromEntries([...'xyz'].flatMap((axis,i)=>[[`lower_${axis}_um`,geometry.lower[i]],[`upper_${axis}_um`,geometry.upper[i]]]));
+  for (const [name,value] of Object.entries(values)) {
+    if (node.parameters[name]?.value === value) continue;
+    const problem=setParameter(node,manifest,name,value);if(problem)throw new Error(problem);
+  }
+  object.node.parameters=node.parameters;
+  return geometry;
+}
+
 export function initializeEnvironmentObject(project, object, modules, point, speciesId = null) {
   if (!isEnvironmentObject(object)) throw new Error('Unsupported object initializer');
   const keys = [object.initializer.module, ...object.initializer.data_modules];

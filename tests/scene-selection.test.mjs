@@ -4,23 +4,25 @@ import {readFileSync} from 'node:fs';
 import * as THREE from '../src/friskoli_cad/web/vendor/three/build/three.module.js';
 import {nextHit} from '../src/friskoli_cad/web/catalog.mjs';
 import {executionStepLimit} from '../src/friskoli_cad/web/task-store.mjs';
+import {environmentTransformGeometry,isEnvironmentObject} from '../src/friskoli_cad/web/placeables.mjs';
 
 // Load the actual viewport methods without its browser-only controls imports or
 // WebGL constructor. Geometry and picking below use the shipped Three.js runtime.
 const source = readFileSync(new URL('../src/friskoli_cad/web/scene3d.mjs', import.meta.url), 'utf8');
-const {SpatialViewport, canTransformBlock} = new Function('THREE', 'nextHit',
+const {SpatialViewport, canTransformBlock, canTransformEnvironment} = new Function('THREE', 'nextHit', 'environmentTransformGeometry', 'isEnvironmentObject',
   source.replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '') +
-  '\nreturn {SpatialViewport, canTransformBlock};')(THREE, nextHit);
+  '\nreturn {SpatialViewport, canTransformBlock, canTransformEnvironment};')(THREE, nextHit, environmentTransformGeometry, isEnvironmentObject);
 const block = (id, extra = {}) => ({id, center:[50,50,5], size:[100,100,10], dirty:false, ...extra});
 function viewport() {
   const v = Object.create(SpatialViewport.prototype);
   Object.assign(v, {blocks:new THREE.Group(), objects:new THREE.Group(), measureGroup:new THREE.Group(),
-    mode:'space', tool:'select', domain:{geometry:'volume'}, objectHits:[], meshes:[], geometryCache:new Map(),
+    mode:'space', tool:'select', domain:{geometry:'volume',counts_xyz:[100,100,10],spacing_um_xyz:[1,1,1]}, objectHits:[], meshes:[], geometryCache:new Map(),
     canvas:{style:{}}, orbit:{mouseButtons:{}, touches:{}}, request(){}, pointFromEvent(){},
     raycaster:new THREE.Raycaster(new THREE.Vector3(50,50,100), new THREE.Vector3(0,0,-1))});
   v.events = [];
   v.callbacks = {selectBlock:id=>v.events.push(['block',id]), selectEnvironment:id=>v.events.push(['object',id]),
-    selectCell:id=>v.events.push(['cell',id]), transformBlock:(...args)=>v.events.push(['transform',...args])};
+    selectCell:id=>v.events.push(['cell',id]), transformBlock:(...args)=>v.events.push(['transform',...args]),
+    transformEnvironment:(...args)=>v.events.push(['environment-transform',...args])};
   v.transform = {object:null, detach(){this.object=null;}, attach(mesh){this.object=mesh;}, setMode(mode){this.mode=mode;}};
   v.load = (blocks, selected=null) => {v.setBlocks(blocks, selected); v.blocks.updateMatrixWorld(true);};
   return v;
@@ -85,17 +87,17 @@ function editor() {
   const context=`
     const TOOLS={select:'select-tool',move:'move-tool',rotate:'rotate-tool',scale:'scale-tool'};
     const renderLeft=()=>{},renderInspector=()=>{},closeDocks=()=>{},renderData=()=>{},renderFieldControls=()=>{};
-    const currentSnapshot=()=>null,visibleEnvironment=()=>[],fmt=String,t=String,status=()=>{};
+    const currentSnapshot=()=>null,visibleEnvironment=()=>state.environment??[],fmt=String,t=String,status=()=>{};
     const setView=view=>{state.view=view;};
     ${functions('selectedBlockTransformable','kv')}
     ${functions('renderScene','renderTimeline')}
     ${functions('selectBlock','renderEnvironmentRows')}
     return {selectBlock,selectEnvironment,useTool,renderScene};`;
-  return {state,$,...new Function('state','$','canTransformBlock','objectForBlock','viewport',context)
-    (state,$,canTransformBlock,b=>b?.registered!==false,null)};
+  return {state,$,...new Function('state','$','canTransformBlock','canTransformEnvironment','objectForBlock','viewport',context)
+    (state,$,canTransformBlock,canTransformEnvironment,b=>b?.registered!==false,null)};
 }
 
-test('list selection immediately enables tools and environment selection disables and resets them', () => {
+test('list selection immediately enables tools and unsupported selection disables and resets them', () => {
   const e=editor();e.state.blocks=[block('clean')];e.renderScene();
   assert.equal(e.$('move-tool').disabled,true);
   e.selectBlock('clean');assert.equal(e.$('move-tool').disabled,false);
@@ -103,6 +105,55 @@ test('list selection immediately enables tools and environment selection disable
   e.selectEnvironment('obstacle');assert.equal(e.$('move-tool').disabled,true);
   assert.equal(e.state.tool,'select');
   e.useTool('move');assert.equal(e.state.tool,'select');
+});
+
+const environment = (kind='obstacle_box') => ({id:kind,kind,lower:[10,10,0],upper:[14,14,2],center:[20,20,1],radius:5,
+  declaration:{kind,initializer:{adapter:'environment.node@1',module:({'obstacle_box':'space.axis_aligned_obstacle','degradable_box':'material.degradable_box','local_source':'source.finite_local'})[kind]+'@1.0.0'}}});
+
+test('registered environment selection enables move/scale but never rotation or Results edits', () => {
+  for(const kind of ['obstacle_box','degradable_box','local_source']) {
+    const e=editor();e.state.environment=[environment(kind)];e.selectEnvironment(kind);
+    assert.equal(e.$('move-tool').disabled,false);assert.equal(e.$('scale-tool').disabled,false);
+    assert.equal(e.$('rotate-tool').disabled,true);assert.equal(e.$('rotate-tool').title,'environmentRotationUnsupported');
+    e.useTool('move');assert.equal(e.state.tool,'move');
+    e.useTool('rotate');assert.equal(e.state.tool,'move');
+    e.state.view='results';e.renderScene();assert.equal(e.state.tool,'select');
+    for(const tool of ['move','scale','rotate']) {assert.equal(e.$(`${tool}-tool`).disabled,true);e.useTool(tool);assert.equal(e.state.tool,'select');}
+  }
+});
+
+test('environment box gizmos constrain preview to complete voxels and domain before committing once', () => {
+  for(const kind of ['obstacle_box','degradable_box']) {
+    const v=viewport(), object=environment(kind);v.domain.spacing_um_xyz=[2,3,1];v.domain.counts_xyz=[10,10,10];
+    v.setObjects([object],object.id);v.setTool('move');
+    assert.equal(v.transform.object.userData.nodeId,object.id);
+    const mesh=v.transform.object;mesh.position.set(-50,100,50);
+    const bounded=v.constrainEnvironmentTransform();
+    assert.deepEqual(bounded.lower,[0,27,8]);assert.deepEqual(bounded.upper,[4,30,10]);
+    assert.deepEqual(v.events,[]);v.commitTransform();assert.equal(v.events.length,1);
+    v.setTool('scale');mesh.scale.set(.001,100,.001);v.constrainEnvironmentTransform();
+    assert.deepEqual(mesh.scale.toArray().map((s,i)=>s*(object.upper[i]-object.lower[i])),[2,30,1]);
+    // Crossing odd/even voxel sizes repeatedly must not drift the center.
+    for(let pass=0;pass<4;pass++)for(const factor of [1.5,2,1]) {
+      mesh.scale.set(factor,1,1);const preview=v.constrainEnvironmentTransform();
+      assert.ok(Math.abs(preview.center[0]-12)<=1);
+    }
+    assert.equal(mesh.position.x,12);
+    v.setTool('rotate');assert.equal(v.transform.object,null);
+  }
+});
+
+test('thin-layer environment tools preserve Z and sphere scale always remains spherical', () => {
+  for(const kind of ['obstacle_box','degradable_box','local_source']) {
+    const v=viewport(),object=environment(kind);v.domain={geometry:'thin_layer',counts_xyz:[100,100,1],spacing_um_xyz:[1,1,2]};
+    v.setObjects([object],object.id);v.setTool('scale');assert.equal(v.transform.showZ,false);
+    const mesh=v.transform.object;mesh.position.z=20;mesh.scale.set(2,3,4);v.transform.axis='Y';
+    const preview=v.constrainEnvironmentTransform();assert.equal(mesh.position.z,1);
+    if(kind==='local_source') {assert.deepEqual(mesh.scale.toArray(),[3,3,3]);assert.equal(preview.radius,15);}
+    else {assert.equal(mesh.scale.z,1);assert.deepEqual([preview.lower[2],preview.upper[2]],[0,2]);}
+    v.setMode('results');assert.equal(v.transform.object,null);
+    v.transform.object=mesh;v.commitTransform();assert.deepEqual(v.events,[]);
+  }
 });
 
 test('tool commands cannot bypass locked, hidden, unsupported or Results selection', () => {
