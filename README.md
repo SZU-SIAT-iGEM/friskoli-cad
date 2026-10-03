@@ -50,7 +50,7 @@ Do not start with the 128 µm / 256³ scene: its full 10,000-step run has not be
 - The large-domain PTS scene (128 µm cube, 256³ grid, 200 cells, 10,000 steps) is not completed; a clear central aggregation has not been demonstrated there. Step time is the current bottleneck.
 - SBML, SED-ML and GenBank/FASTA export are not supported. SBOL export covers Component core properties only.
 - Browser-size simulation and pointer-logic tests have been done; physical-device testing has not.
-- No open-source license has been chosen yet.
+- Vendored Three.js and KaTeX keep their own MIT licenses (`web/vendor/*/LICENSE`). The redistribution terms of the two source models in `docs/science/source-models` have not been checked.
 
 ## Repository layout
 
@@ -61,4 +61,8 @@ examples/           runnable scripts and example projects
 docs/               current documentation; docs/archive/ holds history
 ```
 
-Run tests with `PYTHONPATH=src python -m pytest tests`.
+Run tests with `PYTHONPATH=src python -m pytest tests` and `node --test tests/*.test.mjs`.
+
+## License
+
+[MIT](LICENSE).
