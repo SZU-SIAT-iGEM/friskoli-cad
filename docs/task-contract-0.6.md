@@ -12,6 +12,8 @@ Modular 内存估计采用 planner 的 output/state dtype 与 tensor 尺寸，�
 
 碰撞 broadphase 额外按 `32 × N²` bytes 预留 pair workspace，N 为可能同时存活的细胞数上限；覆盖 threshold、坐标差与绝对值 float64 矩阵以及同时保留的布尔 mask。提高人口 cap 会同时增加这项二次空间和状态/输出预算。
 
+模块还可声明 `workspace_bytes` 的 fixed/per_voxel/per_cell，planner 按节点求和后加入 Task 预算。Triangle mesh 的声明为 128 MiB fixed + 1024 bytes/voxel，覆盖 mesh 分块工作区和可能的 voxel BoxObstacle 对象。
+
 Project 0.6 可设置 `system_limits.max_cells`，默认 256，含全部 population；不得超过 Task service 的 cells 资源上限。Modular 不沿用旧 spatial 的固定 256 能力上限。预算按声明的 cap 预留分裂后内存和输出；到达 cap 后再尝试分裂会以 `resource.cell_limit` 结束 Task，不提交该步，也不记录为生物分裂受抑或几何阻塞。worker 保存最后已提交状态。可对失败运行预演迁移，显式提高该资源设置后创建子段继续，方程、细胞、RNG 与库存不变。
 
 新运行每隔 `checkpoint_every_steps`（默认 1000）保存完整状态。数值 worker 在既有壁钟预算的 70% 附近保存状态并排回队列，使用相同 run_id 自动继续；没有提高服务壁钟上限。初始化、单步或 checkpoint 自身超过实际预算仍会失败。每个 worker 只发送一个待确认消息，父服务校验文件并提交 SQLite 后才能继续。
@@ -38,9 +40,21 @@ checkpoint 格式 `task_checkpoint_version=1.0` 使用不压缩 ZIP；metadata �
 
 返回 `preview_sha256` 和逐物种库存审计。执行 `/migrate` 时带上相同输入、preview hash、request_id/edit_revision 和幂等 key。只在候选项目、数组、模块状态、几何、库存及 RNG 全部校验通过后创建子段；预演或发布失败不改变父段。
 
-当前映射是同一物理域内的守恒体积平均重划，保留细胞身份、位置、模块状态和未来日程；旧场模块可显式改变 diffusivity。不同物理域、未知模块状态映射、隐式改变物种库存或图结构会拒绝。障碍体素变化若会吞掉库存，必须提供另一种明确支持的映射，当前不会静默清零或填补。
+上述三字段映射用于同一物理域内的守恒体积平均重划，保留细胞身份、位置、模块状态和未来日程；旧场模块可显式改变 diffusivity。未知模块状态映射、隐式改变物种库存或图结构会拒绝。障碍体素变化若会吞掉库存，同样拒绝。
 
-Modular state 必须声明 `on_migration`：非场状态接受 `copy`；场 scalar 接受 `conservative_regrid`，并按已支持 quantity/unit 区分 uM 浓度与每格 molecule amount，后者额外按体素体积比转换以保持总 amount。未知单位、field.vector/tensor 和未实现的 module mapper 会拒绝。自定义 domain/cell/source 迁移 provider 尚未实现。
+Project 0.6 / modular-spatial-v1 还支持显式物理域映射，其他 profile 保留原同域限制：
+
+```json
+{"fields":"conservative-volume","cells":"identity","module_state":"identity","domain":"physical-coordinates-zero-fill","sources":"identity"}
+```
+
+原点和物理 XYZ 坐标保持不变，不缩放细胞、材料或来源。相同 geometry mode 下可扩域，新体积浓度为零；缩域只允许裁切零库存。任何非零浓度/amount，即使很小，若对应体素有部分被裁切，也会拒绝。真实细胞外形、材料几何、来源支持域、未来空间日程和保存的死亡材料位置必须仍合法。自定义模块尚无独立的空间支持声明与映射注册合同，异域迁移提前拒绝；内置模块的物理支持按已知参数和状态检查。
+
+Modular state 必须声明 `on_migration`：非场状态接受 `copy`；场 scalar/vector/tensor 接受 `conservative_regrid`。支持浮点 uM concentration 与每格 molecule amount，vector/tensor 按 ZYX 后声明的分量逐一积分；每格 amount 额外按体素体积比转换。未知单位、整数场、未解析的 tensor_shape 或 module mapper 拒绝。非零缩域外流需要独立的外流库存账及 module-state 结算合同，当前没有这项机制，不能静默删库存。
+
+预演 audit 返回 source/target grid、固定坐标/零填充/零裁切规则、逐物种和逐场分量库存，以及 origin project hash；创建子段的 accepted 事件和后续 Task/Manifest 包含 `migration_audit`。异域 checkpoint 保存首次迁移前 `migration_origin_project`，完整核对除已支持域/资源/diffusivity之外的科学参数、图、种子字段、依赖锁与日程，并从原域重新计算初始库存基准。连续迁移保留最初 origin，不把扩域初始化误记为新增营养；binary 下载重读和后续 checkpoint 继续保留它。
+
+迁移边界保留非场模块的最后已提交输出和 observer 指标；它们在下一数值步按模块顺序更新，不在迁移时额外推进方程或日程。
 
 ## 逐帧数组与索引分页
 

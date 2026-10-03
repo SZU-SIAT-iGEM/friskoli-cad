@@ -600,6 +600,9 @@
             "object",
             "null"
           ]
+        },
+        "migration_audit": {
+          "type": "object"
         }
       },
       "allOf": [
@@ -1201,6 +1204,9 @@
             "null"
           ],
           "minimum": 0
+        },
+        "migration_audit": {
+          "type": "object"
         }
       },
       "allOf": [
@@ -2313,6 +2319,103 @@
               }
             }
           }
+        }
+      }
+    },
+    "MigrationMapping": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fields",
+            "cells",
+            "module_state"
+          ],
+          "properties": {
+            "fields": {
+              "const": "conservative-volume"
+            },
+            "cells": {
+              "const": "identity"
+            },
+            "module_state": {
+              "const": "identity"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fields",
+            "cells",
+            "module_state",
+            "domain",
+            "sources"
+          ],
+          "properties": {
+            "fields": {
+              "const": "conservative-volume"
+            },
+            "cells": {
+              "const": "identity"
+            },
+            "module_state": {
+              "const": "identity"
+            },
+            "domain": {
+              "const": "physical-coordinates-zero-fill"
+            },
+            "sources": {
+              "const": "identity"
+            }
+          }
+        }
+      ]
+    },
+    "MigrationPreviewRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project",
+        "mapping"
+      ],
+      "properties": {
+        "project": {
+          "$ref": "#/$defs/Submission/properties/project"
+        },
+        "mapping": {
+          "$ref": "#/$defs/MigrationMapping"
+        }
+      }
+    },
+    "MigrationRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project",
+        "mapping",
+        "request_id",
+        "edit_revision",
+        "preview_sha256"
+      ],
+      "properties": {
+        "project": {
+          "$ref": "#/$defs/Submission/properties/project"
+        },
+        "mapping": {
+          "$ref": "#/$defs/MigrationMapping"
+        },
+        "request_id": {
+          "$ref": "#/$defs/Submission/properties/request_id"
+        },
+        "edit_revision": {
+          "$ref": "#/$defs/Submission/properties/edit_revision"
+        },
+        "preview_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
         }
       }
     }

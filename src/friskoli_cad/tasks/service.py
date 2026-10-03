@@ -396,6 +396,8 @@ class TaskService:
                 target = folder / 'resume.zip'
                 shutil.copyfile(source, target)
                 task.update(parent_run_id=relation.get('parent_run_id'), start_step=relation['step_index'])
+                if 'migration_audit' in relation:
+                    task['migration_audit'] = relation['migration_audit']
                 task['progress'] = {'committed_step':relation['step_index'], 'simulation_time_s':relation['time_s']}
                 self._db.execute('INSERT INTO continuation VALUES(?,?)', (run_id, str(target)))
             self._db.execute("INSERT INTO tasks(run_id,task,input,plan,provenance,created) VALUES(?,?,?,?,?,?)",
@@ -456,6 +458,7 @@ class TaskService:
                 "compiled_plan": canonical_loads(row["plan"]), "provenance": canonical_loads(row["provenance"]),
                 "status": task["status"], "completeness": task["result"]["completeness"],
                 "progress": task["progress"], "issues": task["issues"],
+                **({'migration_audit':task['migration_audit']} if 'migration_audit' in task else {}),
                 **({"artifacts": [canonical_loads(item[0]) for item in self._db.execute(
                     "SELECT metadata FROM artifacts WHERE run_id=? AND artifact_id IN ('checkpoint','final_fields') ORDER BY artifact_id", (run_id,)).fetchall()]}
                    if task["task_contract_version"] in ("0.5.0", "0.6.0") else {}),
@@ -575,7 +578,7 @@ class TaskService:
                 metadata = save_task_checkpoint(candidate,path,maximum=self.limits.estimated_memory_bytes,
                     task_context={**document.get('task_context',{}),'migration':audit,'source_run_id':run_id})
                 child, created = self.submit(submission,key,_resume=(path,{'parent_run_id':run_id,
-                    'step_index':candidate.frame_index,'time_s':candidate.time_s,'sha256':metadata['sha256']}))
+                    'step_index':candidate.frame_index,'time_s':candidate.time_s,'sha256':metadata['sha256'],'migration_audit':audit}))
             return {'task':child,'created':created,'audit':audit}
         except TaskError:
             raise

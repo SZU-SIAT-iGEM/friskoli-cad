@@ -32,9 +32,19 @@ python -m pytest tests/test_task_longrun.py tests/test_task_longrun_http.py test
 
 ## 迁移支持范围
 
-已支持同一物理域内改变网格：浓度按体积平均映射；每格 `molecule` amount 按体素体积比转换，分别检查库存守恒。新模块 state 必须显式声明 `on_migration`；保留状态只接受 `copy`，网格 scalar 只接受 `conservative_regrid` 且单位/quantity 必须有已实现映射。历史 profile 保留明确的 concentration adapter。
+已支持同一物理域内改变网格：浓度按体积平均映射；每格 `molecule` amount 按体素体积比转换，分别检查库存守恒。新模块 state 必须显式声明 `on_migration`；保留状态只接受 `copy`，网格 scalar/vector/tensor 只接受 `conservative_regrid` 且浮点单位/quantity 必须有已实现映射，tensor 分量尺寸必须明确。历史 profile 保留明确的 concentration adapter。
 
-未知单位、field.vector/field.tensor、缺少声明或要求 module 自定义 mapper 的状态会拒绝。物理域变化、细胞/来源位置转换、自定义 domain/cell/source migration provider 尚未实现。障碍重划若吞库存同样拒绝。预演及发布失败不修改父段。
+Project 0.6 额外支持 `physical-coordinates-zero-fill`：固定原点和 XYZ 物理坐标，扩域零填充，缩域仅裁切零库存；检查细胞、来源/材料支持和未来空间日程合法。首次迁移前项目作为 checkpoint origin 保存，用于复算原始库存而非目标扩域初始化库存；多次迁移、下载重读与后续继续保持该基准。
+
+`tests/test_task_domain_migration.py` 覆盖非零初始库存扩域、binary 重读与连续计算一致、重复迁移保留 origin、空区域缩域、非零和极小非零裁切拒绝、来源支持域与细胞越界拒绝、vector/tensor 分量 amount 在非整比网格上守恒、origin 科学字段篡改拒绝，以及真实 Task 预演/发布/子段完成/Schema/audit。
+
+映射按每个目标体素的局部 overlap 累加，不用全域累计积分相减。高动态范围 `[1e20,1]` 细化时，后两格浓度精确保留为 1；扩域尾格为零。另验证声明 float32 无法表示细分后最小正 amount 时明确拒绝，不静默下溢。精度与 tensor/vector 专项 **3 passed**，0.40 s。
+
+`tests/test_task_resource_estimates.py` 在不创建 mesh voxel arrays/BoxObstacle 的条件下，核对 mesh 声明的 128 MiB fixed + 1024 bytes/voxel workspace 已加到 Task 内存预算，并随 200→40,000 voxels 增长；专项 **1 passed**，3.33 s。
+
+上述异域迁移与资源增补后，隔离运行 domain migration、longrun、longrun HTTP、modular science、resource estimates 五个文件：**44 passed**，252.64 s。证据日志在本机临时目录 `friskoli-domain-validation-final-20261003/validation.log`。随后对 dtype 拒绝和原未来日程作针对验证：精度/分量 **3 passed**，扩域及重读后原 `.03 s` pulse 仍释放 100 molecules 的测试 **1 passed**，6.68 s。
+
+未知单位、整数场、缺少迁移声明或要求 module 自定义 mapper 的状态拒绝。非零缩域外流尚缺外流账和状态结算合同；自定义模块尚缺空间支持声明和 domain mapper 注册合同；坐标旋转、缩放、来源移动及 geometry mode 改变均未实现，明确拒绝。障碍重划若吞库存同样拒绝。预演及发布失败不修改父段。
 
 旧 profile 在 step=0 严格校验目标初始化。若保守重划结果不同于目标网格的显式初始化（例如梯度重新采样），迁移拒绝；需要实际执行至少一步后暂停再迁移。
 

@@ -150,6 +150,7 @@ def estimate(submission, registry) -> dict:
         # matrices plus current/previous/initial boolean masks. Round their
         # peak simultaneous footprint (<=28 bytes/pair) up to 32 bytes/pair.
         memory += 32 * budget_cells * budget_cells
+        memory += planned.get('declared_workspace_bytes',0)
     # UTF-8 names and channel IDs are included, rather than assuming ASCII names.
     channel_bytes = sum(len(name.encode("utf-8")) + 32
                         for name in submission["output_plan"]["observables"])

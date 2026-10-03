@@ -1167,7 +1167,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/MigrationPreviewRequest"
               }
             }
           }
@@ -1208,7 +1208,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object"
+                "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/MigrationRequest"
               }
             }
           }
