@@ -1,5 +1,7 @@
 # Task transport performance and long-duration preparation
 
+Current long-duration implementation (2026-10-03): Task 0.6 provides 4,320,000-step admission, sparse output, bounded array transport, complete binary checkpoints, and automatic committed-boundary worker rotation. The 43,200 × 1 s foundation task has run to completion; it is not a PTS 4,320,000-step result. See [Task 0.6](task-contract-0.6.md) and [verification](verification-system-tasks.md). Sections below retain their dated historical measurements.
+
 ## Conservative collision broad phase (2026-10-02)
 
 `collision.guard_motion` retains the exact capsule spine/segment, capsule/box,

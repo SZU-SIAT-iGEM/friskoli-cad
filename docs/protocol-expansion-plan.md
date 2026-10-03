@@ -1,6 +1,6 @@
 # 协议扩展计划
 
-初稿：2026-09-29；实施状态更新：2026-10-02。
+初稿：2026-09-29；实施状态更新：2026-10-03。
 
 **计划已扩展：** 本页保留原 4c–5 的能力与验收清单。当前实施顺序采用[新版工程路线](design/roadmap-and-acceptance.md)，合同细节见[协议与执行设计](design/contracts-and-execution.md)，完整产品目标见[设计总纲](design/README.md)。原清单顺序不再代表硬性前置关系，环境热切换调整到首个 CAD 案例之后。
 
@@ -10,12 +10,12 @@
 
 | 层 | 当前版本 | 处理范围 |
 | --- | --- | --- |
-| 模块、行为图和连接规则 | `0.1.0` | 端口形状、物理量、单位、物种、参数、状态和时间语义 |
+| 模块、行为图和连接规则 | 历史 `0.1.0`；统一 profile `0.2.0` | 端口形状、物理量、单位、物种、参数、状态和时间语义 |
 | 单菌体几何帧 | `0.2.0` | 胶囊尺寸、位置、朝向和事件序列 |
-| 工作区 | `0.6.0`，读取 `0.1–0.5` | 项目草稿、菌群体积块、图布局、运行设置和设计草稿 |
+| 工作区 | `0.7.0`，读取 `0.1–0.6` | 项目草稿、菌群体积块、图布局、运行设置和设计草稿 |
 | Local API | `0.2.0`，按 profile 协商任务合同 | capabilities、catalog、validate、旧同步 replay 与异步任务 |
-| 科学项目/注册/任务 | PTS：Project `0.3` / Catalog、Task `0.2`；空间：Project `0.4` / Catalog、Task `0.3`；科学：Project `0.5` / Catalog、Task `0.4`；通用 Task `0.5` 另行协商 | 独立执行规则、真实场与库存、场预览和末帧 NPZ，不改变旧规则 |
-| Checkpoint 文件 | 空间文件 `0.1.0` / `spatial-checkpoint/v2`；科学文件 `0.2.0` / `chemotaxis-checkpoint/v1` | 冻结项目和完整空间状态，库/CLI 原子保存恢复；任务暂停续算未开放 |
+| 科学项目/注册/任务 | PTS：Project `0.3` / Catalog、Task `0.2`；空间：Project `0.4` / Catalog、Task `0.3`；科学：Project `0.5` / Catalog、Task `0.4`；统一 profile：Project `0.6` / Catalog `0.5` / Task `0.6`；Task `0.5/0.6` 另行协商 | 独立执行规则、真实场与库存、场预览和末帧 NPZ，不改变旧规则 |
+| Checkpoint 文件 | 空间文件 `0.1.0` / `spatial-checkpoint/v2`；科学文件 `0.2.0` / `chemotaxis-checkpoint/v1` | 冻结项目和完整空间状态，库/CLI 原子保存恢复；Task 0.6 另有二进制完整 checkpoint、暂停和关联续算 |
 | Replay | `0.1.0` | 不可变运行结果、帧、事件、环境场 |
 
 现有共享模块协议继续保持兼容。工作区和 Local API 各自版本化，不能因为界面字段变化就一起升级所有协议。
@@ -117,4 +117,4 @@
 
 ## 开工顺序
 
-N1–N3 已完成对应实现，N3 证据见[完整记录](verification-n3-complete.md)。N4 核心与多项修订、原生导出、Wiki 和标准子集已接入，当前推进[完整 N5 模拟与主前端流程](verification-n5-simulation.md)，尚未完成 10000 步验收。N6 已有注册实体、有限接触降解和碰撞子集，来源营养/表达/健康/分裂已随 N3 接入；完整材料化学与能量账仍待推进。M4 已提供空间 checkpoint 文件与独立进程恢复；服务级暂停续算及环境迁移属于 N7，标定和进一步性能扩展属于 N8。具体顺序见[开发安排](development-order.md)，缺口见[剩余工作清单](remaining-work.md)。
+N1–N3 已完成对应实现，N3 证据见[完整记录](verification-n3-complete.md)。N4 核心与多项修订、原生导出、Wiki 和标准子集已接入，当前推进[完整 N5 模拟与主前端流程](verification-n5-simulation.md)，尚未完成 10000 步验收。N6 已有注册实体、有限接触降解和碰撞子集，来源营养/表达/健康/分裂已随 N3 接入；完整材料化学与能量账仍待推进。M4 已提供空间 checkpoint 文件与独立进程恢复；服务级暂停续算和同域守恒迁移已由 Task 0.6 实现，未知映射保持拒绝；标定和进一步性能扩展属于 N8。具体顺序见[开发安排](development-order.md)，缺口见[剩余工作清单](remaining-work.md)。
