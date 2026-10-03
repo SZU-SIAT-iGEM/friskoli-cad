@@ -2,6 +2,8 @@
 
 本案例使用普通 graph 与注册模块，不含按案例 ID 选择的执行逻辑。`make_n5_acceptance()` 生成 `n5_b_lifecycle_128um.project.json`。运行设置是 **dt = 0.01 s、10000 数值步、总模拟时间 100 s**。域边长为 **128 µm**，即 128 × 128 × 128 µm；它不是体积 128 µm³。
 
+欢迎页科学示例首项为 **一万步 · PTS 与随机游走对照 / 10,000 steps · PTS vs random walk**。打开即载入上述完整场景、seed 42、CUDA扩散、每100步保存一帧、8×8×8格合并的回放场和完整分辨率末帧导出。预览场合并不改变256³计算网格；按 Run 才开始计算。
+
 原模型 A 没有分裂；原模型 B 包含摄取、生长、表达、健康与面积分裂。本案例选 B 完整生命周期，不以 maintenance reserve 代替生长。旧 `chemotaxis-lifecycle` 保持加速演示性质与原参数；不得把该旧例的 μmax=1/min 或 yield=0.001 µm³/molecule 当作原 B 参数。
 
 ## 可追溯参数

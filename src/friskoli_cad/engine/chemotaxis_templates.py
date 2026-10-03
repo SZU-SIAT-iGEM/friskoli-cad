@@ -24,8 +24,8 @@ EXAMPLES.update({key: ('Complete · ' + EXAMPLES[base][0],
     'Explicit uptake, finite maintenance reserve and delayed starvation survival, with ' + EXAMPLES[base][1])
     for key, base in FOUNDATIONS.items()})
 N5_EXAMPLE_ID = 'n5-b-lifecycle-128um'
-REGISTERED_EXAMPLES = {**EXAMPLES, N5_EXAMPLE_ID: ('简化版完整生命周期 / Simplified lifecycle · 128 µm central source',
-    '100 PTS + 100 matched constant-bias controls; original B biological parameters, finite central soluble source, complete lifecycle and radial observations.')}
+REGISTERED_EXAMPLES = {N5_EXAMPLE_ID: ('一万步 · PTS 与随机游走对照 / 10,000 steps · PTS vs random walk',
+    '128 × 128 × 128 µm; 100 PTS + 100 controls; central nutrient source; dt 0.01 s × 10,000 = 100 s; save every 100 steps. Simplified-model lifecycle, CUDA diffusion and full final field export.'), **EXAMPLES}
 
 
 def _module_ids(example):

@@ -4,6 +4,8 @@
 
 ## 当前执行位置（2026-10-03）
 
+万步运行快捷预设：欢迎页科学示例首项现为“一万步 · PTS 与随机游走对照”，直接载入N5场景及完整运行/输出设置。dt=.01 s、10000步、seed 42、每100步保存、CUDA扩散。通过工作区保存/读取、实际前端submission构建及主服务HTTP preflight，valid=true、issues为空；等待用户发起完整运行，预设本身不代表万步验收通过。参数见[N5场景说明](docs/science/n5-b-lifecycle.md)。
+
 本轮按 A03、S01–S10、M01–M11、U01–U12 扩展系统与模块。先提交了最终语义计划 `ba96ef8`，再并行实现统一接口、任务、科学过程和工作区。[实施记录](docs/implementation-2026-10-03.md)逐项列实际能力与边界，[系统运行图](docs/system-execution.md)给出完整用户/任务流程和单次数值步，[模块索引](docs/module-reference.md)列出73个注册模块。
 
 - **统一执行**：新 `modular-spatial-v1`、Project 0.6、Module/Graph 0.2、Catalog 0.5；基础与特殊科学模块使用同一 Context/proposal/effects 合同。类型、阶段、owner、生命周期、催化资源及结构参数错误前置；共享场、几何和 RNG 事务由系统提交。
