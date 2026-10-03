@@ -146,6 +146,10 @@ def estimate(submission, registry) -> dict:
         memory = (64 * 1024 * 1024 + voxels * (species_count * 8 * 16 + 8)
                   + 16 * (planned['numeric_outputs_bytes'] + planned['numeric_state_bytes'])
                   + 16 * RECORD_BYTE_LIMIT * planned['unbounded_record_ports'] + budget_cells * 8192)
+        # guard_motion.far_pairs retains threshold, subtraction and abs float64
+        # matrices plus current/previous/initial boolean masks. Round their
+        # peak simultaneous footprint (<=28 bytes/pair) up to 32 bytes/pair.
+        memory += 32 * budget_cells * budget_cells
     # UTF-8 names and channel IDs are included, rather than assuming ASCII names.
     channel_bytes = sum(len(name.encode("utf-8")) + 32
                         for name in submission["output_plan"]["observables"])

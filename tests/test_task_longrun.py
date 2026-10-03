@@ -31,6 +31,26 @@ def wait(service, identifier):
 
 
 class LongrunTests(unittest.TestCase):
+    def test_collision_workspace_scales_with_declared_population_squared(self):
+        from test_modular_science import project, add, edge
+        from friskoli_cad.engine.science_extensions import modular_registry
+        from friskoli_cad.tasks.metadata import estimate
+        p=project()
+        old=next(n for n in p['graph']['nodes'] if n['module_id']=='metabolism.reserve_balance')
+        nid=old['id']; p['graph']['nodes'].remove(old)
+        add(p,'metabolism.shared_inventory',{'species':'nutrient','initial_molecules':1e6,
+            'maintenance_molecules_s':1.,'max_growth_per_min':60.,'volume_yield_um3_molecule':.001},nid=nid,population=True)
+        division=add(p,'division.volume_adder',{'added_volume_um3':.01,'minimum_volume_um3':0.,'daughter_fraction':.5},population=True)
+        edge(p,nid,'volume',division,'volume')
+        submission={'project':p,'task_contract_version':'0.6.0','execution':{'backend':'numpy-cpu','steps':1},
+                    'output_plan':{'frame_every_steps':1,'include_fields':False,'observables':[]}}
+        sizes={}
+        for cap in (300,1000,2000):
+            p['system_limits']={'max_cells':cap}
+            sizes[cap]=estimate(submission,modular_registry())['memory_bytes']
+        self.assertGreaterEqual(sizes[2000]-sizes[300],32*(2000**2-300**2))
+        self.assertGreater((sizes[2000]-sizes[1000])/1000,(sizes[1000]-sizes[300])/700)
+
     def test_project_cell_cap_stops_task_without_committing_division(self):
         from test_modular_science import project, add, edge
         from friskoli_cad.tasks import TaskError
