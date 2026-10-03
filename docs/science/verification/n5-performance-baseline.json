@@ -1,0 +1,563 @@
+{
+  "date": "2026-10-03",
+  "baseline_commit": "6a14e14",
+  "optimization_implemented": false,
+  "task": {
+    "run_id": "run_fcb0b86ffc534ae99d78b9a565231920",
+    "input_sha256": "6d33e0a2b38478ffe6e2ec227992f677699e0d4b2ed2883c55df4166144a3578",
+    "started": "2026-10-03T10:02:22.230Z",
+    "paused": "2026-10-03T10:28:12.558Z",
+    "wall_s": 1550.328,
+    "committed_step": 745,
+    "simulation_time_s": 7.45,
+    "seconds_per_step_end_to_end": 2.0809771812080538
+  },
+  "environment": {
+    "python": "3.11.9",
+    "platform": "Windows-10-10.0.22621-SP0",
+    "numpy": "2.1.2",
+    "backend_environment": {
+      "cupy_version": "13.6.0",
+      "cuda_runtime_version": 11080,
+      "driver_version": 13030,
+      "device_name": "NVIDIA GeForce RTX 4060 Laptop GPU",
+      "compute_capability": "89"
+    }
+  },
+  "configuration": {
+    "execution": {
+      "backend": "numpy-cupy-cuda",
+      "dt_s": 0.01,
+      "seed": 42,
+      "semantics": "chemotaxis-spatial-v1",
+      "steps": 10000
+    },
+    "grid": {
+      "shape_zyx": [
+        256,
+        256,
+        256
+      ],
+      "spacing_xyz_um": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    "cells": 200,
+    "diffusivities_um2_s": {
+      "nutrient": 65.0
+    },
+    "diffusion_substeps_per_outer_step": 18
+  },
+  "methodology": {
+    "source_hashes_match_paused_task": true,
+    "source_changed": false,
+    "service_modified": false,
+    "warmup_steps": 1,
+    "stage_timing_steps": [
+      752,
+      753,
+      754,
+      755,
+      756
+    ],
+    "stage_timing_s": 8.68826700000136,
+    "exclusive_definition": "Wall time excluding other instrumented stages only; not CPU self time.",
+    "limitation": "Shared host, short samples at initial and step-745 states. Consecutive states differ between profiling modes. No full 10000-step or 12h result and no speedup claim."
+  },
+  "ordinary_step_measurements": {
+    "initial_steps_2_to_4_s": [
+      1.5585194999985106,
+      1.267879900002299,
+      1.60399630000029
+    ],
+    "restored_steps_747_to_749_s": [
+      1.4669842000002973,
+      1.6247777999997197,
+      1.5777360000029148
+    ],
+    "restored_steps_747_to_751_s": [
+      1.8936089999988326,
+      1.8814729000005173,
+      1.9211823999976332,
+      1.7755231000010099,
+      1.8036245000002964
+    ]
+  },
+  "stage_timings": {
+    "prepare": {
+      "calls": 5,
+      "inclusive_s": 0.01726510000662529,
+      "exclusive_s": 0.01726510000662529
+    },
+    "immutable_field_storage": {
+      "calls": 45,
+      "inclusive_s": 0.26015580001694616,
+      "exclusive_s": 0.26015580001694616
+    },
+    "field_state_validation": {
+      "calls": 20,
+      "inclusive_s": 0.7663867999945069,
+      "exclusive_s": 0.7662632999818015
+    },
+    "writable_field_copy": {
+      "calls": 5,
+      "inclusive_s": 0.2082189999964612,
+      "exclusive_s": 0.2082189999964612
+    },
+    "inventory_reductions": {
+      "calls": 20,
+      "inclusive_s": 2.647826000003988,
+      "exclusive_s": 2.647826000003988
+    },
+    "cuda_diffusion_and_transfer": {
+      "calls": 5,
+      "inclusive_s": 1.3804053000021668,
+      "exclusive_s": 1.3804053000021668
+    },
+    "field_transaction": {
+      "calls": 5,
+      "inclusive_s": 5.090795300002355,
+      "exclusive_s": 0.36741039999833447
+    },
+    "motion": {
+      "calls": 5,
+      "inclusive_s": 1.4704117000001133,
+      "exclusive_s": 1.4704117000001133
+    },
+    "physiology": {
+      "calls": 5,
+      "inclusive_s": 0.3246454000000085,
+      "exclusive_s": 0.3246454000000085
+    },
+    "output_validation": {
+      "calls": 5,
+      "inclusive_s": 0.1929400999979407,
+      "exclusive_s": 0.1929400999979407
+    },
+    "freeze_outputs": {
+      "calls": 10,
+      "inclusive_s": 0.1806529999958002,
+      "exclusive_s": 0.1806529999958002
+    },
+    "frame_construction": {
+      "calls": 5,
+      "inclusive_s": 0.019476799992844462,
+      "exclusive_s": 0.019476799992844462
+    },
+    "frame_validation": {
+      "calls": 5,
+      "inclusive_s": 0.669022899994161,
+      "exclusive_s": 0.669022899994161
+    },
+    "total": {
+      "calls": 5,
+      "inclusive_s": 8.68826700000136,
+      "exclusive_s": 0.18357220001416863
+    }
+  },
+  "separate_operations": {
+    "initialize_from_project_s": 2.518039900001895,
+    "restore_checkpoint_s": 7.429186199999094,
+    "preview_array_generation_s": 0.04232950000005076,
+    "checkpoint_save_s": 4.428657000000385,
+    "checkpoint_bytes": 420405699,
+    "note": "Preview excludes output validation, serialization, IPC, durable publication and rendering. Checkpoint is an independent save in the temporary audit directory."
+  },
+  "cuda_breakdown": {
+    "repeat": [
+      {
+        "upload_and_buffers_s": 0.02200509999966016,
+        "kernel_gpu_event_s": 0.11583382415771484,
+        "download_s": 0.05039799999940442,
+        "result_validation_s": 0.03165589999844087
+      },
+      {
+        "upload_and_buffers_s": 0.07141319999936968,
+        "kernel_gpu_event_s": 0.07621180725097657,
+        "download_s": 0.06227579999904265,
+        "result_validation_s": 0.030984500001068227
+      },
+      {
+        "upload_and_buffers_s": 0.023699499997746898,
+        "kernel_gpu_event_s": 0.07557408142089844,
+        "download_s": 0.06498600000122678,
+        "result_validation_s": 0.03759060000083991
+      }
+    ],
+    "exact_match_to_original_diffuse_cuda": true,
+    "grid": [
+      256,
+      256,
+      256
+    ],
+    "dt_s": 0.01,
+    "substeps": 18,
+    "checkpoint_step": 745,
+    "note": "Isolated existing field; phase synchronization added for measurement. Includes no release, uptake or motion; not a full-step speedup."
+  },
+  "public_observations": [
+    {
+      "step": 0,
+      "time_s": 0,
+      "metrics": {
+        "by_group": {
+          "control": {
+            "ever_arrived_fraction": 0.05,
+            "initial_count": 100,
+            "live_count": 100,
+            "mean_displacement_um": 0,
+            "mean_residence_s": 0,
+            "radial": {
+              "center_um": [
+                64,
+                64,
+                64
+              ],
+              "live_descendant_count": 0,
+              "live_founder_count": 100,
+              "mean_distance_um": 58.97692428941024,
+              "mean_inward_displacement_um": 0,
+              "shells": [
+                {
+                  "founder_ever_arrived_fraction": 0.01,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0,
+                  "live_count": 1,
+                  "live_fraction": 0.01,
+                  "radius_um": 10,
+                  "volume_enrichment": 5.006581608225818
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.01,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0,
+                  "live_count": 1,
+                  "live_fraction": 0.01,
+                  "radius_um": 20,
+                  "volume_enrichment": 0.6258227010282272
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.15,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0,
+                  "live_count": 15,
+                  "live_fraction": 0.15,
+                  "radius_um": 40,
+                  "volume_enrichment": 1.1734175644279259
+                }
+              ]
+            },
+            "region_fraction": 0.05
+          },
+          "pts": {
+            "ever_arrived_fraction": 0.05,
+            "initial_count": 100,
+            "live_count": 100,
+            "mean_displacement_um": 0,
+            "mean_residence_s": 0,
+            "radial": {
+              "center_um": [
+                64,
+                64,
+                64
+              ],
+              "live_descendant_count": 0,
+              "live_founder_count": 100,
+              "mean_distance_um": 58.97692428941024,
+              "mean_inward_displacement_um": 0,
+              "shells": [
+                {
+                  "founder_ever_arrived_fraction": 0.01,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0,
+                  "live_count": 1,
+                  "live_fraction": 0.01,
+                  "radius_um": 10,
+                  "volume_enrichment": 5.006581608225818
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.01,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0,
+                  "live_count": 1,
+                  "live_fraction": 0.01,
+                  "radius_um": 20,
+                  "volume_enrichment": 0.6258227010282272
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.15,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0,
+                  "live_count": 15,
+                  "live_fraction": 0.15,
+                  "radius_um": 40,
+                  "volume_enrichment": 1.1734175644279259
+                }
+              ]
+            },
+            "region_fraction": 0.05
+          }
+        },
+        "metric_version": "0.1.0",
+        "observation_id": "central_box_legacy"
+      },
+      "groups": {
+        "pts": {
+          "mean_actual_motor_bias": 0.13571263629578528,
+          "tumble_count": 0,
+          "blocked_count": 0,
+          "within_1um_of_wall_count": 0
+        },
+        "control": {
+          "mean_actual_motor_bias": 0.13571263629578553,
+          "tumble_count": 0,
+          "blocked_count": 0,
+          "within_1um_of_wall_count": 0
+        }
+      }
+    },
+    {
+      "step": 100,
+      "time_s": 1.0000000000000007,
+      "metrics": {
+        "by_group": {
+          "control": {
+            "ever_arrived_fraction": 0.06,
+            "initial_count": 100,
+            "live_count": 100,
+            "mean_displacement_um": -0.1985012763833717,
+            "mean_residence_s": 0.042500000000000024,
+            "radial": {
+              "center_um": [
+                64,
+                64,
+                64
+              ],
+              "live_descendant_count": 0,
+              "live_founder_count": 100,
+              "mean_distance_um": 60.389211615311105,
+              "mean_inward_displacement_um": -1.4122873259008588,
+              "shells": [
+                {
+                  "founder_ever_arrived_fraction": 0.01,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0.0026000000000000007,
+                  "live_count": 0,
+                  "live_fraction": 0,
+                  "radius_um": 10,
+                  "volume_enrichment": 0
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.02,
+                  "founder_mean_first_arrival_s": 0.38500000000000023,
+                  "founder_mean_residence_s": 0.012300000000000009,
+                  "live_count": 2,
+                  "live_fraction": 0.02,
+                  "radius_um": 20,
+                  "volume_enrichment": 1.2516454020564545
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.18,
+                  "founder_mean_first_arrival_s": 0.04444444444444446,
+                  "founder_mean_residence_s": 0.12830000000000008,
+                  "live_count": 10,
+                  "live_fraction": 0.1,
+                  "radius_um": 40,
+                  "volume_enrichment": 0.7822783762852841
+                }
+              ]
+            },
+            "region_fraction": 0.03
+          },
+          "pts": {
+            "ever_arrived_fraction": 0.05,
+            "initial_count": 100,
+            "live_count": 100,
+            "mean_displacement_um": -0.3025637599106423,
+            "mean_residence_s": 0.044800000000000034,
+            "radial": {
+              "center_um": [
+                64,
+                64,
+                64
+              ],
+              "live_descendant_count": 0,
+              "live_founder_count": 100,
+              "mean_distance_um": 59.136197284188555,
+              "mean_inward_displacement_um": -0.15927299477830992,
+              "shells": [
+                {
+                  "founder_ever_arrived_fraction": 0.01,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0.0026000000000000007,
+                  "live_count": 0,
+                  "live_fraction": 0,
+                  "radius_um": 10,
+                  "volume_enrichment": 0
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.02,
+                  "founder_mean_first_arrival_s": 0.23000000000000012,
+                  "founder_mean_residence_s": 0.015400000000000011,
+                  "live_count": 2,
+                  "live_fraction": 0.02,
+                  "radius_um": 20,
+                  "volume_enrichment": 1.2516454020564545
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.17,
+                  "founder_mean_first_arrival_s": 0.02176470588235295,
+                  "founder_mean_residence_s": 0.1574000000000001,
+                  "live_count": 15,
+                  "live_fraction": 0.15,
+                  "radius_um": 40,
+                  "volume_enrichment": 1.1734175644279259
+                }
+              ]
+            },
+            "region_fraction": 0.05
+          }
+        },
+        "metric_version": "0.1.0",
+        "observation_id": "central_box_legacy"
+      },
+      "groups": {
+        "pts": {
+          "mean_actual_motor_bias": 0.9970583576539884,
+          "tumble_count": 48,
+          "blocked_count": 6,
+          "within_1um_of_wall_count": 12
+        },
+        "control": {
+          "mean_actual_motor_bias": 0.13571263629578553,
+          "tumble_count": 11,
+          "blocked_count": 14,
+          "within_1um_of_wall_count": 14
+        }
+      }
+    },
+    {
+      "step": 700,
+      "time_s": 6.999999999999895,
+      "metrics": {
+        "by_group": {
+          "control": {
+            "ever_arrived_fraction": 0.12,
+            "initial_count": 100,
+            "live_count": 100,
+            "mean_displacement_um": -1.0341874976929193,
+            "mean_residence_s": 0.14459999999999865,
+            "radial": {
+              "center_um": [
+                64,
+                64,
+                64
+              ],
+              "live_descendant_count": 0,
+              "live_founder_count": 100,
+              "mean_distance_um": 69.91838951267637,
+              "mean_inward_displacement_um": -10.941465223266121,
+              "shells": [
+                {
+                  "founder_ever_arrived_fraction": 0.03,
+                  "founder_mean_first_arrival_s": 2.5666666666666416,
+                  "founder_mean_residence_s": 0.0215999999999996,
+                  "live_count": 1,
+                  "live_fraction": 0.01,
+                  "radius_um": 10,
+                  "volume_enrichment": 5.006581608225818
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.05,
+                  "founder_mean_first_arrival_s": 2.71599999999997,
+                  "founder_mean_residence_s": 0.07759999999999896,
+                  "live_count": 2,
+                  "live_fraction": 0.02,
+                  "radius_um": 20,
+                  "volume_enrichment": 1.2516454020564545
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.29,
+                  "founder_mean_first_arrival_s": 1.3389655172413668,
+                  "founder_mean_residence_s": 0.5869999999999929,
+                  "live_count": 5,
+                  "live_fraction": 0.05,
+                  "radius_um": 40,
+                  "volume_enrichment": 0.39113918814264204
+                }
+              ]
+            },
+            "region_fraction": 0.03
+          },
+          "pts": {
+            "ever_arrived_fraction": 0.13,
+            "initial_count": 100,
+            "live_count": 100,
+            "mean_displacement_um": 3.910883410016666,
+            "mean_residence_s": 0.38829999999999415,
+            "radial": {
+              "center_um": [
+                64,
+                64,
+                64
+              ],
+              "live_descendant_count": 0,
+              "live_founder_count": 100,
+              "mean_distance_um": 62.90425104289104,
+              "mean_inward_displacement_um": -3.927326753480793,
+              "shells": [
+                {
+                  "founder_ever_arrived_fraction": 0.01,
+                  "founder_mean_first_arrival_s": 0,
+                  "founder_mean_residence_s": 0.0026000000000000007,
+                  "live_count": 0,
+                  "live_fraction": 0,
+                  "radius_um": 10,
+                  "volume_enrichment": 0
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.08,
+                  "founder_mean_first_arrival_s": 2.071249999999987,
+                  "founder_mean_residence_s": 0.16739999999999747,
+                  "live_count": 3,
+                  "live_fraction": 0.03,
+                  "radius_um": 20,
+                  "volume_enrichment": 1.8774681030846814
+                },
+                {
+                  "founder_ever_arrived_fraction": 0.27,
+                  "founder_mean_first_arrival_s": 1.7529629629629415,
+                  "founder_mean_residence_s": 1.0604999999999845,
+                  "live_count": 15,
+                  "live_fraction": 0.15,
+                  "radius_um": 40,
+                  "volume_enrichment": 1.1734175644279259
+                }
+              ]
+            },
+            "region_fraction": 0.03
+          }
+        },
+        "metric_version": "0.1.0",
+        "observation_id": "central_box_legacy"
+      },
+      "groups": {
+        "pts": {
+          "mean_actual_motor_bias": 0.34644734771457236,
+          "tumble_count": 23,
+          "blocked_count": 24,
+          "within_1um_of_wall_count": 33
+        },
+        "control": {
+          "mean_actual_motor_bias": 0.13571263629578553,
+          "tumble_count": 10,
+          "blocked_count": 47,
+          "within_1um_of_wall_count": 60
+        }
+      }
+    }
+  ],
+  "profile_artifacts_local": "C:\\Users\\WUSHAN~1\\AppData\\Local\\Temp\\friskoli-n5-perf-20261003"
+}
