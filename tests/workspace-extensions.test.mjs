@@ -3,12 +3,21 @@ import assert from 'node:assert/strict';
 import {WorkspaceSession} from '../src/friskoli_cad/web/workspace-session.mjs';
 import {alignBlock,templateUpgradePreview} from '../src/friskoli_cad/web/workspace-transactions.mjs';
 import {meanInterval,trajectorySegments,filteredEvents} from '../src/friskoli_cad/web/result-analysis.mjs';
-import {PagedReplay} from '../src/friskoli_cad/web/paged-replay.mjs';
+import {PagedReplay,LinkedReplay,exportPagedResult} from '../src/friskoli_cad/web/paged-replay.mjs';
 test('cached catalog and multiple recent projects survive a cold session independently',()=>{
  const entries=new Map(),storage={getItem:k=>entries.get(k),setItem:(k,v)=>entries.set(k,v)};
  const session=new WorkspaceSession(storage,{maxProjects:2});session.cacheCatalog({registries:{legacy:{}},capabilities:{version:1},template:{id:'demo'}});
  for(const id of ['a','b','c'])session.remember({project:{id}}, {camera:{zoom:2}});
  const reopened=new WorkspaceSession(storage);assert.equal(reopened.cachedCatalog().template.id,'demo');assert.deepEqual(reopened.recent().map(v=>v.id),['c','b']);assert.equal(reopened.recent()[0].view_state.camera.zoom,2);
+});
+test('linked checkpoint replay includes parent history once and exports every saved frame',async()=>{
+ const project={id:'p',domain:{counts_xyz:[1,1,1],spacing_um_xyz:[1,1,1],geometry:'volume'},run:{run_id:'original'}};
+ const submission={task_contract_version:'0.6.0',project,execution:{dt_s:1}};
+ const manifests={parent:{run_id:'parent',chunks:[0,1,2].map(n=>({first_step:n,bytes:100,chunk_id:String(n)}))},child:{run_id:'child',parent_run_id:'parent',chunks:[2,3].map(n=>({first_step:n,bytes:100,chunk_id:String(n)}))}};
+ const client={taskResult:async id=>manifests[id],request:async()=>submission,taskChunk:async(id,c)=>({run_id:id,frames:[{step_index:c.first_step,frame:{frame_index:c.first_step,time_s:c.first_step,cells:[],events:[]},concentrations:{}}]})};
+ const linked=await LinkedReplay.create(client,{runId:'child',project,submission},manifests.child);assert.equal(linked.frameCount,4);
+ const result=[];for await(const frame of linked.frames())result.push([frame.frame.frame_index,frame.segment_run_id]);assert.deepEqual(result,[[0,'parent'],[1,'parent'],[2,'child'],[3,'child']]);
+ const exported=JSON.parse(await (await exportPagedResult(linked)).text());assert.deepEqual(exported.replay.snapshots.map(s=>s.frame.frame_index),[0,1,2,3]);assert.equal(exported.manifest.parent_run_id,'parent');
 });
 test('rotated top alignment uses oriented outer bounds and upgrade keeps conflicts explicit',()=>{
  const block={center:[10,10,10],size:[8,2,2],rotation:[0,90,0]};

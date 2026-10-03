@@ -15,13 +15,13 @@ export function normalizeReplay(payload) {
   let previousStep = -1;
   let alive = new Map();
   const seen = new Set();
-  payload.snapshots.forEach(({ frame, concentrations }, index) => {
+  payload.snapshots.forEach(({ frame, concentrations, display_domain }, index) => {
     const currentVersion = frame?.frame_version ?? '0.1.0';
     if (!['0.1.0', '0.2.0'].includes(currentVersion) || (version && version !== currentVersion)) {
       throw new Error('badFrameVersion');
     }
     version = currentVersion;
-    const sparse = ['0.4.0','0.5.0'].includes(payload.execution?.task_contract_version);
+    const sparse = ['0.4.0','0.5.0','0.6.0'].includes(payload.execution?.task_contract_version);
     if (frame.protocol_version !== '0.1.0' || frame.run_id !== runId ||
         (sparse ? !Number.isSafeInteger(frame.frame_index) || frame.frame_index <= previousStep || (index === 0 && frame.frame_index !== 0) : frame.frame_index !== index) ||
         !Number.isFinite(frame.time_s) || frame.time_s <= previousTime ||
@@ -64,7 +64,7 @@ export function normalizeReplay(payload) {
     }
     if (!concentrations || typeof concentrations !== 'object') throw new Error('fieldsMissing');
     for (const field of Object.values(concentrations)) {
-      const [fx,fy,fz]=fieldDisplayDomain(field,payload.domain,{required:payload.execution?.task_contract_version==='0.5.0'}).counts_xyz;
+      const [fx,fy,fz]=fieldDisplayDomain(field,display_domain??payload.domain,{required:["0.5.0","0.6.0"].includes(payload.execution?.task_contract_version)}).counts_xyz;
       if (!Array.isArray(field.values_zyx) || field.values_zyx.length !== fz ||
           field.values_zyx.some(layer => !Array.isArray(layer) || layer.length !== fy ||
             layer.some(row => !Array.isArray(row) || row.length !== fx || !row.every(value=>Number.isFinite(value)&&value>=0)))) {

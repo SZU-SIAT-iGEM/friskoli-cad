@@ -280,7 +280,7 @@ function renderScene() {
   updateTransformTools();
   renderFieldControls();
   const snapshot = currentSnapshot();
-  const domain = state.view === 'results' ? state.replay?.domain ?? state.project.domain : state.project.domain;
+  const domain = state.view === 'results' ? currentSnapshot()?.display_domain??state.replay?.domain ?? state.project.domain : state.project.domain;
   viewport?.setDomain(domain);
   viewport?.setSnap(state.snap);
   viewport?.setMode(state.view);
@@ -1760,7 +1760,7 @@ function showContext(id, x, y) {
 
 function saveWorkspace() {
   if (!state.project) return;
-  state.viewState=captureViewState(state,viewport);workspaceSession.remember(writeWorkspace(state),state.viewState);
+  state.viewState=captureViewState(state,viewport,document,graphEditor);workspaceSession.remember(writeWorkspace(state),state.viewState);
   download(`${state.project.id}.friskoli-workspace.json`, JSON.stringify(writeWorkspace(state), null, 2));
   state.saved = fingerprint(); renderAll(); status('saved');
 }
@@ -1804,7 +1804,7 @@ async function loadProject(document,recommendedSettings=null) {
     state.saved = fingerprint();
     $('welcome-dialog').close();
     setView('space');
-    if(loaded.viewState){const v=loaded.viewState;state.selectedBlock=v.selected_block??state.selectedBlock;state.selectedEnvironment=v.selected_environment??null;state.graphSelection=v.graph_selection??null;state.left=v.left??'objects';setView(['space','workflow','design'].includes(v.view)?v.view:'space');viewport?.restoreView(v.camera);requestAnimationFrame(()=>{for(const [id,top]of Object.entries(v.scroll??{}))if($(id))$(id).scrollTop=top;});}
+    if(loaded.viewState){const v=loaded.viewState;state.selectedBlock=v.selected_block??state.selectedBlock;state.selectedEnvironment=v.selected_environment??null;state.graphSelection=v.graph_selection??null;state.left=v.left??'objects';setView(['space','workflow','design'].includes(v.view)?v.view:'space');viewport?.restoreView(v.camera);requestAnimationFrame(()=>{if(v.workflow){graphEditor.zoom=Math.min(2,Math.max(.2,v.workflow.zoom??1));graphEditor.applyZoom();graphEditor.container.scrollLeft=v.workflow.left??0;graphEditor.container.scrollTop=v.workflow.top??0;}for(const [id,top]of Object.entries(v.scroll??{}))if($(id))$(id).scrollTop=top;});}
     status('opened');
     state.checks = [...report.issues, ...report.changes.map(change => ({...change,severity:'info'}))];
     if (state.checks.length) { showBottom('checks'); renderDiagnostics(); }
@@ -1826,11 +1826,9 @@ try {
     placeEnvironment(point) {
       const object = availablePlaceables(state.modules,state.capabilities,state.objects,state.project).find(item => item.id === state.activeObject && item.status === 'ready' && item.kind !== 'population');
       if (!object || !state.project) return;
-      edit('objectPlaced',() => {
-        state.selectedEnvironment = initializeEnvironmentObject(state.project,object,state.modules,point,state.activeSpecies);
-        state.selectedBlock = null;
-        state.layout = autoLayout(state.project.graph,state.modules,state.layout);
-      }); useTool('select');
+      const revision=state.revision,token=state.draftToken;let draft,id;
+      const preview=values=>{if(!values){viewport?.setPlacementPreview(null);return;}draft=structuredClone(state.project);id=initializeEnvironmentObject(draft,object,state.modules,[values.x,values.y,values.z],state.activeSpecies);const placed=environmentObjects(draft,state.objects,state.modules).find(item=>item.id===id);if(placed){const center=placed.center??placed.lower.map((v,i)=>(v+placed.upper[i])/2),size=placed.lower?placed.lower.map((v,i)=>placed.upper[i]-v):[1,1,1].map(()=>2*placed.radius);viewport?.setPlacementPreview({center,size,rotation:[0,0,0]});}};
+      reviewTransaction({title:t('objectPlaced'),description:currentLanguage()==='zh-CN'?'预览对象位置，确认后可在属性面板编辑实际模块参数。':'Preview object position, then edit its actual module parameters in Properties.',fields:point.map((value,i)=>({name:'xyz'[i],label:`${'XYZ'[i]} [µm]`,value})),preview,commit:values=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');preview(values);return edit('objectPlaced',()=>{const prior=new Set(state.project.graph.nodes.map(n=>n.id));state.project=draft;state.selectedEnvironment=id;state.selectedBlock=null;state.managedTemplates??={};state.managedTemplates[id]={generated_by:object.id,owner_object_id:id,template_version:'1',overrides:{},base_nodes:structuredClone(draft.graph.nodes.filter(n=>!prior.has(n.id)))};state.layout=autoLayout(state.project.graph,state.modules,state.layout);});}});useTool('select');
     },
     placePopulation(point) {
       if (!state.project || !availablePlaceables(state.modules,state.capabilities,state.objects,state.project).some(item => item.id === state.activeObject && item.kind === 'population' && item.status === 'ready')) return;
@@ -2086,6 +2084,8 @@ $('welcome-demo').addEventListener('click', () => loadWelcome(() => state.templa
 $('welcome-registry').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/registry-readout')));
 $('welcome-pts').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/pts-bulk')));
 $('welcome-spatial').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/spatial-baseline')));
+for(const [id,label]of [['modular-foundation','模块基础示例 / Modular foundation'],['modular-material','模块材料示例 / Modular material']]){const button=el('button','start-command',label);button.type='button';button.id='welcome-'+id;button.addEventListener('click',()=>loadWelcome(()=>kernel.request('/api/examples/'+id)));$('welcome-spatial').after(button);}
+
 $('welcome-recover').addEventListener('click', () => loadWelcome(() => {
   const recovery = localStorage.getItem(RECOVERY_KEY);
   if (!recovery) throw new Error(t('recoveryAbsent'));
@@ -2145,6 +2145,7 @@ async function connectKernel({cold=false}={}) {
     for(const profile of capabilities.execution_profiles??[])if(profile!=='legacy-explicit-v1')registries[profile]=await kernel.request('/api/catalog?execution_profile='+encodeURIComponent(profile));
     workspaceSession.cacheCatalog({registries,template,capabilities});
     installConnection({registries,template,capabilities},true,cold);
+    if(state.project?.dependency_lock){const resolved=await kernel.request("/api/catalog/project",{project:state.project});workspaceSession.cacheProjectCatalog(state.project.dependency_lock,resolved);const registry=registerCatalog(resolved.catalog);state.modules=registry.modules;state.objects=registry.objects;const profile=state.capabilities.task_longrun_profiles?.[state.project.execution_profile];if(profile)profile.version_lock=resolved.version_lock;renderAll();}
   }catch(error){if(cold&&cache){installConnection(cache,false,true);status('loadFailed',{message:'Offline · cached Catalog; editing available. '+error.message},true);}else {state.connected=false;status('loadFailed',{message:error.message},true);updateRunButton();}}
 }
 function installConnection(data,online,cold){
@@ -2161,7 +2162,7 @@ function installConnection(data,online,cold){
 const reconnect=el('button','menu-button',currentLanguage()==='zh-CN'?'重新连接内核 / Catalog':'Reconnect kernel / Catalog');reconnect.id='kernel-reconnect';reconnect.addEventListener('click',()=>connectKernel());$('settings-overlay').querySelector('section, .dialog-body, div')?.append(reconnect);
 const packages=el('button','menu-button',currentLanguage()==='zh-CN'?'模块包管理':'Package manager');packages.id='package-manager';packages.addEventListener('click',()=>openPackagePanel(kernel,{onChanged:()=>connectKernel(),pinId:state.project?.id,onLock:async lock=>{if(!state.project)return;const project={...structuredClone(state.project),dependency_lock:lock};const resolved=await kernel.request('/api/catalog/project',{project});if(edit('updated',()=>{state.project.dependency_lock=lock;})){workspaceSession.cacheProjectCatalog(lock,resolved);const registry=registerCatalog(resolved.catalog);state.modules=registry.modules;state.objects=registry.objects;const capability=state.capabilities.task_longrun_profiles?.[project.execution_profile];if(capability)capability.version_lock=resolved.version_lock;renderAll();}}}));reconnect.after(packages);
 const checkpointButton=el('button','menu-button',currentLanguage()==='zh-CN'?'导入 Checkpoint':'Import checkpoint');checkpointButton.addEventListener('click',()=>{const file=el('input');file.type='file';file.accept='.zip';file.addEventListener('change',()=>{if(file.files[0])importCheckpoint(file.files[0]).catch(error=>status('runFailed',{message:error.message},true));});file.click();});packages.after(checkpointButton);
-window.addEventListener('beforeunload',()=>{if(state.project)try{state.viewState=captureViewState(state,viewport);workspaceSession.remember(writeWorkspace(state),state.viewState);}catch{}});
+window.addEventListener('beforeunload',()=>{if(state.project)try{state.viewState=captureViewState(state,viewport,document,graphEditor);workspaceSession.remember(writeWorkspace(state),state.viewState);}catch{}});
 await connectKernel({cold:true});
 
 if('serviceWorker'in navigator)navigator.serviceWorker.register('/service-worker.js').catch(error=>{state.offlineShellError=error.message;});

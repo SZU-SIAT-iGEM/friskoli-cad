@@ -17,7 +17,8 @@ export class PagedReplay {
   if(!Number.isSafeInteger(index)||index<0||index>=this.frameCount)throw Error('Frame outside published range');
   if(this.cache.has(index)){const entry=this.cache.get(index);this.cache.delete(index);this.cache.set(index,entry);return entry.value;}
   // Serialize fetches so dragging a slider cannot create an unbounded decode queue.
-  if(this.inflight)await this.inflight;
+  while(this.inflight)await this.inflight;
+  if(this.cache.has(index))return this.cache.get(index).value;
   const operation=this.load(index);this.inflight=operation;try{return await operation;}finally{if(this.inflight===operation)this.inflight=null;}
  }
  async descriptor(index){
@@ -25,10 +26,10 @@ export class PagedReplay {
   if(!page){const result=await this.client.request(`/api/runs/${encodeURIComponent(this.record.runId)}/result?offset=${offset}&limit=1024`);if(result.run_id!==this.record.runId||result.chunk_offset!==offset||!Array.isArray(result.chunks)||result.chunks.length>1024)throw Error('Invalid result index page');page=result.chunks;this.pages.set(offset,page);while(this.pages.size>2)this.pages.delete(this.pages.keys().next().value);}
   const chunk=page[index-offset];if(!chunk)throw Error('Missing published frame index');return chunk;
  }
- async scan({start=0,end=Infinity,type='all'}={},cellId=null,onProgress=()=>{},cancelled=()=>false){
+ async scan({start=0,end=Infinity,type='all',frameLimit=this.frameCount}={},cellId=null,onProgress=()=>{},cancelled=()=>false){
   if(!Number.isFinite(start)||start<0||end<start)throw Error('Invalid result interval');
   const events=[],points=[];let eventCount=0,pointCount=0,stride=1;const dt=this.record.submission?.execution.dt_s;
-  for(let index=0;index<this.frameCount;index++){if(cancelled())throw Error('Scan cancelled');const chunk=await this.descriptor(index);if(dt&&(chunk.first_step*dt<start||chunk.first_step*dt>end))continue;if(chunk.bytes>this.maxChunkBytes)throw Error('Frame exceeds scan budget');const body=await this.client.taskChunk(this.record.runId,chunk),frame=body.frames?.[0]?.frame;if(!frame||frame.time_s<start||frame.time_s>end)continue;
+  for(let index=0;index<Math.min(this.frameCount,frameLimit);index++){if(cancelled())throw Error('Scan cancelled');const chunk=await this.descriptor(index);if(dt&&(chunk.first_step*dt<start||chunk.first_step*dt>end))continue;if(chunk.bytes>this.maxChunkBytes)throw Error('Frame exceeds scan budget');const body=await this.client.taskChunk(this.record.runId,chunk),frame=body.frames?.[0]?.frame;if(!frame||frame.time_s<start||frame.time_s>end)continue;
    for(const event of frame.events??[])if(type==='all'||event.type===type){eventCount++;if(events.length<500)events.push({index,time_s:frame.time_s,event});}
    const cell=cellId?frame.cells.find(c=>c.id===cellId):null;if(cell){if(pointCount++%stride===0)points.push(cell.position_um);if(points.length>=2000){points.splice(0,points.length,...points.filter((_,i)=>i%2===0));stride*=2;}}
    onProgress(index+1,this.frameCount);
@@ -49,6 +50,34 @@ export class PagedReplay {
   this.cache.set(index,{bytes,value});this.bytes+=bytes;return value;
  }
  replay(snapshot,index){return {replay_format_version:'0.1.0',project_id:this.record.project.id,run:this.record.project.run,domain:this.record.project.domain,execution:{task_contract_version:'0.6.0',task_run_id:this.record.runId,status:this.manifest.status,completeness:this.manifest.completeness},snapshots:[snapshot],paged:{frame_count:this.frameCount,index,cache_bytes:this.bytes,max_bytes:this.maxBytes}};}
+}
+
+export class LinkedReplay {
+ static async create(client,record,manifest){
+  const leaf=new PagedReplay(client,record,manifest),readers=[leaf],seen=new Set([record.runId]);let current=manifest;
+  while(current.parent_run_id){const id=current.parent_run_id;if(seen.has(id)||seen.size>=64)throw Error('Invalid or excessively deep run lineage');seen.add(id);
+   const [parentManifest,submission]=await Promise.all([client.taskResult(id),client.request(`/api/runs/${encodeURIComponent(id)}/input`)]);
+   if(parentManifest.run_id!==id||submission.task_contract_version!=='0.6.0')throw Error('Invalid parent run provenance');
+   readers.unshift(new PagedReplay(client,{runId:id,submission,project:submission.project},parentManifest));current=parentManifest;
+  }
+  let offset=0;const segments=[];
+  for(let i=0;i<readers.length;i++){const reader=readers[i];let count=reader.frameCount;
+   if(i+1<readers.length){const next=readers[i+1],boundary=(await next.descriptor(0)).first_step;let lo=0,hi=count;while(lo<hi){const mid=Math.floor((lo+hi)/2);if((await reader.descriptor(mid)).first_step<boundary)lo=mid+1;else hi=mid;}count=lo;}
+   segments.push({reader,offset,count});offset+=count;
+  }
+  for(let i=1;i<segments.length;i++){const parent=segments[i-1],child=segments[i];if(parent.count<parent.reader.frameCount&&(await parent.reader.descriptor(parent.count)).first_step===(await child.reader.descriptor(0)).first_step)child.boundaryParent=parent;}
+  return new LinkedReplay(leaf,segments,offset);
+ }
+ constructor(leaf,segments,count){this.leaf=leaf;this.segments=segments;this.frameCount=count;this.record=leaf.record;this.manifest=leaf.manifest;this.maxBytes=leaf.maxBytes;}
+ get bytes(){return this.segments.reduce((n,s)=>n+s.reader.bytes,0);}
+ clear(){for(const {reader}of this.segments){reader.cache.clear();reader.bytes=0;}}
+ async frame(index){const segment=this.segments.find(s=>index>=s.offset&&index<s.offset+s.count);if(!segment)throw Error('Frame outside linked run');for(const other of this.segments)if(other!==segment){other.reader.cache.clear();other.reader.bytes=0;}
+  let snapshot=await segment.reader.frame(index-segment.offset);if(index===segment.offset&&segment.boundaryParent&&!snapshot.frame.events.length){const parent=segment.boundaryParent,descriptor=await parent.reader.descriptor(parent.count),body=await parent.reader.client.taskChunk(parent.reader.record.runId,descriptor),old=body.frames?.[0];if(old?.frame?.events?.length)snapshot={...snapshot,frame:{...snapshot.frame,events:old.frame.events},lifecycle_details:old.lifecycle_details};}
+  return {...snapshot,display_domain:segment.reader.record.project.domain,segment_run_id:segment.reader.record.runId};
+ }
+ replay(snapshot,index){const replay=this.leaf.replay(snapshot,index);replay.domain=snapshot?.display_domain??this.record.project.domain;replay.paged={...replay.paged,frame_count:this.frameCount,index,cache_bytes:this.bytes,segments:this.segments.map(s=>({run_id:s.reader.record.runId,start:s.offset,count:s.count}))};return replay;}
+ async *frames(){for(let i=0;i<this.frameCount;i++)yield await this.frame(i);}
+ async scan(filter,id,onProgress=()=>{},cancelled=()=>false){const result={events:[],eventCount:0,points:[],pointCount:0,pointStride:1};for(const s of this.segments){const value=await s.reader.scan({...filter,frameLimit:s.count},id,(n)=>onProgress(s.offset+n,this.frameCount),cancelled);result.eventCount+=value.eventCount;result.events.push(...value.events.slice(0,500-result.events.length).map(e=>({...e,index:e.index+s.offset})));result.pointCount+=value.pointCount;result.points.push(...value.points);while(result.points.length>2000){result.points=result.points.filter((_,i)=>i%2===0);result.pointStride*=2;}result.pointStride=Math.max(result.pointStride,value.pointStride);}return result;}
 }
 
 const json=(value)=>JSON.stringify(value,(_,item)=>ArrayBuffer.isView(item)?Array.from(item):item);

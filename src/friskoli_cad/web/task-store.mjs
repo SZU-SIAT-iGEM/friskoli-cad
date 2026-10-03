@@ -1,4 +1,4 @@
-import {PagedReplay} from './paged-replay.mjs';
+import {LinkedReplay} from './paged-replay.mjs';
 // Task records outlive editor documents. Only committed server snapshots enter this store.
 import { TASK_CONTRACT_VERSION } from './kernel-client.mjs';
 import { normalizeReplay } from './replay.mjs';
@@ -345,7 +345,7 @@ export class TaskStore {
           manifest.completeness !== record.completeness) return;
     }
     if (record.manifest && JSON.stringify(record.manifest) === JSON.stringify(manifest)) return;
-    if(record.submission.task_contract_version==='0.6.0'){const pager=new PagedReplay(this.client,record,manifest),index=(manifest.total_chunks??manifest.chunks.length)-1;const frame=await pager.frame(index);this.releaseOtherPagers(id);this.pagers.set(id,pager);this.replace(id,{manifest,replay:pager.replay({...frame,concentrations:{}},index)});return;}
+    if(record.submission.task_contract_version==='0.6.0'){const pager=await LinkedReplay.create(this.client,record,manifest),index=pager.frameCount-1;const frame=await pager.frame(index);this.releaseOtherPagers(id);this.pagers.set(id,pager);this.replace(id,{manifest,replay:pager.replay({...frame,concentrations:{}},index)});return;}
     const cache = this.cache.get(id) ?? new Map(), seenChunks = new Set(), frames = [];
     this.cache.set(id, cache);
     let previousStep = -1;
@@ -397,7 +397,7 @@ export class TaskStore {
     finally { this.inflight.delete(id); }
     return this.get(id);
   }
-  releaseOtherPagers(id){for(const [key,pager]of this.pagers)if(key!==id){pager.cache.clear();pager.bytes=0;}}
+  releaseOtherPagers(id){for(const [key,pager]of this.pagers)if(key!==id){pager.clear();}}
   async frame(id,index){this.releaseOtherPagers(id);const pager=this.pagers.get(id);if(!pager)throw failure('task.no_paged_result');const snapshot=await pager.frame(index);return pager.replay(snapshot,index);}
   async startOperation(submission,context,path,body){const record=this.create(submission,context);this.replace(record.localId,{operation:{path,body}});await this.submit(record.localId);return this.get(record.localId);}
   async pauseTask(id){const record=this.get(id);try{this.applyTask(id,await this.client.pauseTask(record.runId));}catch(error){this.fault(id,error);}return this.get(id);}

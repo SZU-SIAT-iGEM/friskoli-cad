@@ -14,5 +14,5 @@ export function reviewTransaction({title,description,rows=[],fields=[],confirm='
  const read=()=>Object.fromEntries(Object.entries(values).map(([key,input])=>[key,input.type==='number'?Number(input.value):input.value]));
  form.addEventListener('input',()=>{try{preview?.(read());error.textContent='';}catch(e){error.textContent=e.message;}});
  form.addEventListener('submit',async event=>{event.preventDefault();submit.disabled=true;try{if(await commit(read())!==false)dialog.close();}catch(e){error.textContent=e.message;}finally{submit.disabled=false;}});
- dialog.append(form);document.body.append(dialog);dialog.addEventListener('close',()=>{preview?.(null);dialog.remove();},{once:true});dialog.showModal();preview?.(read());return dialog;
+ dialog.append(form);document.body.append(dialog);dialog.addEventListener('close',()=>{preview?.(null);dialog.remove();},{once:true});dialog.showModal();try{preview?.(read());}catch(e){error.textContent=e.message;}return dialog;
 }
