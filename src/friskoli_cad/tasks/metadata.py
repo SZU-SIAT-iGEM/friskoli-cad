@@ -104,7 +104,7 @@ def estimate(submission, registry) -> dict:
         from friskoli_cad.engine.module_api import execution_contract
         grows = any('lifecycle.division' in execution_contract(registry.get(n['module_id'],n['module_version'])).get('effects',())
                     for n in project['graph']['nodes'])
-        budget_cells = max(cells,256) if grows else cells
+        budget_cells = max(cells,project.get('system_limits',{}).get('max_cells',256)) if grows else cells
     nx, ny, nz = project["domain"]["counts_xyz"]
     voxels = nx * ny * nz
     field_arrays = cell_arrays = 0

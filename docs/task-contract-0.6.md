@@ -10,6 +10,8 @@ Task 0.6 支持声明完整 checkpoint 的 spatial、chemotaxis 与 modular prof
 
 Modular 内存估计采用 planner 的 output/state dtype 与 tensor 尺寸，按生命周期 division effect 预留当前运行器人口上限，按注册的浓度端口计算 field 库存。Record 每端口最多 1 MiB，估计包含该上限及保守复制系数；实际 worker RSS 仍独立限制。RNG provenance 来自模块执行声明。
 
+Project 0.6 可设置 `system_limits.max_cells`，默认 256，含全部 population；不得超过 Task service 的 cells 资源上限。Modular 不沿用旧 spatial 的固定 256 能力上限。预算按声明的 cap 预留分裂后内存和输出；到达 cap 后再尝试分裂会以 `resource.cell_limit` 结束 Task，不提交该步，也不记录为生物分裂受抑或几何阻塞。worker 保存最后已提交状态。可对失败运行预演迁移，显式提高该资源设置后创建子段继续，方程、细胞、RNG 与库存不变。
+
 新运行每隔 `checkpoint_every_steps`（默认 1000）保存完整状态。数值 worker 在既有壁钟预算的 70% 附近保存状态并排回队列，使用相同 run_id 自动继续；没有提高服务壁钟上限。初始化、单步或 checkpoint 自身超过实际预算仍会失败。每个 worker 只发送一个待确认消息，父服务校验文件并提交 SQLite 后才能继续。
 
 ## 暂停、下载、导入与继续

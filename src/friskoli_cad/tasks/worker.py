@@ -197,6 +197,14 @@ def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, 
         pass
     except BaseException as error:
         known = isinstance(error, SimulationError) and submission["execution"]["semantics"] in (PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1')
+        if known and error.code == 'resource.cell_limit' and submission['task_contract_version'] == '0.6.0':
+            # The runtime rejected the uncommitted transaction. Persist the
+            # preceding state even when it lies between periodic checkpoints.
+            try:
+                _send(channel, {'kind':'step','step':simulation.frame_index,'time_s':simulation.time_s,
+                    'final':False,'checkpoint_artifact':checkpoint()}, limits['chunk_bytes'] + 4096)
+            except (OSError, ValueError, EOFError):
+                pass
         code = error.code if known else ("task.resource_limit" if isinstance(error, WorkerLimit) else "task.worker_failed")
         # Numerical error paths are input pointers; arbitrary exception details never expose paths.
         message = str(error) if known or isinstance(error, WorkerLimit) else "Numerical worker failed during " + phase + "."

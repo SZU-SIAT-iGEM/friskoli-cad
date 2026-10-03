@@ -28,6 +28,8 @@ python -m pytest tests/test_task_longrun.py tests/test_task_longrun_http.py test
 
 随后补充 module-state 未声明迁移拒绝、真实 service 迁移（资源不足/错误 preview hash 拒绝后仍能成功创建子段），并更新模块内存预算后，新 longrun 与 HTTP 两个文件再次隔离运行：**12 passed**，98.87 s。
 
+资源人口上限另有真实 Task 验证：声明 cap 等于初始人口，实际分裂尝试以 `resource.cell_limit` 失败，已提交步仍为 0，完整 checkpoint 可恢复且人数不变；通过迁移提高 cap 后，新 child 完成相同分裂步。该专项 **1 passed**，27.03 s。它验证的是运行资源终止，不将资源限额解释成生物分裂抑制。
+
 ## 迁移支持范围
 
 已支持同一物理域内改变网格：浓度按体积平均映射；每格 `molecule` amount 按体素体积比转换，分别检查库存守恒。新模块 state 必须显式声明 `on_migration`；保留状态只接受 `copy`，网格 scalar 只接受 `conservative_regrid` 且单位/quantity 必须有已实现映射。历史 profile 保留明确的 concentration adapter。

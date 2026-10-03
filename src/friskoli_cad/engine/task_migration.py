@@ -45,6 +45,7 @@ def migrate_simulation(sim, target_project, mapping):
     target_project = deepcopy(target_project)
     before, after = deepcopy(sim.project), deepcopy(target_project)
     before.pop('domain'); after.pop('domain')
+    before.pop('system_limits', None); after.pop('system_limits', None)
     for document in (before, after):
         for node in document['graph']['nodes']:
             if node['module_id'] in ('field.diffusive_local', 'field.ideal_local_reservoir'):

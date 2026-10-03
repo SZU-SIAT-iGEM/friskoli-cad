@@ -204,7 +204,7 @@ class TaskService:
             limits["steps"] = min(limits["steps"], 10000)
         if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
             from friskoli_cad.engine.spatial_runtime import MAX_CELLS, MAX_VOXELS
-            limits.update(cells=min(MAX_CELLS, self.limits.cells), voxels=min(MAX_VOXELS, self.limits.voxels))
+            limits.update(cells=self.limits.cells if profile == 'modular-spatial-v1' else min(MAX_CELLS, self.limits.cells), voxels=min(MAX_VOXELS, self.limits.voxels))
         return {"task_contract_version": "0.6.0" if modern else task_version(profile), "mode": "single-worker",
             "task_contract_versions": list(dict.fromkeys([task_version(profile), "0.5.0", "0.6.0"])),
             "pause": modern, "resume": modern, "checkpoint": modern, "partial_results": True,
@@ -257,6 +257,15 @@ class TaskService:
             raise TaskError(422, getattr(error, "code", "task.project_invalid"), str(error),
                             "/project" + (path if path != "/" else ""), phase="validate") from error
         strides = submission["output_plan"].get("field_stride_xyz", [1, 1, 1])
+        if profile == 'modular-spatial-v1':
+            cell_limit = project.get('system_limits',{}).get('max_cells',256)
+            initial_cells = sum(len(group['ids']) for group in project['groups'].values())
+            if cell_limit > self.limits.cells:
+                raise TaskError(413,'task.resource_limit',f'Project max_cells {cell_limit} exceeds service cells {self.limits.cells}.',
+                                '/project/system_limits/max_cells',phase='estimate')
+            if initial_cells > cell_limit:
+                raise TaskError(413,'task.resource_limit','Initial population exceeds project max_cells.',
+                                '/project/system_limits/max_cells',phase='estimate')
         if any(count % stride for count, stride in zip(project["domain"]["counts_xyz"], strides)):
             raise TaskError(422, "task.field_stride", "Each field stride must divide its grid count.", "/output_plan/field_stride_xyz", phase="validate")
         unknown = set(submission["output_plan"]["observables"]) - set(project["run"]["channels"])

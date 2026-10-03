@@ -1,0 +1,415 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:friskoli:project:0.6.0",
+  "title": "Friskoli project 0.6.0: modular spatial profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "project_version",
+    "id",
+    "domain",
+    "groups",
+    "species",
+    "controls",
+    "graph",
+    "run",
+    "execution_profile",
+    "random_seed"
+  ],
+  "properties": {
+    "system_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_cells": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 256,
+          "description": "Runtime resource ceiling for all populations combined. Exceeding it terminates the attempted step without committing it; this is not a biological division limit."
+        }
+      }
+    },
+    "project_version": {
+      "const": "0.6.0"
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "domain": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "geometry",
+        "counts_xyz",
+        "spacing_um_xyz"
+      ],
+      "properties": {
+        "geometry": {
+          "enum": [
+            "thin_layer",
+            "volume"
+          ]
+        },
+        "counts_xyz": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "integer",
+              "minimum": 1
+            }
+          ],
+          "minItems": 3,
+          "maxItems": 3
+        },
+        "spacing_um_xyz": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          ],
+          "minItems": 3,
+          "maxItems": 3
+        }
+      }
+    },
+    "groups": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "ids",
+          "positions_um",
+          "orientation_xyzw"
+        ],
+        "properties": {
+          "ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "positions_um": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/vector3"
+            }
+          },
+          "orientation_xyzw": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/quaternion"
+            }
+          },
+          "initial_geometry": {
+            "type": "array",
+            "items": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "shape",
+                    "length_um",
+                    "diameter_um",
+                    "provenance"
+                  ],
+                  "properties": {
+                    "shape": {
+                      "const": "capsule"
+                    },
+                    "length_um": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "diameter_um": {
+                      "type": "number",
+                      "exclusiveMinimum": 0
+                    },
+                    "provenance": {
+                      "$ref": "#/$defs/provenance"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "species": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "concentration_unit",
+          "initial_concentration"
+        ],
+        "properties": {
+          "concentration_unit": {
+            "const": "uM"
+          },
+          "initial_concentration": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "value",
+              "unit",
+              "provenance"
+            ],
+            "properties": {
+              "value": {
+                "type": "number",
+                "minimum": 0
+              },
+              "unit": {
+                "const": "uM"
+              },
+              "provenance": {
+                "$ref": "#/$defs/provenance"
+              }
+            }
+          }
+        }
+      }
+    },
+    "controls": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "species",
+          "scope",
+          "rate_unit",
+          "changes"
+        ],
+        "properties": {
+          "species": {
+            "$ref": "#/$defs/id"
+          },
+          "scope": {
+            "const": "whole_domain"
+          },
+          "rate_unit": {
+            "const": "uM/s"
+          },
+          "changes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "time_s",
+                "rate_uM_s",
+                "provenance"
+              ],
+              "properties": {
+                "time_s": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "rate_uM_s": {
+                  "type": "number"
+                },
+                "provenance": {
+                  "$ref": "#/$defs/provenance"
+                }
+              }
+            }
+          },
+          "repeat_period_s": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          }
+        }
+      }
+    },
+    "graph": {
+      "type": "object"
+    },
+    "run": {
+      "type": "object"
+    },
+    "execution_profile": {
+      "const": "modular-spatial-v1"
+    },
+    "random_seed": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "label",
+        "axis",
+        "region_lower_um",
+        "region_upper_um"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "axis": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        },
+        "region_lower_um": {
+          "$ref": "#/$defs/vector3"
+        },
+        "region_upper_um": {
+          "$ref": "#/$defs/vector3"
+        },
+        "radial_center_um": {
+          "$ref": "#/$defs/vector3"
+        },
+        "radial_radii_um": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "description": "Strictly increasing cumulative sphere radii; spheres must remain inside domain."
+        }
+      },
+      "dependentRequired": {
+        "radial_center_um": [
+          "radial_radii_um"
+        ],
+        "radial_radii_um": [
+          "radial_center_um"
+        ]
+      }
+    },
+    "dependency_lock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lock_version",
+        "packages"
+      ],
+      "properties": {
+        "lock_version": {
+          "const": "0.1.0"
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "version",
+              "sha256"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "vector3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "quaternion": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "reference"
+      ],
+      "properties": {
+        "kind": {
+          "enum": [
+            "example",
+            "reference",
+            "measured",
+            "estimated"
+          ]
+        },
+        "reference": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

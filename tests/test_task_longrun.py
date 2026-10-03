@@ -31,6 +31,46 @@ def wait(service, identifier):
 
 
 class LongrunTests(unittest.TestCase):
+    def test_project_cell_cap_stops_task_without_committing_division(self):
+        from test_modular_science import project, add, edge
+        from friskoli_cad.tasks import TaskError
+        from friskoli_cad.engine.task_migration import MAPPING
+        p=project()
+        old=next(n for n in p['graph']['nodes'] if n['module_id']=='metabolism.reserve_balance')
+        nid=old['id']; p['graph']['nodes'].remove(old)
+        add(p,'metabolism.shared_inventory',{'species':'nutrient','initial_molecules':1e6,
+            'maintenance_molecules_s':1.,'max_growth_per_min':60.,'volume_yield_um3_molecule':.001},nid=nid,population=True)
+        p['run']['channels'][nid+'.used_molecules']['quantity']='consumed_amount'
+        division=add(p,'division.volume_adder',{'added_volume_um3':.01,'minimum_volume_um3':0.,'daughter_fraction':.5},population=True)
+        edge(p,nid,'volume',division,'volume')
+        initial_count=sum(len(g['ids']) for g in p['groups'].values())
+        p['system_limits']={'max_cells':initial_count}
+        with tempfile.TemporaryDirectory() as folder, TaskService(folder) as service:
+            submission=body(service,1); submission['project']=p
+            submission['execution'].update(semantics='modular-spatial-v1',dt_s=.2)
+            submission['output_plan']['observables']=list(p['run']['channels'])
+            submission['version_lock']=service.version_lock(p)
+            self.assertEqual(service.capabilities('modular-spatial-v1')['limits']['cells'],service.limits.cells)
+            too_large=copy.deepcopy(submission); too_large['project']['system_limits']['max_cells']=service.limits.cells+1
+            with self.assertRaises(TaskError): service.preflight(too_large)
+            larger=copy.deepcopy(submission); larger['project']['system_limits']['max_cells']=300
+            self.assertGreater(service.preflight(larger)['estimate']['memory_bytes'],service.preflight(submission)['estimate']['memory_bytes'])
+            task,_=service.submit(submission,'cell-cap')
+            stopped=wait(service,task['run_id'])
+            self.assertEqual(stopped['status'],'failed')
+            self.assertEqual(stopped['issues'][0]['code'],'resource.cell_limit')
+            self.assertEqual(stopped['progress']['committed_step'],0)
+            path,_=service.artifact(task['run_id'],'checkpoint')
+            restored=load_task_checkpoint(path,maximum=service.limits.estimated_memory_bytes)
+            self.assertEqual(sum(len(g.ids) for g in restored.world.groups.values()),initial_count)
+            target=copy.deepcopy(p); target['system_limits']['max_cells']=initial_count*2
+            request={'project':target,'mapping':MAPPING}
+            preview=service.migrate(task['run_id'],request)
+            migrated=service.migrate(task['run_id'],{**request,'request_id':'raised-cap','edit_revision':'2',
+                'preview_sha256':preview['preview_sha256']},'raised-cap',preview=False)
+            completed=wait(service,migrated['task']['run_id'])
+            self.assertEqual(completed['status'],'completed',completed['issues'])
+
     def test_child_first_frame_preserves_committed_boundary_events(self):
         from unittest.mock import patch
         from friskoli_cad.tasks.worker import run_worker
