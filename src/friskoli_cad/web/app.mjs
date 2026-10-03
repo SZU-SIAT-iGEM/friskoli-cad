@@ -729,6 +729,11 @@ function renderDomainInspector(root) {
   });root.append(gradient);
   const durationPart=section(root,currentLanguage()==='zh-CN'?'物理运行时间':'Physical duration'),duration=el('input');duration.type='number';duration.step='any';duration.min='0';duration.value=state.settings.dt_s*state.settings.steps;duration.setAttribute('aria-label','Physical duration seconds');
   duration.addEventListener('change',()=>edit('updated',()=>{const steps=Number(duration.value)/state.settings.dt_s;if(!Number.isSafeInteger(Math.round(steps))||Math.abs(steps-Math.round(steps))>1e-8||steps<1||steps>stepLimit())throw Error('Duration must be an integer multiple of dt within the task limit; dt is never changed automatically');state.settings.steps=Math.round(steps);}));durationPart.append(duration,el('p','task-note',`s · dt ${state.settings.dt_s} s · ${state.settings.steps} steps`));
+  const twelveHourSteps=43200/state.settings.dt_s,twelveHourCount=Math.round(twelveHourSteps);
+  const twelveHour=el('button','inspector-action',currentLanguage()==='zh-CN'?'12小时预设 · 保留步长，约10分钟一帧':'12-hour preset · keep dt, ~10 min per frame');
+  twelveHour.type='button';twelveHour.disabled=!Number.isSafeInteger(twelveHourCount)||Math.abs(twelveHourSteps-twelveHourCount)>1e-8||twelveHourCount<1||twelveHourCount>stepLimit();
+  twelveHour.title=twelveHour.disabled?(currentLanguage()==='zh-CN'?'当前步长或内核步数上限不支持12小时；请显式修改设置。':'The current dt or kernel step limit cannot represent 12 hours. Change settings explicitly.'):`${twelveHourCount.toLocaleString()} steps · dt ${state.settings.dt_s} s`;
+  twelveHour.addEventListener('click',()=>edit('updated',()=>{state.settings.steps=twelveHourCount;state.settings.frame_every_steps=Math.max(1,Math.ceil(twelveHourCount/72));}));durationPart.append(twelveHour);
   const suggestion=Math.max(1,Math.ceil(state.settings.steps/2000));const suggest=el('button','inspector-action',`${currentLanguage()==='zh-CN'?'采用约2000帧输出间隔':'Use ~2000-frame output interval'}: ${suggestion}`);suggest.addEventListener('click',()=>edit('updated',()=>{state.settings.frame_every_steps=suggestion;}));durationPart.append(suggest);
   const part = section(root, t('geometry'));
   const form = el('form', 'domain-form');
