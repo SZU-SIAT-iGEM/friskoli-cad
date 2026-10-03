@@ -267,14 +267,16 @@ def contested_mask(centers, half_lengths, travel, extent, obstacles, margin, blo
 
     A capsule always lies inside the sphere of radius length/2 about its center, so the
     start center with radius length/2 + center travel bounds the whole path, rotation included.
-    False cells cannot touch anything and need no exact certification.
+    False cells cannot touch anything and need no exact certification. extent=None ignores walls.
     """
     centers = np.asarray(centers, dtype=float).reshape(-1, 3)
     n = len(centers)
     if n == 0:
         return np.zeros(0, dtype=bool)
     reach = np.asarray(half_lengths, dtype=float) + np.asarray(travel, dtype=float)
-    clear = np.all(centers - reach[:, None] >= margin, axis=1) & np.all(centers + reach[:, None] <= np.asarray(extent) - margin, axis=1)
+    clear = np.ones(n, dtype=bool)
+    if extent is not None:
+        clear &= np.all(centers - reach[:, None] >= margin, axis=1) & np.all(centers + reach[:, None] <= np.asarray(extent) - margin, axis=1)
     for box in obstacles:
         lower, upper = np.asarray(box.lower_um), np.asarray(box.upper_um)
         outside = np.maximum(np.maximum(lower - centers, centers - upper), 0.)
@@ -294,7 +296,7 @@ def contested_mask(centers, half_lengths, travel, extent, obstacles, margin, blo
 def guard_motion(
     start: Sequence[Capsule], end: Sequence[Capsule], *, extent_um: Sequence[float],
     obstacles: Sequence[BoxObstacle] = (), geometry: str = "volume",
-    tolerance_um: float = 1e-9, max_subdivisions: int = 256, use_broad_phase: bool = True,
+    tolerance_um: float = 1e-9, max_subdivisions: int = 256, use_broad_phase: bool = True, check_walls: bool = True,
 ) -> GuardResult:
     """Accept entire safe paths or freeze entire proposals, resolving conflicts together.
 
@@ -332,7 +334,7 @@ def guard_motion(
     if use_broad_phase and ids:
         centers = np.asarray([first[i].position_um for i in ids]).reshape(-1, 3)
         travel = np.linalg.norm(np.asarray([last[i].position_um for i in ids]).reshape(-1, 3) - centers, axis=1)
-        contested = contested_mask(centers, [first[i].length_um / 2 for i in ids], travel, extent, obstacles,
+        contested = contested_mask(centers, [first[i].length_um / 2 for i in ids], travel, extent if check_walls else None, obstacles,
                                    tolerance + 1024 * np.finfo(float).eps * scale)
         ids = [i for i, flag in zip(ids, contested) if flag]
     # A capsule is contained in the sphere of radius total_length / 2 about
@@ -361,7 +363,7 @@ def guard_motion(
     initial = []
     for i, id_ in enumerate(ids):
         body = first[id_]
-        if capsule_wall_gap(body, extent) < -tolerance:
+        if check_walls and capsule_wall_gap(body, extent) < -tolerance:
             initial.append(Contact((id_,), "wall", "domain", "initial_overlap"))
         for box in obstacles:
             if far_box(body.position_um, body.length_um / 2, box):
@@ -398,7 +400,8 @@ def guard_motion(
         for i, id_ in enumerate(ids):
             path = paths[id_]
             if path.moving:
-                check((id_,), "wall", "domain", lambda t: capsule_wall_gap(path.at(t), extent), path.bound)
+                if check_walls:
+                    check((id_,), "wall", "domain", lambda t: capsule_wall_gap(path.at(t), extent), path.bound)
                 for box in obstacles:
                     if far_box(midpoints[i], radii[i], box, half_bounds[i]):
                         continue

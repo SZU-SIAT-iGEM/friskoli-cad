@@ -344,3 +344,18 @@ def test_geometry_blocked_growth_does_not_trigger_volume_division():
     assert any(e['type'] == 'division' for e in sim.events)
     assert sim.outputs[division]['divide'][0] == 0.
     assert sim.outputs[old_id]['intracellular_molecules'][0] == pytest.approx(1e6 - .2)
+
+
+def test_cells_slide_along_walls_instead_of_freezing_and_stay_inside_the_domain():
+    from friskoli_cad.engine.collision import capsule_wall_gap
+    p = project(); group = p['groups']['cells']; n = len(group['ids'])
+    group['positions_um'] = [[1.0, 10. + 10. * i, 1.] for i in range(n)]
+    group['orientation_xyzw'] = [[0., 0., .9238795325112867, .3826834323650898]] * n  # heading (-1, 1, 0)/sqrt(2): into the x=0 wall
+    sim = simulation_from_project(p, seed=5)
+    for _ in range(3):
+        sim.step(.1)
+        assert any(np.asarray(sim.outputs['motility']['blocked']))
+        for capsule in sim._capsules(sim.world):
+            assert capsule_wall_gap(capsule, sim.world.grid.extent_um) >= -1e-9
+    gained = [c['position_um'][1] - (10. + 10. * i) for i, c in enumerate(sim.current.cell_frame['cells'])]
+    assert max(gained) > .5  # the tangential component survives the wall; a frozen cell would not move

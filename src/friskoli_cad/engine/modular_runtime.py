@@ -541,22 +541,32 @@ class ModularSimulation:
             path = paths.get(cid)
             if path: travel[k] = path['speed_um_s'] * math.fsum(s['end_s'] - s['start_s'] for s in path['segments'] if s['phase'] == 'run')
             if cid in delta_by_id: travel[k] += float(np.linalg.norm(delta_by_id[cid]))
+        extent_um, slid = np.asarray(grid.extent_um, dtype=float), set()
+        def slide(position, heading, k, cid):
+            """Walls are frictionless: only the part of a move that would leave the domain is removed."""
+            half = geometry[k].diameter_um / 2 + (geometry[k].length_um - geometry[k].diameter_um) / 2 * np.abs(heading)
+            high = extent_um - half
+            moved = np.where(high >= half, np.minimum(np.maximum(position, half), high), position)
+            if np.any(moved != position): slid.add(cid)
+            return moved
         scale = max(1., *grid.extent_um, float(np.abs(centers).max()) + float(travel.max()))
         # Cells whose whole-step swept sphere is clear of walls, solids and every other swept sphere cannot
         # collide: they take their path directly and only contested cells run the exact interval certification.
-        contested = contested_mask(centers, [g.length_um / 2 for g in geometry], travel, grid.extent_um, obstacles, 1e-9 + 1024 * np.finfo(float).eps * scale)
+        contested = contested_mask(centers, [g.length_um / 2 for g in geometry], travel, None, obstacles, 1e-9 + 1024 * np.finfo(float).eps * scale)
         positions, headings = centers.copy(), start_headings.copy()
         for k, cid in enumerate(ids):
             if contested[k]: continue
             path = paths.get(cid)
             if path:
                 for s in path['segments']:
-                    if s['phase'] == 'run': positions[k] += path['speed_um_s'] * (s['end_s'] - s['start_s']) * np.asarray(s['heading'])
+                    heading = np.asarray(s['heading'])
+                    if s['phase'] == 'run': positions[k] += path['speed_um_s'] * (s['end_s'] - s['start_s']) * heading
+                    positions[k] = slide(positions[k], heading, k, cid)
                 headings[k] = path['final_heading']
-            if cid in delta_by_id: positions[k] += delta_by_id[cid]
+            if cid in delta_by_id: positions[k] = slide(positions[k] + delta_by_id[cid], headings[k], k, cid)
         blocked = set()
         if contested.any():
-            index = np.flatnonzero(contested)
+            index = np.flatnonzero(contested); kmap = {ids[k]: k for k in index}
             capsules = tuple(Capsule(ids[k], centers[k], start_headings[k], geometry[k].length_um, geometry[k].diameter_um) for k in index)
             boundaries = sorted({s['end_s'] for p in paths.values() for s in p['segments']})
             elapsed = 0.
@@ -567,17 +577,18 @@ class ModularSimulation:
                     segment = next((s for s in path['segments'] if s['start_s'] <= elapsed < s['end_s']), None) if path else None
                     if segment is None: proposed.append(capsule); continue
                     heading = segment['heading']; speed = path['speed_um_s'] if segment['phase'] == 'run' else 0.
-                    proposed.append(replace(capsule, heading=tuple(heading), position_um=tuple(np.asarray(capsule.position_um) + speed * (boundary - elapsed) * np.asarray(heading))))
-                guarded = guard_motion(capsules, tuple(proposed), extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry)
+                    proposed.append(replace(capsule, heading=tuple(heading), position_um=tuple(slide(np.asarray(capsule.position_um) + speed * (boundary - elapsed) * np.asarray(heading), np.asarray(heading), kmap[capsule.cell_id], capsule.cell_id))))
+                guarded = guard_motion(capsules, tuple(proposed), extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry, check_walls=False)
                 capsules = guarded.capsules; blocked.update(guarded.blocked_ids); elapsed = boundary
             if displacements:
-                proposed = tuple(replace(c, position_um=tuple(np.asarray(c.position_um) + delta_by_id.get(c.cell_id, 0.))) for c in capsules)
-                guarded = guard_motion(capsules, proposed, extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry)
+                proposed = tuple(replace(c, position_um=tuple(slide(np.asarray(c.position_um) + delta_by_id.get(c.cell_id, 0.), np.asarray(c.heading), kmap[c.cell_id], c.cell_id))) for c in capsules)
+                guarded = guard_motion(capsules, proposed, extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry, check_walls=False)
                 capsules = guarded.capsules; blocked.update(guarded.blocked_ids)
             final = tuple(replace(c, heading=tuple(paths[c.cell_id]['final_heading'])) if c.cell_id in paths else c for c in capsules)
-            guarded = guard_motion(capsules, final, extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry)
+            guarded = guard_motion(capsules, final, extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry, check_walls=False)
             for k, c in zip(index, guarded.capsules): positions[k], headings[k] = c.position_um, c.heading
             blocked.update(guarded.blocked_ids)
+        blocked |= slid
         groups, offset = {}, 0
         for gid, group in world.groups.items():
             n = len(group.ids); group_positions, group_headings = positions[offset:offset + n], headings[offset:offset + n]; offset += n

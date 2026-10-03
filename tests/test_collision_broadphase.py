@@ -110,3 +110,23 @@ def test_full_simulation_checkpoint_including_rng_matches_reference(example,monk
     actual=prepare_project(project,dt_s=.01,steps=6)
     for _ in range(6):actual.step(.01)
     assert actual.checkpoint()==expected
+
+
+def test_check_walls_false_ignores_domain_walls_but_still_guards_cells_and_solids():
+    a=body('a',(1.,10.,10.))
+    crossing=replace(a,position_um=(.2,10.,10.))
+    assert guard_motion([a],[crossing],extent_um=(128.,)*3).blocked_ids==('a',)
+    free=guard_motion([a],[crossing],extent_um=(128.,)*3,check_walls=False)
+    assert free.blocked_ids==() and free.capsules[0].position_um==crossing.position_um
+    box=BoxObstacle('solid',(5.,9.,9.),(6.,11.,11.))
+    assert guard_motion([a],[replace(a,position_um=(5.5,10.,10.))],extent_um=(128.,)*3,obstacles=[box],check_walls=False).blocked_ids==('a',)
+    pair=[body('p',(10.,10.,10.)),body('q',(14.,10.,10.))]
+    moved=[replace(pair[0],position_um=(13.5,10.,10.)),pair[1]]
+    assert guard_motion(pair,moved,extent_um=(128.,)*3,check_walls=False).blocked_ids==('p',)
+
+
+def test_contested_mask_without_walls_ignores_boundary_contact():
+    from friskoli_cad.engine.collision import contested_mask
+    near_wall=[[.2,5.,5.]]
+    assert contested_mask(near_wall,[1.],[.5],(10.,10.,10.),(),1e-9)[0]
+    assert not contested_mask(near_wall,[1.],[.5],None,(),1e-9)[0]
