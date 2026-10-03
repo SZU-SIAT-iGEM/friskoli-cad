@@ -30,5 +30,5 @@ export const settingControl = target => {
   const key=target.parameter;
   if(['dt_s','steps'].includes(key))return key==='dt_s'?'dt-input':'steps-input';
   if(key==='field_stride_xyz')return `setting-field_stride_xyz-${target.axis??0}`;
-  return ['backend','include_fields','include_final_fields','frame_every_steps','seed'].includes(key)?`setting-${key}`:null;
+  return ['max_cells','backend','include_fields','include_final_fields','frame_every_steps','seed'].includes(key)?`setting-${key}`:null;
 };

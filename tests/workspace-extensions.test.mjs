@@ -1,3 +1,4 @@
+import {compareRuns} from '../src/friskoli_cad/web/metrics.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {WorkspaceSession} from '../src/friskoli_cad/web/workspace-session.mjs';
@@ -38,3 +39,30 @@ test('binary fields decode typed rows with verified bounds and hashes, and cache
  assert.deepEqual(Array.from((await pager.frame(0)).concentrations.s.values_zyx[0][1]),[3,4]);await pager.frame(1);assert.equal(pager.cache.size,1);await pager.frame(0);assert.equal(calls,3);assert.ok(pager.bytes<=120);
  await assert.rejects(pager.decode({...field,array:{...field.array,bytes:80}}));await assert.rejects(pager.decode({...field,array:{...field.array,sha256:'0'.repeat(64)}}));
 });
+
+test('three-way upgrade adds/removes nodes and preserves manual edges as repair drafts',()=>{
+ const node=id=>({id,module_id:'m',module_version:'1',owner:{kind:'population',id:'cells'},parameters:{p:{value:1}}});
+ const base=node('n'),other=node('other'),edge={id:'manual',from:{node:'n',port:'out'},to:{node:'other',port:'in'},timing:'same_step'};
+ const record={owner_object_id:'cells',base_nodes:[base],base_edges:[]},project={graph:{nodes:[structuredClone(base),other],edges:[edge]},run:{channels:{}}};
+ const replaced=templateUpgradePreview(record,project,[node('added')],[]);assert.equal(replaced.valid,true);assert.deepEqual(replaced.project.graph.nodes.map(n=>n.id),['other','added']);assert.deepEqual(replaced.draftLinks,[edge]);assert.deepEqual(project.graph.edges,[edge]);
+ const edited=structuredClone(project);edited.graph.nodes[0].parameters.p.value=2;
+ const conflict=templateUpgradePreview(record,edited,[{...base,parameters:{p:{value:3}}}]);assert.equal(conflict.project.graph.nodes[0].parameters.p.value,2);assert.equal(conflict.conflicts.length,1);
+ const accept=templateUpgradePreview(record,edited,[{...base,parameters:{p:{value:3}}}],null,null,'incoming');assert.equal(accept.project.graph.nodes[0].parameters.p.value,3);
+ const absent=templateUpgradePreview(record,project,[{...base,module_version:'2'}],null,new Map());assert.equal(absent.valid,false);assert.ok(absent.structural.some(c=>c.reason.includes('missing implementation')));
+});
+test('paged trajectory breaks at absent cells rather than connecting across gaps',async()=>{
+ const chunks=[0,1,2,3,4].map(first_step=>({first_step,bytes:100}));
+ const client={taskChunk:async(_,c)=>({frames:[{frame:{time_s:c.first_step,cells:c.first_step===2?[]:[{id:'a',position_um:[c.first_step,0,0]}],events:[]}}]})};
+ const pager=new PagedReplay(client,{runId:'r',submission:{execution:{dt_s:1}}},{chunks});
+ const result=await pager.scan({},'a');assert.deepEqual(result.segments,[[[0,0,0],[1,0,0]],[[3,0,0],[4,0,0]]]);assert.equal(result.pointCount,4);
+});
+
+test('offline shell removes only older shell generations and reads only current cache',async()=>{
+ const {readFile}=await import('node:fs/promises'),{runInNewContext}=await import('node:vm');const source=await readFile(new URL('../src/friskoli_cad/web/service-worker.js',import.meta.url),'utf8');const events={},deleted=[],opened=[];let claimed=false,allMatched=false;
+ const cacheName=source.match(/const CACHE='([^']+)'/)[1];
+ const context={URL,Promise,Error,self:{location:{origin:'http://example.test'},clients:{claim:async()=>{claimed=true;}},skipWaiting:()=>{},addEventListener:(name,fn)=>{events[name]=fn;}},fetch:async()=>{throw Error('offline');},caches:{keys:async()=>['friskoli-shell-old',cacheName,'unrelated-cache'],delete:async key=>{deleted.push(key);},open:async key=>{opened.push(key);return {match:async()=>({generation:key})};},match:async()=>{allMatched=true;}}};
+ runInNewContext(source,context);let activation;events.activate({waitUntil:value=>{activation=value;}});await activation;assert.deepEqual(deleted,['friskoli-shell-old']);assert.equal(claimed,true);
+ let response;events.fetch({request:{url:'http://example.test/app.mjs',method:'GET'},respondWith:value=>{response=value;}});assert.equal((await response).generation,cacheName);assert.equal(allMatched,false);assert.deepEqual(opened,[cacheName]);
+});
+
+test('runs without declared aggregate observables are not treated as comparable metrics',()=>{const run={status:'completed',replay:{snapshots:[{metrics:{}}]}};assert.throws(()=>compareRuns([run,run]),/comparisonCompleteOnly/);});

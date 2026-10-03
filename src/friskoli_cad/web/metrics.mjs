@@ -39,7 +39,7 @@ export function variantKey(record) {
 }
 export function compareRuns(records) {
   if (records.length < 2) throw new Error('comparisonNeedTwo');
-  if (records.some(r => r.status !== 'completed' || (r.localId && r.completeness !== 'complete') || !r.replay?.snapshots.at(-1)?.metrics)) throw new Error('comparisonCompleteOnly');
+  if (records.some(r => r.status !== 'completed' || (r.localId && r.completeness !== 'complete') || !r.replay?.snapshots.at(-1)?.metrics?.by_group)) throw new Error('comparisonCompleteOnly');
   if (records.some(r => comparisonKey(r) !== comparisonKey(records[0]))) throw new Error('comparisonMismatch');
   const variants = new Map();
   for (const record of records) {

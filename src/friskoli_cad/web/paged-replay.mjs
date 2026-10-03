@@ -28,13 +28,13 @@ export class PagedReplay {
  }
  async scan({start=0,end=Infinity,type='all',frameLimit=this.frameCount}={},cellId=null,onProgress=()=>{},cancelled=()=>false){
   if(!Number.isFinite(start)||start<0||end<start)throw Error('Invalid result interval');
-  const events=[],points=[];let eventCount=0,pointCount=0,stride=1;const dt=this.record.submission?.execution.dt_s;
+  const events=[],samples=[];let eventCount=0,pointCount=0,stride=1,segment=0,wasPresent=false;const dt=this.record.submission?.execution.dt_s;
   for(let index=0;index<Math.min(this.frameCount,frameLimit);index++){if(cancelled())throw Error('Scan cancelled');const chunk=await this.descriptor(index);if(dt&&(chunk.first_step*dt<start||chunk.first_step*dt>end))continue;if(chunk.bytes>this.maxChunkBytes)throw Error('Frame exceeds scan budget');const body=await this.client.taskChunk(this.record.runId,chunk),frame=body.frames?.[0]?.frame;if(!frame||frame.time_s<start||frame.time_s>end)continue;
    for(const event of frame.events??[])if(type==='all'||event.type===type){eventCount++;if(events.length<500)events.push({index,time_s:frame.time_s,event});}
-   const cell=cellId?frame.cells.find(c=>c.id===cellId):null;if(cell){if(pointCount++%stride===0)points.push(cell.position_um);if(points.length>=2000){points.splice(0,points.length,...points.filter((_,i)=>i%2===0));stride*=2;}}
+   const cell=cellId?frame.cells.find(c=>c.id===cellId):null;if(cell){if(!wasPresent)segment++;wasPresent=true;if(pointCount++%stride===0)samples.push({position:cell.position_um,segment});if(samples.length>=2000){samples.splice(0,samples.length,...samples.filter((_,i)=>i%2===0));stride*=2;}}else wasPresent=false;
    onProgress(index+1,this.frameCount);
   }
-  return {events,eventCount,points,pointCount,pointStride:stride};
+  const segments=[];let previous=null;for(const sample of samples){if(sample.segment!==previous){segments.push([]);previous=sample.segment;}segments.at(-1).push(sample.position);}return {events,eventCount,points:samples.map(s=>s.position),segments:segments.filter(s=>s.length>1),pointCount,pointStride:stride};
  }
  async *frames(){for(let index=0;index<this.frameCount;index++)yield await this.frame(index);}
  async load(index){
@@ -77,7 +77,7 @@ export class LinkedReplay {
  }
  replay(snapshot,index){const replay=this.leaf.replay(snapshot,index);replay.domain=snapshot?.display_domain??this.record.project.domain;replay.paged={...replay.paged,frame_count:this.frameCount,index,cache_bytes:this.bytes,segments:this.segments.map(s=>({run_id:s.reader.record.runId,start:s.offset,count:s.count}))};return replay;}
  async *frames(){for(let i=0;i<this.frameCount;i++)yield await this.frame(i);}
- async scan(filter,id,onProgress=()=>{},cancelled=()=>false){const result={events:[],eventCount:0,points:[],pointCount:0,pointStride:1};for(const s of this.segments){const value=await s.reader.scan({...filter,frameLimit:s.count},id,(n)=>onProgress(s.offset+n,this.frameCount),cancelled);result.eventCount+=value.eventCount;result.events.push(...value.events.slice(0,500-result.events.length).map(e=>({...e,index:e.index+s.offset})));result.pointCount+=value.pointCount;result.points.push(...value.points);while(result.points.length>2000){result.points=result.points.filter((_,i)=>i%2===0);result.pointStride*=2;}result.pointStride=Math.max(result.pointStride,value.pointStride);}return result;}
+ async scan(filter,id,onProgress=()=>{},cancelled=()=>false){const result={events:[],eventCount:0,points:[],segments:[],pointCount:0,pointStride:1};for(const s of this.segments){const value=await s.reader.scan({...filter,frameLimit:s.count},id,(n)=>onProgress(s.offset+n,this.frameCount),cancelled);result.eventCount+=value.eventCount;result.events.push(...value.events.slice(0,500-result.events.length).map(e=>({...e,index:e.index+s.offset})));result.pointCount+=value.pointCount;result.points.push(...value.points);result.segments.push(...value.segments);while(result.points.length>2000){result.points=result.points.filter((_,i)=>i%2===0);result.segments=result.segments.map(segment=>segment.filter((_,i)=>i%2===0)).filter(segment=>segment.length>1);result.pointStride*=2;}result.pointStride=Math.max(result.pointStride,value.pointStride);}return result;}
 }
 
 const json=(value)=>JSON.stringify(value,(_,item)=>ArrayBuffer.isView(item)?Array.from(item):item);

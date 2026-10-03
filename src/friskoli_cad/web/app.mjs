@@ -2,7 +2,7 @@ import {exportPagedResult} from './paged-replay.mjs';
 import {openPackagePanel} from './package-panel.mjs';
 import {renderParameterComparison,trajectorySegments} from './result-analysis.mjs';
 import {renderResolutionGuidance} from './resolution-guidance.mjs';
-import {WorkspaceSession,captureViewState} from './workspace-session.mjs';
+import {WorkspaceSession,captureViewState,installDetailsView} from './workspace-session.mjs';
 import {reviewTransaction} from './transaction-dialog.mjs';
 import {alignBlock,deletionPreview,managedRecord,templateUpgradePreview} from './workspace-transactions.mjs';
 import {CommandRegistry, graphMutationReason, settingControl} from './commands.mjs';
@@ -26,7 +26,7 @@ import { SpatialViewport, canTransformBlock, canTransformEnvironment } from './s
 import { GraphEditor, autoLayout } from './workflow.mjs';
 import { moduleName, nodeGeometry } from './workflow-components.mjs';
 import { arrangeGraph, timelineMarkers } from './workflow-layout.mjs';
-import { showAssemblyLibrary } from './assembly-library.mjs';
+import { showAssemblyLibrary,AssemblyLibraryStore } from './assembly-library.mjs';
 import { moduleFolders, diagnosticTarget, populationModuleBindings, populationNodeLocked } from './ui-guidance.mjs';
 import { addNode, connect, connectionProblem, disconnect, missingInputs, missingParameters, preferredTiming, removeNode,
   setParameter } from './graph-edit.mjs';
@@ -55,15 +55,16 @@ const graphReason = selection => {
   const reason=graphMutationReason(state.project,state.blocks,selection,id=>requiredRoleRemovalProblem(state.project,id,state.objects,state.modules));
   return reason==='locked' ? (currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.') : reason.startsWith('role:') ? t('requiredMechanism',{role:reason.slice(5)}) : reason;
 };
-for(const action of ['duplicate','delete','scatter','top','bottom','center'])commands.register(`population.${action}`,{
+for(const action of ['duplicate','delete','scatter','reset','top','bottom','center'])commands.register(`population.${action}`,{
   reason:(s,id)=>{const block=s.blocks.find(b=>b.id===id);return !block?'selection':block.locked?(currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.'):!objectForBlock(block,s.objects)&&action!=='delete'?'Population adapter unavailable':'';},
-  run:(_,id)=>action==='duplicate'?duplicateBlock(id):action==='delete'?removeBlock(id):action==='scatter'?scatter(id):edit('updated',()=>{const block=state.blocks.find(b=>b.id===id);Object.assign(block,alignBlock(state.project.domain,block,action));checkBlock(state.project.domain,block);})
+  run:(_,id)=>action==='duplicate'?duplicateBlock(id):action==='delete'?removeBlock(id):action==='scatter'?scatter(id):action==='reset'?scatter(id,true):edit('updated',()=>{const block=state.blocks.find(b=>b.id===id);Object.assign(block,alignBlock(state.project.domain,block,action));checkBlock(state.project.domain,block);})
 });
 commands.register('graph.delete',{reason:(_,selection)=>graphReason(selection),run:(_,selection)=>deleteGraphItem(selection)});
 
 let taskStorage = null;
 try { taskStorage = localStorage; } catch { /* display unavailable recovery in the task panel */ }
 const workspaceSession=new WorkspaceSession(taskStorage);
+installDetailsView(state);
 let taskPersistence = null, taskPersistenceError = null;
 try { taskPersistence = await openTaskPersistence(taskStorage); }
 catch (error) { taskPersistenceError = error.message; }
@@ -560,6 +561,7 @@ function renderBlockInspector(root, block) {
   action.type = 'button';
   action.disabled = Boolean(block.locked) || !object;
   commands.bind(action,'population.scatter',block.id);
+  const reset=el('button','inspector-action',currentLanguage()==='zh-CN'?'恢复初始分布':'Reset initial distribution');commands.bind(reset,'population.reset',block.id);reset.disabled=reset.disabled||!state.managedTemplates?.[block.id]?.initial_distribution;root.append(reset);
   root.append(action);
   if (!object) root.append(el('p','pending-note',t('unsupportedObject')));
   if (block.binding) {
@@ -580,8 +582,8 @@ function renderBlockInspector(root, block) {
   }
   for(const [key,en,zh]of [['top','Align top face','顶面贴齐'],['bottom','Align bottom face','底面贴齐'],['center','Center in domain','移至空间中心']]){const button=el('button','inspector-action',currentLanguage()==='zh-CN'?zh:en);commands.bind(button,`population.${key}`,block.id);root.append(button);}
   const distribution=[...state.modules.values()].find(m=>m.id==='control.seeded_distribution');if(distribution){const addDistribution=el('button','inspector-action',currentLanguage()==='zh-CN'?'添加有seed的群内分布':'Add seeded population distribution');addDistribution.disabled=block.locked;addDistribution.addEventListener('click',()=>{state.selectedBlock=block.id;addGraphNode(distribution);});root.append(addDistribution);}
-  if(state.managedTemplates?.[block.id]){const upgrade=el('button','inspector-action',currentLanguage()==='zh-CN'?'预览模板升级':'Preview template upgrade');upgrade.disabled=block.locked;upgrade.addEventListener('click',()=>{
-    const input=el('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{try{const file=input.files[0];if(!file||file.size>1024*1024)throw Error('Template update must be at most 1 MiB');const incoming=JSON.parse(await file.text());if(!Array.isArray(incoming.nodes)||typeof incoming.template_version!=='string')throw Error('Expected template_version and nodes');const record=state.managedTemplates[block.id],preview=templateUpgradePreview(record,state.project,incoming.nodes),revision=state.revision,token=state.draftToken;reviewTransaction({title:'Template upgrade',description:'Conflicting user overrides require an explicit policy. Only declared parameters are updated; topology is preserved.',rows:[...preview.updates.map(u=>`${u.id}.${u.parameter}`),...preview.conflicts.map(c=>`Conflict: ${c.id}.${c.parameter??c.reason}`)],fields:[{name:'policy',label:'Conflicts',value:'keep',options:[['keep','Keep local overrides'],['incoming','Use incoming values']]}],commit:values=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');return edit('updated',()=>{for(const update of [...preview.updates,...(values.policy==='incoming'?preview.conflicts.filter(c=>c.parameter).map(c=>({id:c.id,parameter:c.parameter,value:c.incoming})):[])]){const node=findNode(update.id),manifest=state.modules.get(moduleKey(node));const problem=setParameter(node,manifest,update.parameter,update.value.value);if(problem)throw Error(problem);}record.template_version=incoming.template_version;record.base_nodes=structuredClone(incoming.nodes);});}});}catch(error){status('editFailed',{message:error.message},true);}});input.click();});root.append(upgrade);const detach=el('button','inspector-action',currentLanguage()==='zh-CN'?'解除模板托管':'Detach managed template');detach.disabled=block.locked;detach.addEventListener('click',()=>edit('updated',()=>delete state.managedTemplates[block.id]));root.append(detach);}
+  if(state.managedTemplates?.[block.id]&&!state.managedTemplates[block.id].detached){const upgrade=el('button','inspector-action',currentLanguage()==='zh-CN'?'预览模板升级':'Preview template upgrade');upgrade.disabled=block.locked;upgrade.addEventListener('click',()=>{
+    const input=el('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{try{const file=input.files[0];if(!file||file.size>1024*1024)throw Error('Template update must be at most 1 MiB');const incoming=JSON.parse(await file.text());if(!Array.isArray(incoming.nodes)||typeof incoming.template_version!=='string')throw Error('Expected template_version and nodes');const record=state.managedTemplates[block.id],preview=templateUpgradePreview(record,state.project,incoming.nodes,incoming.edges??null,state.modules),revision=state.revision,token=state.draftToken;reviewTransaction({title:'Template upgrade',description:'Three-way template update by stable node/edge IDs. Review structural changes and local conflicts. Manual connections are preserved or retained as repair drafts; unresolved drafts block Run.',rows:[...preview.changes,...preview.updates.map(u=>`${u.id}.${u.parameter}`),...preview.conflicts.map(c=>`Conflict: ${c.id}.${c.parameter??c.reason}`),...preview.structural.map(c=>`Blocked: ${c.id}: ${c.reason}`),...preview.manualEdges.map(id=>`Preserved manual connection: ${id}`)],fields:[{name:'policy',label:'Conflicts',value:'keep',options:[['keep','Keep local overrides'],['incoming','Use incoming changes']]}],commit:values=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');const selected=templateUpgradePreview(record,state.project,incoming.nodes,incoming.edges??null,state.modules,values.policy);if(!selected.valid)throw Error(selected.structural.map(c=>`${c.id}: ${c.reason}`).join('\n'));return edit('updated',()=>{state.project=selected.project;state.draftLinks??=[];state.draftLinks.push(...selected.draftLinks);record.template_version=incoming.template_version;record.base_nodes=structuredClone(incoming.nodes);if(incoming.edges)record.base_edges=structuredClone(incoming.edges);record.overrides={};for(const node of state.project.graph.nodes){const base=record.base_nodes.find(n=>n.id===node.id);if(base&&JSON.stringify(base)!==JSON.stringify(node))record.overrides[node.id]=structuredClone(node);}state.layout=autoLayout(state.project.graph,state.modules,state.layout);});}});}catch(error){status('editFailed',{message:error.message},true);}});input.click();});root.append(upgrade);const detach=el('button','inspector-action',currentLanguage()==='zh-CN'?'解除模板托管':'Detach managed template');detach.disabled=block.locked;detach.addEventListener('click',()=>edit('updated',()=>{state.managedTemplates[block.id].detached=true;}));root.append(detach);}
   if (isSpatial(state.project) && !block.dirty) {
     const part = section(root,t('copyBranch'));
     const source = el('select'); source.setAttribute('aria-label',t('sourcePopulation'));
@@ -692,7 +694,7 @@ function removeEnvironment(id) {
 }
 
 function renderCellInspector(root, cell) {
-  if(cell&&state.replay){const trajectory=el('button','inspector-action',currentLanguage()==='zh-CN'?'显示此菌体3D轨迹':'Show cell 3D trajectory');trajectory.addEventListener('click',async()=>{if(state.replay.paged){trajectory.disabled=true;try{const result=await taskStore.pagers.get(state.activeRun.localId).scan({start:0,end:Infinity},cell.id);viewport?.setTrajectory(result.points.length>1?[result.points]:[]);trajectory.textContent=`${result.points.length}/${result.pointCount} positions · stride ${result.pointStride}`;}catch(error){status('runFailed',{message:error.message},true);}finally{trajectory.disabled=false;}}else viewport?.setTrajectory(trajectorySegments(state.replay,cell.id));});root.append(trajectory);}
+  if(cell&&state.replay){const trajectory=el('button','inspector-action',currentLanguage()==='zh-CN'?'显示此菌体3D轨迹':'Show cell 3D trajectory');trajectory.addEventListener('click',async()=>{if(state.replay.paged){trajectory.disabled=true;try{const result=await taskStore.pagers.get(state.activeRun.localId).scan({start:0,end:Infinity},cell.id);viewport?.setTrajectory(result.segments??(result.points.length>1?[result.points]:[]));trajectory.textContent=`${result.points.length}/${result.pointCount} positions · stride ${result.pointStride}`;}catch(error){status('runFailed',{message:error.message},true);}finally{trajectory.disabled=false;}}else viewport?.setTrajectory(trajectorySegments(state.replay,cell.id));});root.append(trajectory);}
   root.append(el('div', 'inspector-title', state.selectedCell), el('div', 'inspector-subtitle', t('cells')));
   if (!cell) { root.append(el('p', 'empty-message', t('noCell'))); return; }
   const location = section(root, t('geometry'));
@@ -714,6 +716,10 @@ function renderCellInspector(root, cell) {
 }
 
 function renderDomainInspector(root) {
+  if(state.project.project_version==='0.6.0'){
+    const sectionNode=section(root,currentLanguage()==='zh-CN'?'运行资源限制':'Runtime resource limits'),row=el('label','edit-row',currentLanguage()==='zh-CN'?'最大动态菌体数':'Maximum live cells'),input=el('input');input.id='setting-max_cells';input.type='number';input.min='1';input.max=String(state.capabilities?.limits?.cells??2000);input.step='1';input.value=state.project.system_limits?.max_cells??256;input.setAttribute('aria-label','Maximum live cells');
+    input.addEventListener('change',()=>edit('updated',()=>{const max_cells=Number(input.value);if(!Number.isSafeInteger(max_cells)||max_cells<1||max_cells>Number(input.max))throw Error('Maximum live cells must be an integer within the service resource limit');state.project.system_limits={...state.project.system_limits,max_cells};}));row.append(input);sectionNode.append(row,el('p','task-note',currentLanguage()==='zh-CN'?'此值是运行资源上限，不是生物承载量。达到上限时明确停止，并保留已提交状态。':'This is a runtime resource limit, not biological carrying capacity. Reaching it stops the task explicitly and retains committed state.'));
+  }
   renderResolutionGuidance(root,state.project,currentLanguage()==='zh-CN');
   const gradient=el('button','inspector-action',currentLanguage()==='zh-CN'?'梯度与来源向导':'Gradient and source wizard');gradient.addEventListener('click',()=>{
     const kinds=[['initial','Initial gradient / 初始梯度：仅初始化',/initial.*field|linear_gradient|initial.*gradient/],['finite','Finite source / 有限源：库存耗尽后停止',/source\.finite_local/],['maintained','Maintained concentration / 维持浓度：持续外部物质交换',/ideal_local_reservoir|concentration_boundary/]];
@@ -953,8 +959,8 @@ function locateDiagnostic(target) {
 }
 
 function previewRunMigration(run){
-  reviewTransaction({title:'Environment / grid migration',description:'Edit the target Project. This operation requires conservative same-domain field mapping and identity mapping for cells/module state. Preview is read-only.',fields:[{name:'project',label:'Target Project JSON',type:'textarea',value:JSON.stringify(run.project,null,2)}],commit:async values=>{
-    const project=JSON.parse(values.project),mapping={fields:'conservative-volume',cells:'identity',module_state:'identity'},path=`/api/runs/${encodeURIComponent(run.runId)}`;
+  reviewTransaction({title:'Environment / grid migration',description:'Edit the target Project and select the mapping rule. Modular physical-domain resizing keeps the origin and physical coordinates; new space is zero-filled. Cropping nonzero inventory or excluding objects is rejected. Preview is read-only.',fields:[{name:'project',label:'Target Project JSON',type:'textarea',value:JSON.stringify(run.project,null,2)},{name:'domain',label:'Domain mapping',value:'same',options:[['same','Same physical domain · conservative grid remapping'],['resize','Modular domain resize · physical coordinates, zero fill, identity sources']]}],commit:async values=>{
+    const project=JSON.parse(values.project),mapping={fields:'conservative-volume',cells:'identity',module_state:'identity',...(values.domain==='resize'?{domain:'physical-coordinates-zero-fill',sources:'identity'}:{})},path=`/api/runs/${encodeURIComponent(run.runId)}`;
     const preview=await kernel.request(path+'/migration-preview',{project,mapping});if(!preview.valid)throw Error(JSON.stringify(preview));
     reviewTransaction({title:'Confirm conservative migration',description:'The previous run and checkpoint remain available. Confirm creates a linked segment.',rows:[JSON.stringify(preview.audit)],commit:async()=>{const request_id=crypto.randomUUID(),edit_revision=run.submission.edit_revision;const submission={...structuredClone(run.submission),request_id,project};return taskStore.startOperation(submission,{draftToken:run.draftToken,revision:run.revision,idempotencyRetentionSeconds:86400},path+'/migrate',{project,mapping,request_id,edit_revision,preview_sha256:preview.preview_sha256});}});
   }});
@@ -1215,6 +1221,7 @@ async function checkProject() {
   if (!state.project || state.busy) return;
   const revision = state.revision, draftToken = state.draftToken;
   state.checks = [];
+  if(state.draftLinks?.length)state.checks.push({code:'draft.connections',path:'/graph',message:'Repair or discard connection drafts before running'});
   for (const b of state.blocks) if (b.dirty) state.checks.push({code:'scatter.pending',path:b.id,message:t('pending')});
   try {
     const asynchronous = supportsTasks(state.capabilities, state.project);
@@ -1287,7 +1294,7 @@ function parameterField(parent, node, manifest, name, definition, {readOnly=fals
       if(populationNodeLocked(target,state.blocks))throw new Error(currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.');
       const problem = setParameter(target, manifest, name, raw);
       if (problem) throw new Error(problem);
-      const managed=state.managedTemplates?.[target.owner.id];if(managed)managed.overrides[`${target.id}.${name}`]=structuredClone(target.parameters[name]);
+      const managed=state.managedTemplates?.[target.owner.id];if(managed&&!managed.detached)managed.overrides[`${target.id}.${name}`]=structuredClone(target.parameters[name]);
     }, { name });
   });
   const tier=entry?.value===undefined?'required':entry?.provenance?.kind==='unknown'?'research':entry?.provenance&&entry.provenance.kind!=='user'?'reference':'provided';
@@ -1411,7 +1418,7 @@ function renderGraphSummary(root) {
   for(const [index,draft]of (state.draftLinks??[]).entries()){
     const box=section(root,`Draft · ${draft.id}`),from=el('select'),to=el('select');from.setAttribute('aria-label','Draft source');to.setAttribute('aria-label','Draft target');
     for(const node of graph.nodes){const manifest=state.modules.get(moduleKey(node));for(const port of Object.keys(manifest?.outputs??{}))from.add(new Option(`${node.id}.${port}`,JSON.stringify({node:node.id,port})));for(const port of Object.keys(manifest?.inputs??{}))to.add(new Option(`${node.id}.${port}`,JSON.stringify({node:node.id,port})));}
-    from.value=JSON.stringify(draft.from);to.value=JSON.stringify(draft.to);const repair=el('button','inspector-action',currentLanguage()==='zh-CN'?'修复连接':'Repair connection');repair.addEventListener('click',()=>edit('updated',()=>{if(!from.value||!to.value)throw Error('Choose both endpoints');connect(graph,state.modules,JSON.parse(from.value),JSON.parse(to.value),draft.timing);state.draftLinks.splice(index,1);}));box.append(from,to,repair);
+    from.value=JSON.stringify(draft.from);to.value=JSON.stringify(draft.to);const repair=el('button','inspector-action',currentLanguage()==='zh-CN'?'修复连接':'Repair connection');repair.addEventListener('click',()=>edit('updated',()=>{if(!from.value||!to.value)throw Error('Choose both endpoints');connect(graph,state.modules,JSON.parse(from.value),JSON.parse(to.value),draft.timing);state.draftLinks.splice(index,1);}));const discard=el('button','inspector-action',currentLanguage()==='zh-CN'?'丢弃连接草稿':'Discard connection draft');discard.addEventListener('click',()=>edit('updated',()=>state.draftLinks.splice(index,1)));box.append(from,to,repair,discard);
   }
   root.append(el('p', 'empty-message', t('graphHint')));
 }
@@ -1610,7 +1617,7 @@ function showGraphContext(selection, x, y) {
 }
 
 function updateRunButton() {
-  const pending = state.blocks.some(block => block.dirty) || state.connected===false;
+  const pending = state.blocks.some(block => block.dirty) || state.connected===false || Boolean(state.draftLinks?.length);
   const missing = state.project ? missingInputs(state.project.graph, state.modules).length : 0;
   const missingValues = state.project ? missingParameters(state.project.graph,state.modules).length : 0;
   const unavailable = state.project ? unavailableModules(state.project.graph, state.modules).length : 0;
@@ -1678,7 +1685,7 @@ async function setFrame(index) {
 }
 
 async function executeProject(candidate) {
-  if (state.busy) return false;
+  if (state.busy||state.draftLinks?.length) return false;
   const {dt_s: dt, steps} = state.settings;
   if (!Number.isFinite(dt) || dt <= 0 || !Number.isInteger(steps) || steps < 1 || steps > stepLimit()) {
     status('invalidControls', {}, true); return false;
@@ -1722,18 +1729,20 @@ async function executeProject(candidate) {
   } finally { state.busy = false; updateRunButton(); renderDiagnostics(); }
 }
 
-function scatter(id) {
+function scatter(id,reset=false) {
   const block = state.blocks.find(item => item.id === id);
   if (!block || block.locked) return;
-  const draft=structuredClone(state.project),copy=structuredClone(block),revision=state.revision,token=state.draftToken;
-  let proposed=block.count,packingError=null;
-  try{initializeObject(draft,copy,objectForBlock(block,state.objects),state.modules);}
+  const baseline=state.managedTemplates?.[id]?.initial_distribution;if(reset&&!baseline)return;
+  const draft=structuredClone(state.project),copy=structuredClone(reset?{...baseline,id:block.id,binding:block.binding,locked:block.locked}:block),revision=state.revision,token=state.draftToken;
+  let proposed=copy.count,packingError=null;
+  try{if(reset&&state.managedTemplates[id].initial_group){checkBlock(draft.domain,copy);draft.groups[id]=structuredClone(state.managedTemplates[id].initial_group);copy.dirty=false;}else initializeObject(draft,copy,objectForBlock(block,state.objects),state.modules);}
   catch(error){packingError=error;}
+  if(packingError&&reset){status('editFailed',{message:packingError.message},true);return;}
   if(packingError){try{initializeObject(draft,copy,objectForBlock(block,state.objects),state.modules,{allowShortfall:true});proposed=copy.count;}catch(error){status('editFailed',{message:error.message},true);return;}}
   const old=state.project.groups[id]?.ids??[];
-  reviewTransaction({title:currentLanguage()==='zh-CN'?'确认重散布':'Review population scatter',description:currentLanguage()==='zh-CN'?'预览使用当前 seed；确认后替换初始分布，已有运行结果保留。':'The preview uses the current seed. Confirm replaces the initial distribution; saved runs remain unchanged.',confirm:proposed<block.count?(currentLanguage()==='zh-CN'?`接受较少数量：${proposed} / ${block.count}`:`Accept fewer: ${proposed} / ${block.count}`):t('apply'),rows:[`${old.length} → ${proposed} cells`,...old.slice(0,20),...(old.length>20?[`… ${old.length-20} more`]:[])],commit:()=>{
+  reviewTransaction({title:reset?(currentLanguage()==='zh-CN'?'恢复初始分布':'Reset initial distribution'):(currentLanguage()==='zh-CN'?'确认重散布':'Review population scatter'),description:reset?'Restore the saved initial seed, geometry and cell positions. Current module parameters and saved results are retained.':(currentLanguage()==='zh-CN'?'预览使用当前 seed；确认后替换初始分布，已有运行结果保留。':'The preview uses the current seed. Confirm replaces the initial distribution; saved runs remain unchanged.'),confirm:proposed<block.count?(currentLanguage()==='zh-CN'?`接受较少数量：${proposed} / ${block.count}`:`Accept fewer: ${proposed} / ${block.count}`):t('apply'),rows:[`seed ${copy.seed}; size ${copy.size.join(' × ')}; center ${copy.center.join(', ')}; rotation ${(copy.rotation??[0,0,0]).join(', ')}`,`${old.length} → ${proposed} cells`,...old.slice(0,20),...(old.length>20?[`… ${old.length-20} more`]:[])],commit:()=>{
     if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');
-    return edit('scattered',()=>{state.project=draft;Object.assign(block,copy);state.managedTemplates??={};state.managedTemplates[id]=managedRecord(copy,draft);},{count:proposed,id});
+    return edit('scattered',()=>{state.project=draft;Object.assign(block,copy);state.managedTemplates??={};state.managedTemplates[id]??=managedRecord(copy,draft);},{count:proposed,id});
   },preview:value=>{viewport?.setPlacementPreview?.(value?copy:null);}});
 }
 
@@ -1789,6 +1798,8 @@ async function loadProject(document,recommendedSettings=null) {
   state.assemblyBusy = false; state.assemblyError = ''; state.assemblyNotice = ''; state.assemblyDraft = null;
   state.activeSpecies=null;
   Object.assign(state, loaded);
+  state.detailsView=structuredClone(loaded.viewState?.details??{});state.moduleFolders=structuredClone(loaded.viewState?.module_folders??{});state.mechanismExpanded=new Map(loaded.viewState?.mechanism_expanded??[]);
+  state.managedTemplates??={};for(const block of state.blocks){state.managedTemplates[block.id]??=managedRecord(block,state.project);state.managedTemplates[block.id].initial_distribution??=structuredClone(block);state.managedTemplates[block.id].initial_group??=structuredClone(state.project.groups[block.id]);}
   state.designImported=false;state.designBatchOptions={};state.designBatchOptionsId=null;
   state.layout = autoLayout(state.project.graph, state.modules, state.layout);
   state.selectedBlock = loaded.blocks[0]?.id ?? null;
@@ -1804,7 +1815,7 @@ async function loadProject(document,recommendedSettings=null) {
     state.saved = fingerprint();
     $('welcome-dialog').close();
     setView('space');
-    if(loaded.viewState){const v=loaded.viewState;state.selectedBlock=v.selected_block??state.selectedBlock;state.selectedEnvironment=v.selected_environment??null;state.graphSelection=v.graph_selection??null;state.left=v.left??'objects';setView(['space','workflow','design'].includes(v.view)?v.view:'space');viewport?.restoreView(v.camera);requestAnimationFrame(()=>{if(v.workflow){graphEditor.zoom=Math.min(2,Math.max(.2,v.workflow.zoom??1));graphEditor.applyZoom();graphEditor.container.scrollLeft=v.workflow.left??0;graphEditor.container.scrollTop=v.workflow.top??0;}for(const [id,top]of Object.entries(v.scroll??{}))if($(id))$(id).scrollTop=top;});}
+    if(loaded.viewState){const v=loaded.viewState;state.selectedBlock=Object.hasOwn(v,'selected_block')?v.selected_block:state.selectedBlock;state.selectedEnvironment=v.selected_environment??null;state.graphSelection=v.graph_selection??null;state.left=v.left??'objects';setView(['space','workflow','design'].includes(v.view)?v.view:'space');viewport?.restoreView(v.camera);requestAnimationFrame(()=>{if(v.workflow){graphEditor.zoom=Math.min(2,Math.max(.2,v.workflow.zoom??1));graphEditor.applyZoom();graphEditor.container.scrollLeft=v.workflow.left??0;graphEditor.container.scrollTop=v.workflow.top??0;}for(const [id,top]of Object.entries(v.scroll??{}))if($(id))$(id).scrollTop=top;});}
     status('opened');
     state.checks = [...report.issues, ...report.changes.map(change => ({...change,severity:'info'}))];
     if (state.checks.length) { showBottom('checks'); renderDiagnostics(); }
@@ -2084,7 +2095,6 @@ $('welcome-demo').addEventListener('click', () => loadWelcome(() => state.templa
 $('welcome-registry').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/registry-readout')));
 $('welcome-pts').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/pts-bulk')));
 $('welcome-spatial').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/spatial-baseline')));
-for(const [id,label]of [['modular-foundation','模块基础示例 / Modular foundation'],['modular-material','模块材料示例 / Modular material']]){const button=el('button','start-command',label);button.type='button';button.id='welcome-'+id;button.addEventListener('click',()=>loadWelcome(()=>kernel.request('/api/examples/'+id)));$('welcome-spatial').after(button);}
 
 $('welcome-recover').addEventListener('click', () => loadWelcome(() => {
   const recovery = localStorage.getItem(RECOVERY_KEY);
@@ -2160,7 +2170,7 @@ function installConnection(data,online,cold){
   updateRunButton();
 }
 const reconnect=el('button','menu-button',currentLanguage()==='zh-CN'?'重新连接内核 / Catalog':'Reconnect kernel / Catalog');reconnect.id='kernel-reconnect';reconnect.addEventListener('click',()=>connectKernel());$('settings-overlay').querySelector('section, .dialog-body, div')?.append(reconnect);
-const packages=el('button','menu-button',currentLanguage()==='zh-CN'?'模块包管理':'Package manager');packages.id='package-manager';packages.addEventListener('click',()=>openPackagePanel(kernel,{onChanged:()=>connectKernel(),pinId:state.project?.id,onLock:async lock=>{if(!state.project)return;const project={...structuredClone(state.project),dependency_lock:lock};const resolved=await kernel.request('/api/catalog/project',{project});if(edit('updated',()=>{state.project.dependency_lock=lock;})){workspaceSession.cacheProjectCatalog(lock,resolved);const registry=registerCatalog(resolved.catalog);state.modules=registry.modules;state.objects=registry.objects;const capability=state.capabilities.task_longrun_profiles?.[project.execution_profile];if(capability)capability.version_lock=resolved.version_lock;renderAll();}}}));reconnect.after(packages);
+const packages=el('button','menu-button',currentLanguage()==='zh-CN'?'模块包管理':'Package manager');packages.id='package-manager';packages.addEventListener('click',()=>openPackagePanel(kernel,{onChanged:()=>connectKernel(),onImport:async(value,kind)=>{if(kind==='assembly'){const valid=await assemblyRequest('validate',{assembly:value});new AssemblyLibraryStore(localStorage).add(valid??value);status('updated');}else{if(state.project){state.viewState=captureViewState(state,viewport,document,graphEditor);workspaceSession.remember(writeWorkspace(state),state.viewState);}await loadProject(value);}},pinId:state.project?.id,onLock:async lock=>{if(!state.project)return;const project={...structuredClone(state.project),dependency_lock:lock};const resolved=await kernel.request('/api/catalog/project',{project});if(edit('updated',()=>{state.project.dependency_lock=lock;})){workspaceSession.cacheProjectCatalog(lock,resolved);const registry=registerCatalog(resolved.catalog);state.modules=registry.modules;state.objects=registry.objects;const capability=state.capabilities.task_longrun_profiles?.[project.execution_profile];if(capability)capability.version_lock=resolved.version_lock;renderAll();}}}));reconnect.after(packages);
 const checkpointButton=el('button','menu-button',currentLanguage()==='zh-CN'?'导入 Checkpoint':'Import checkpoint');checkpointButton.addEventListener('click',()=>{const file=el('input');file.type='file';file.accept='.zip';file.addEventListener('change',()=>{if(file.files[0])importCheckpoint(file.files[0]).catch(error=>status('runFailed',{message:error.message},true));});file.click();});packages.after(checkpointButton);
 window.addEventListener('beforeunload',()=>{if(state.project)try{state.viewState=captureViewState(state,viewport,document,graphEditor);workspaceSession.remember(writeWorkspace(state),state.viewState);}catch{}});
 await connectKernel({cold:true});

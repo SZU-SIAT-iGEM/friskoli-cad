@@ -11,5 +11,13 @@ export class WorkspaceSession {
  remember(document,viewState={}){const id=document.project.id;let list=this.recent().filter(item=>item.id!==id);list.unshift({id,saved_at:new Date().toISOString(),document,view_state:viewState});list=list.slice(0,this.maxProjects);while(list.length>1&&new TextEncoder().encode(JSON.stringify(list)).byteLength>this.maxBytes)list.pop();this.write(RECENTS,list);}
 }
 export function captureViewState(state,viewport,root=document,graphEditor=null){
- return {version:1,view:state.view,left:state.left,selected_block:state.selectedBlock,selected_environment:state.selectedEnvironment,graph_selection:structuredClone(state.graphSelection),camera:viewport?.captureView?.()??null,workflow:graphEditor?{zoom:graphEditor.zoom,left:graphEditor.container.scrollLeft,top:graphEditor.container.scrollTop}:null,scroll:Object.fromEntries(['inspector','objects-pane','modules-pane','data-pane'].map(id=>[id,root.getElementById(id)?.scrollTop??0]))};
+ return {version:1,details:structuredClone(state.detailsView??{}),module_folders:structuredClone(state.moduleFolders??{}),mechanism_expanded:[...(state.mechanismExpanded??new Map())],view:state.view,left:state.left,selected_block:state.selectedBlock,selected_environment:state.selectedEnvironment,graph_selection:structuredClone(state.graphSelection),camera:viewport?.captureView?.()??null,workflow:graphEditor?{zoom:graphEditor.zoom,left:graphEditor.container.scrollLeft,top:graphEditor.container.scrollTop}:null,scroll:Object.fromEntries(['inspector','objects-pane','modules-pane','data-pane'].map(id=>[id,root.getElementById(id)?.scrollTop??0]))};
+}
+
+export function installDetailsView(state,root=document){
+ const key=detail=>{const panel=detail.closest('[id]')?.id??'document',node=detail.closest('[data-bound-node]')?.dataset.boundNode??'';const context=panel==='inspector'?`${state.selectedBlock??''}:${state.selectedEnvironment??''}:${state.graphSelection?.id??''}:${state.selectedManifest??''}`:'';return `${panel}|${context}|${node}|${detail.className}|${detail.querySelector('summary')?.textContent??''}`;};
+ const known=new WeakSet();
+ const restore=()=>{for(const detail of root.querySelectorAll('details')){if(known.has(detail))continue;known.add(detail);const id=key(detail);detail.dataset.viewStateKey=id;if(Object.hasOwn(state.detailsView??{},id))detail.open=state.detailsView[id];}};
+ const onToggle=event=>{const detail=event.target;if(detail.tagName!=='DETAILS'||!detail.isConnected)return;state.detailsView??={};state.detailsView[detail.dataset.viewStateKey??key(detail)]=detail.open;const keys=Object.keys(state.detailsView);for(const id of keys.slice(0,Math.max(0,keys.length-1000)))delete state.detailsView[id];};
+ root.addEventListener('toggle',onToggle,true);const observer=new MutationObserver(restore);observer.observe(root.body,{childList:true,subtree:true});restore();return ()=>{observer.disconnect();root.removeEventListener('toggle',onToggle,true);};
 }

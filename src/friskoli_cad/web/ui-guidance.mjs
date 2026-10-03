@@ -39,6 +39,7 @@ export function diagnosticTarget(issue,project,blocks=[]) {
   const node=nodes.find(n=>String(issue.message??'').startsWith(n.id+':'));
   if(node)return {kind:'node',id:node.id};
   if(parts.includes('graph')||parts.includes('nodes')||parts.includes('edges'))return {kind:'graph'};
+  if(parts.includes('system_limits'))return {kind:'settings',parameter:'max_cells'};
   if(parts.includes('execution')||parts.includes('output_plan')||parts.includes('run_settings')){
     const stride=parts.indexOf('field_stride_xyz');
     if(stride>=0)return {kind:'settings',parameter:'field_stride_xyz',axis:/^[012]$/.test(parts[stride+1]??'')?Number(parts[stride+1]):0};
