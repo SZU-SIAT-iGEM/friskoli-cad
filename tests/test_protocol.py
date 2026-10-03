@@ -43,7 +43,7 @@ class ProtocolTests(unittest.TestCase):
         manifest["legacy_setting"] = 1
         self.assert_protocol_error("schema.invalid", lambda: validate_manifest(manifest))
         graph = load("graph.json")
-        graph["protocol_version"] = "0.2.0"
+        graph["protocol_version"] = "0.99.0"
         self.assert_protocol_error("schema.invalid", lambda: validate_graph(graph, manifests()))
 
     def test_manifest_references_and_division_rules(self):

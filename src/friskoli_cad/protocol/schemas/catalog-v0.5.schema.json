@@ -1,0 +1,590 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:friskoli:catalog:0.5.0",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "catalog_version": {
+      "const": "0.5.0"
+    },
+    "module_protocol_versions": {
+      "const": [
+        "0.1.0",
+        "0.2.0"
+      ]
+    },
+    "execution_semantics": {
+      "const": "modular-spatial-v1"
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "entries": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "objects": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/object"
+      }
+    },
+    "templates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version",
+          "label",
+          "description",
+          "example_id",
+          "source",
+          "maturity",
+          "module_keys"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "example_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          },
+          "maturity": {
+            "const": "exploratory"
+          },
+          "module_keys": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "recommended_settings": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "dt_s": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "steps": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "frame_every_steps": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "field_stride_xyz": {
+                "type": "array",
+                "items": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "minItems": 3,
+                "maxItems": 3
+              },
+              "include_final_fields": {
+                "type": "boolean"
+              },
+              "backend": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "unit",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "catalog_version",
+    "module_protocol_versions",
+    "execution_semantics",
+    "modules",
+    "entries",
+    "objects",
+    "templates",
+    "observations"
+  ],
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "enum": [
+            "data",
+            "numerical",
+            "mechanism",
+            "closure"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "cpu",
+              "cuda"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "world_access": {
+          "enum": [
+            "legacy_inferred",
+            "read_only",
+            "transactional"
+          ]
+        },
+        "mathematics": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "equations",
+                "algorithm",
+                "undocumented"
+              ]
+            },
+            "equations": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "latex": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "symbols": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "required": [
+                  "latex",
+                  "symbols"
+                ]
+              }
+            },
+            "algorithm": {
+              "type": "string"
+            },
+            "implementation": {
+              "type": "string",
+              "minLength": 1
+            },
+            "verification": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "enum": [
+                    "tested",
+                    "unreviewed"
+                  ]
+                },
+                "tests": {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                }
+              },
+              "required": [
+                "status",
+                "tests"
+              ]
+            },
+            "assumptions": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "required": [
+            "kind",
+            "equations",
+            "algorithm",
+            "implementation",
+            "verification",
+            "assumptions"
+          ]
+        },
+        "ports": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "inputs": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/port"
+              }
+            },
+            "outputs": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/$defs/port"
+              }
+            }
+          },
+          "required": [
+            "inputs",
+            "outputs"
+          ]
+        },
+        "provides_roles": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.]*$"
+          }
+        },
+        "default_parameters": {
+          "type": "object",
+          "propertyNames": {
+            "pattern": "^[a-z][a-z0-9_]*$"
+          },
+          "additionalProperties": {
+            "type": [
+              "number",
+              "string",
+              "boolean",
+              "array",
+              "object"
+            ]
+          }
+        },
+        "execution_contract": {
+          "type": "object"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "category",
+        "summary",
+        "devices",
+        "world_access",
+        "mathematics",
+        "ports"
+      ]
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "shape": {
+          "type": "string",
+          "minLength": 1
+        },
+        "quantity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity": {
+          "type": "string",
+          "minLength": 1
+        },
+        "time": {
+          "const": "modular-spatial-v1; timing is declared on each edge"
+        },
+        "species_parameter": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dtype": {
+          "enum": [
+            "float64",
+            "float32",
+            "int64",
+            "int32",
+            "uint64",
+            "uint32",
+            "bool",
+            "json"
+          ]
+        },
+        "tensor_shape": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^parameter:[a-z][a-z0-9_]*$"
+              }
+            ]
+          },
+          "maxItems": 8
+        },
+        "entity_set": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity_order": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coordinate_frame": {
+          "type": "string",
+          "minLength": 1
+        },
+        "axis_order": {
+          "type": "string",
+          "minLength": 1
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "domain_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grid_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "temporal": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "shape",
+        "quantity",
+        "unit",
+        "entity",
+        "time",
+        "species_parameter"
+      ]
+    },
+    "object": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "label": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "icon": {
+          "type": "string",
+          "minLength": 1
+        },
+        "initializer": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "adapter": {
+              "enum": [
+                "population.block@1",
+                "environment.node@1"
+              ]
+            },
+            "module": {
+              "type": "string",
+              "minLength": 1
+            },
+            "data_modules": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "requirements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "role",
+                  "default_module",
+                  "scope"
+                ],
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_.]*$"
+                  },
+                  "default_module": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "scope": {
+                    "const": "environment"
+                  }
+                }
+              }
+            }
+          },
+          "required": [
+            "adapter",
+            "module",
+            "data_modules"
+          ]
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "label": {
+                "type": "string",
+                "minLength": 1
+              },
+              "group": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "enum": [
+                  "number",
+                  "integer",
+                  "vector3",
+                  "string",
+                  "boolean",
+                  "array",
+                  "object"
+                ]
+              },
+              "unit": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minimum": {
+                "type": "number"
+              },
+              "maximum": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "path",
+              "label",
+              "group",
+              "type",
+              "unit"
+            ]
+          }
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label",
+        "description",
+        "icon",
+        "initializer",
+        "properties"
+      ]
+    }
+  },
+  "title": "Friskoli modular catalog 0.5.0"
+}

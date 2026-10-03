@@ -12,7 +12,7 @@ from friskoli_cad.protocol import validate_graph
 
 @dataclass(frozen=True, slots=True)
 class ParameterValue:
-    value: int | float | bool | str
+    value: object
     unit: str | None
     provenance_kind: str
     provenance_reference: str
@@ -55,6 +55,7 @@ def compile_graph(
     step's order. Their source output must exist at t=0, as checked by the
     protocol validator.
     """
+    from .module_api import freeze
     declarations = tuple(manifests)
     validate_graph(graph, declarations)
     registry = {(item["id"], item["version"]): item for item in declarations}
@@ -100,7 +101,7 @@ def compile_graph(
         manifest = registry[(node["module_id"], node["module_version"])]
         parameters = {
             name: ParameterValue(
-                value=entry["value"],
+                value=freeze(entry["value"]),
                 unit=entry.get("unit"),
                 provenance_kind=entry["provenance"]["kind"],
                 provenance_reference=entry["provenance"]["reference"],

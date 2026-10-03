@@ -5,6 +5,7 @@ LEGACY_PROFILE = "legacy-explicit-v1"
 PTS_PROFILE = "conservative-pts-bulk-v1"
 SPATIAL_PROFILE = "spatial-unbiased-v1"
 CHEMOTAXIS_PROFILE = "chemotaxis-spatial-v1"
+MODULAR_PROFILE = "modular-spatial-v1"
 
 
 def profile_for_project(project):
@@ -24,15 +25,25 @@ def registry_for_profile(profile=LEGACY_PROFILE):
     if profile == CHEMOTAXIS_PROFILE:
         from .chemotaxis_modules import chemotaxis_registry
         return chemotaxis_registry()
+    if profile == MODULAR_PROFILE:
+        from .science_extensions import modular_registry
+        return modular_registry()
     raise ProtocolError("project.execution_profile", "/execution_profile", "Unsupported execution profile")
 
 
 def registry_for_project(project):
-    return registry_for_profile(profile_for_project(project))
+    registry = registry_for_profile(profile_for_project(project))
+    lock = project.get('dependency_lock')
+    if lock is not None:
+        if profile_for_project(project) != MODULAR_PROFILE:
+            raise ProtocolError('package.profile', '/dependency_lock', 'Package execution requires modular-spatial-v1')
+        from friskoli_cad.packages import PackageStore
+        registry = PackageStore.default().extend_registry(registry, lock)
+    return registry
 
 
 def task_version(profile):
-    return {LEGACY_PROFILE: "0.1.0", PTS_PROFILE: "0.2.0", SPATIAL_PROFILE: "0.3.0", CHEMOTAXIS_PROFILE: "0.4.0"}[profile]
+    return {LEGACY_PROFILE: "0.1.0", PTS_PROFILE: "0.2.0", SPATIAL_PROFILE: "0.3.0", CHEMOTAXIS_PROFILE: "0.4.0", MODULAR_PROFILE: "0.6.0"}[profile]
 
 
 def chemotaxis_schedule(plan, registry):

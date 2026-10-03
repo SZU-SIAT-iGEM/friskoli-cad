@@ -59,7 +59,7 @@ def _fail(code: str, path: str, message: str) -> None:
 
 def validate_manifest(manifest: Mapping[str, object]) -> None:
     """Check a module declaration, including semantic references inside it."""
-    _check_schema("module", manifest)
+    _check_schema("module-v0.2" if manifest.get("protocol_version") == "0.2.0" else "module", manifest)
     parameters = manifest["parameters"]
     outputs = manifest["outputs"]
     for name, definition in parameters.items():
@@ -85,6 +85,23 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
     unknown = set(manifest["initial_outputs"]) - set(outputs)
     if unknown:
         _fail("port.initial_output", "/initial_outputs", f"unknown output: {sorted(unknown)[0]}")
+    if manifest['protocol_version'] == '0.2.0':
+        for side in ('inputs', 'outputs', 'state'):
+            for name, port in manifest[side].items():
+                path = f'/{side}/{name}'
+                if port['shape'].endswith('.tensor') and not port.get('tensor_shape'):
+                    _fail('port.tensor_shape', path, 'Tensor ports require explicit dimension declarations')
+                for dimension in port.get('tensor_shape', []):
+                    if isinstance(dimension, str):
+                        parameter = parameters.get(dimension.split(':', 1)[1])
+                        if parameter is None or parameter['type'] != 'integer':
+                            _fail('port.tensor_binding', path, 'Tensor dimensions must bind integer parameters')
+                for key in ('entity_set', 'entity_order', 'coordinate_frame', 'axis_order', 'location', 'domain_revision', 'grid_revision', 'temporal'):
+                    value = port.get(key, '')
+                    if value.startswith('parameter:'):
+                        parameter = parameters.get(value.split(':', 1)[1])
+                        if parameter is None or parameter['type'] != 'string':
+                            _fail('port.semantic_binding', path, 'Semantic bindings must name string parameters')
 
 
 def _parameter_value(node: Mapping[str, object], index: int, name: str, definition: Mapping[str, object]) -> None:
@@ -97,6 +114,8 @@ def _parameter_value(node: Mapping[str, object], index: int, name: str, definiti
         "integer": actual is int,
         "boolean": actual is bool,
         "string": actual is str,
+        "array": actual is list,
+        "object": actual is dict,
     }[declared]
     path = f"/nodes/{index}/parameters/{name}"
     if not valid:
@@ -108,8 +127,14 @@ def _parameter_value(node: Mapping[str, object], index: int, name: str, definiti
             _fail("parameter.range", path, "value is below minimum")
         if "maximum" in definition and value > definition["maximum"]:
             _fail("parameter.range", path, "value is above maximum")
+    elif declared in ("array", "object"):
+        if entry.get("unit") != definition.get("unit"):
+            _fail("parameter.unit", path, "structured parameter unit differs")
     elif "unit" in entry:
         _fail("parameter.unit", path, "non-numeric parameter has a unit")
+    error = next(Draft202012Validator(definition).iter_errors(value), None)
+    if error is not None:
+        _fail("parameter.schema", path + "/value" + ("" if not error.path else _pointer(error.path)), error.message)
 
 
 def _species(node: Mapping[str, object], port: Mapping[str, object]) -> str | None:
@@ -123,7 +148,7 @@ def validate_graph(graph: Mapping[str, object], manifests: Iterable[Mapping[str,
     Unit matching is deliberately exact. A conversion requires an explicit
     conversion module so the graph records it.
     """
-    _check_schema("graph", graph)
+    _check_schema("graph-v0.2" if graph.get("protocol_version") == "0.2.0" else "graph", graph)
     registry = {}
     for manifest in manifests:
         validate_manifest(manifest)
@@ -180,8 +205,13 @@ def validate_graph(graph: Mapping[str, object], manifests: Iterable[Mapping[str,
             _fail("edge.type", path, "port shape, quantity or unit differs")
         if _species(src, output) != _species(dst, input_):
             _fail("edge.species", path, "port species differs or is undeclared")
-        if output["shape"].startswith("cell.") and src["owner"] != dst["owner"]:
+        typed_semantics = src_manifest['protocol_version'] == '0.2.0' or dst_manifest['protocol_version'] == '0.2.0'
+        explicit_entities = typed_semantics and (output.get('entity_set') or input_.get('entity_set'))
+        if output["shape"].startswith("cell.") and src["owner"] != dst["owner"] and not explicit_entities:
             _fail("edge.population", path, "cell ports must belong to the same population")
+        if typed_semantics:
+            from friskoli_cad.engine.port_semantics import validate_connection
+            validate_connection(output, input_, src, dst, path)
         target = (dst_id, in_name)
         if target in incoming:
             _fail("edge.multiple_inputs", path, "input has more than one provider")

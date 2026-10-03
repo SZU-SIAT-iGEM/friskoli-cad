@@ -1,0 +1,431 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:friskoli:protocol:module:0.2.0",
+  "title": "Friskoli module manifest 0.2.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "protocol_version",
+    "id",
+    "version",
+    "scope",
+    "phase",
+    "scientific_role",
+    "maturity",
+    "inputs",
+    "outputs",
+    "parameters",
+    "state",
+    "initial_outputs"
+  ],
+  "properties": {
+    "protocol_version": {
+      "const": "0.2.0"
+    },
+    "id": {
+      "$ref": "#/$defs/moduleId"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "scope": {
+      "enum": [
+        "environment",
+        "source",
+        "population"
+      ]
+    },
+    "phase": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "scientific_role": {
+      "enum": [
+        "mechanism",
+        "closure",
+        "numerical"
+      ]
+    },
+    "maturity": {
+      "enum": [
+        "reference",
+        "exploratory",
+        "calibrated"
+      ]
+    },
+    "description": {
+      "type": "string"
+    },
+    "inputs": {
+      "$ref": "#/$defs/ports"
+    },
+    "outputs": {
+      "$ref": "#/$defs/ports"
+    },
+    "parameters": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/parameter"
+      }
+    },
+    "state": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/state"
+      }
+    },
+    "initial_outputs": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/name"
+      }
+    }
+  },
+  "$defs": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "moduleId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$"
+    },
+    "ports": {
+      "type": "object",
+      "propertyNames": {
+        "$ref": "#/$defs/name"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/port"
+      }
+    },
+    "port": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "quantity",
+        "unit"
+      ],
+      "properties": {
+        "shape": {
+          "enum": [
+            "cell.scalar",
+            "cell.vector",
+            "cell.index",
+            "cell.boolean",
+            "field.scalar",
+            "field.vector",
+            "source.scalar",
+            "global.scalar",
+            "global.vector",
+            "event",
+            "cell.tensor",
+            "field.tensor",
+            "global.tensor",
+            "global.record",
+            "cell.record"
+          ]
+        },
+        "quantity": {
+          "$ref": "#/$defs/name"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "species_parameter": {
+          "$ref": "#/$defs/name"
+        },
+        "optional": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "dtype": {
+          "enum": [
+            "float64",
+            "float32",
+            "int64",
+            "int32",
+            "uint64",
+            "uint32",
+            "bool",
+            "json"
+          ]
+        },
+        "tensor_shape": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^parameter:[a-z][a-z0-9_]*$"
+              }
+            ]
+          },
+          "maxItems": 8
+        },
+        "entity_set": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity_order": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coordinate_frame": {
+          "type": "string",
+          "minLength": 1
+        },
+        "axis_order": {
+          "type": "string",
+          "minLength": 1
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "domain_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grid_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "temporal": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "parameter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "number",
+            "integer",
+            "boolean",
+            "string",
+            "array",
+            "object"
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "description": {
+          "type": "string"
+        },
+        "items": {},
+        "properties": {
+          "type": "object"
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": {},
+        "minItems": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxItems": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "enum": {
+          "type": "array",
+          "minItems": 1
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "minLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maxLength": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uniqueItems": {
+          "type": "boolean"
+        },
+        "exclusiveMinimum": {
+          "type": "number"
+        },
+        "exclusiveMaximum": {
+          "type": "number"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "enum": [
+                  "number",
+                  "integer"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "unit"
+            ]
+          }
+        }
+      ]
+    },
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "shape",
+        "unit",
+        "on_division"
+      ],
+      "properties": {
+        "shape": {
+          "enum": [
+            "cell.scalar",
+            "cell.vector",
+            "cell.index",
+            "cell.boolean",
+            "field.scalar",
+            "field.vector",
+            "source.scalar",
+            "global.scalar",
+            "global.vector",
+            "cell.tensor",
+            "field.tensor",
+            "global.tensor",
+            "global.record",
+            "cell.record"
+          ]
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        },
+        "on_division": {
+          "enum": [
+            "copy",
+            "split",
+            "reset",
+            "not_applicable"
+          ]
+        },
+        "description": {
+          "type": "string"
+        },
+        "dtype": {
+          "enum": [
+            "float64",
+            "float32",
+            "int64",
+            "int32",
+            "uint64",
+            "uint32",
+            "bool",
+            "json"
+          ]
+        },
+        "tensor_shape": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "integer",
+                "minimum": 1
+              },
+              {
+                "type": "string",
+                "pattern": "^parameter:[a-z][a-z0-9_]*$"
+              }
+            ]
+          },
+          "maxItems": 8
+        },
+        "entity_set": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entity_order": {
+          "type": "string",
+          "minLength": 1
+        },
+        "coordinate_frame": {
+          "type": "string",
+          "minLength": 1
+        },
+        "axis_order": {
+          "type": "string",
+          "minLength": 1
+        },
+        "location": {
+          "type": "string",
+          "minLength": 1
+        },
+        "domain_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "grid_revision": {
+          "type": "string",
+          "minLength": 1
+        },
+        "temporal": {
+          "type": "string",
+          "minLength": 1
+        },
+        "on_death": {
+          "enum": [
+            "discard",
+            "release",
+            "retain"
+          ]
+        },
+        "on_migration": {
+          "enum": [
+            "copy",
+            "reindex",
+            "conservative_regrid",
+            "module"
+          ]
+        },
+        "initial_value": {}
+      }
+    }
+  }
+}

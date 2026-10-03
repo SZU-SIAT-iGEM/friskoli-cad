@@ -27,15 +27,19 @@ def module_key(manifest):
 
 def _port_contract(port, semantics="legacy-explicit-v1"):
     prefix = port["shape"].split(".")[0]
-    return {"shape": port["shape"], "quantity": port["quantity"], "unit": port["unit"],
+    result = {"shape": port["shape"], "quantity": port["quantity"], "unit": port["unit"],
             "entity": {"cell": "owner.cells", "field": "world.grid", "source": "owner.source",
                        "global": "world", "event": "events"}[prefix],
             "time": semantics + "; timing is declared on each edge",
             "species_parameter": port.get("species_parameter")}
+    if semantics == "modular-spatial-v1":
+        from .engine.port_semantics import port_semantics
+        result.update(port_semantics(port))
+    return result
 
 
 def validate_catalog(catalog):
-    _check_schema({"0.2.0": "catalog-v0.2", "0.3.0": "catalog-v0.3", "0.4.0": "catalog-v0.4"}.get(catalog.get("catalog_version"), "catalog"), catalog)
+    _check_schema({"0.2.0": "catalog-v0.2", "0.3.0": "catalog-v0.3", "0.4.0": "catalog-v0.4", "0.5.0": "catalog-v0.5"}.get(catalog.get("catalog_version"), "catalog"), catalog)
     manifests = {}
     for index, manifest in enumerate(catalog["modules"]):
         validate_manifest(manifest)
@@ -73,7 +77,7 @@ def validate_catalog(catalog):
             raise ProtocolError("catalog.duplicate", f"/objects/{index}/id", item["id"])
         ids.add(item["id"])
         initializer = item["initializer"]
-        if initializer["adapter"] == "environment.node@1" and catalog["catalog_version"] not in ("0.3.0", "0.4.0"):
+        if initializer["adapter"] == "environment.node@1" and catalog["catalog_version"] not in ("0.3.0", "0.4.0", "0.5.0"):
             raise ProtocolError("catalog.initializer", f"/objects/{index}/initializer/adapter", "environment adapter requires catalog 0.3.0")
         requirements = initializer.get("requirements", [])
         roles = [requirement["role"] for requirement in requirements]
@@ -118,7 +122,8 @@ def validate_catalog(catalog):
                 raise ProtocolError("catalog.property_range", path, "integer bounds must be integral")
             if initializer["adapter"] == "environment.node@1":
                 parameter = manifests[initializer["module"]]["parameters"].get(prop["path"])
-                if parameter is None or prop["type"] not in ("number", "string") or (prop["type"], prop["unit"]) != (parameter["type"], parameter.get("unit", "1")):
+                allowed = ("number", "integer", "string", "boolean", "array", "object") if catalog['catalog_version'] == '0.5.0' else ("number", "string")
+                if parameter is None or prop["type"] not in allowed or (prop["type"], prop["unit"]) != (parameter["type"], parameter.get("unit", "1")):
                     raise ProtocolError("catalog.property_type", path, "field differs from environment module parameter")
             if initializer["adapter"] == "population.block@1":
                 if (prop["type"], prop["unit"]) != _BLOCK_FIELDS.get(prop["path"]):
@@ -140,7 +145,7 @@ def validate_catalog(catalog):
 
 
 def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
-    catalog = {"catalog_version": {"legacy-explicit-v1": "0.1.0", "conservative-pts-bulk-v1": "0.2.0", "spatial-unbiased-v1": "0.3.0", "chemotaxis-spatial-v1": "0.4.0"}[execution_semantics], "module_protocol_versions": ["0.1.0"],
+    catalog = {"catalog_version": {"legacy-explicit-v1": "0.1.0", "conservative-pts-bulk-v1": "0.2.0", "spatial-unbiased-v1": "0.3.0", "chemotaxis-spatial-v1": "0.4.0", "modular-spatial-v1": "0.5.0"}[execution_semantics], "module_protocol_versions": ["0.1.0", "0.2.0"] if execution_semantics == "modular-spatial-v1" else ["0.1.0"],
                "execution_semantics": execution_semantics, "modules": [], "entries": [], "objects": []}
     for module in modules:
         manifest = deepcopy(dict(module.manifest))
@@ -156,10 +161,14 @@ def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
                  "ports": {side: {name: _port_contract(port, execution_semantics) for name, port in manifest[side].items()}
                            for side in ("inputs", "outputs")}}
         entry.update(declaration)
-        if execution_semantics in ("spatial-unbiased-v1", "chemotaxis-spatial-v1"):
+        if execution_semantics in ("spatial-unbiased-v1", "chemotaxis-spatial-v1", "modular-spatial-v1"):
             for field in ("provides_roles", "default_parameters"):
                 if hasattr(module, field):
                     entry[field] = deepcopy(getattr(module, field))
+        if execution_semantics == 'modular-spatial-v1' and hasattr(module, 'execution_contract'):
+            from .engine.module_api import execution_contract
+            entry['execution_contract'] = deepcopy(dict(execution_contract(module)))
+            entry['devices'] = ['cuda' if b == 'numpy-cupy-cuda' else 'cpu' for b in entry['execution_contract'].get('backends', ['numpy-cpu'])]
         if entry["world_access"] != getattr(module, "world_access", "legacy_inferred"):
             raise ProtocolError("catalog.world_access", f"/entries/{len(catalog['entries'])}/world_access",
                                 "declaration differs from executable module")
@@ -175,9 +184,14 @@ def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
         catalog["modules"].append(manifest)
         catalog["entries"].append(entry)
         catalog["objects"].extend(deepcopy(getattr(module, "object_types", [])))
-    if execution_semantics == 'chemotaxis-spatial-v1':
+    if execution_semantics in ('chemotaxis-spatial-v1', 'modular-spatial-v1'):
         from .engine.observations import DEFINITIONS
         from .engine.chemotaxis_templates import template_catalog
         catalog['observations'] = deepcopy(DEFINITIONS)
-        catalog['templates'] = template_catalog()
+        if execution_semantics == 'chemotaxis-spatial-v1':
+            catalog['templates'] = template_catalog()
+        else:
+            from .engine.science_extensions import modular_template_catalog
+            available = {module_key(manifest) for manifest in catalog['modules']}
+            catalog['templates'] = [item for item in modular_template_catalog() if set(item['module_keys']) <= available]
     return validate_catalog(catalog)

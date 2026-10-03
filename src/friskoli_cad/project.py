@@ -64,9 +64,9 @@ class ControlSchedule:
         return self.changes[index][1], next_change
 
 
-@lru_cache(maxsize=5)
+@lru_cache(maxsize=6)
 def _project_validator(version: str) -> Draft202012Validator:
-    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json", "0.3.0": "project-v0.3.schema.json", "0.4.0": "project-v0.4.schema.json", "0.5.0": "project-v0.5.schema.json"}.get(version)
+    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json", "0.3.0": "project-v0.3.schema.json", "0.4.0": "project-v0.4.schema.json", "0.5.0": "project-v0.5.schema.json", "0.6.0": "project-v0.6.schema.json"}.get(version)
     if schema_file is None:
         _fail("project.version", "/project_version", f"unsupported project version {version}")
     schema = json.loads(
@@ -92,7 +92,7 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     if error is not None:
         path = "/" + "/".join(str(part) for part in error.absolute_path)
         _fail("project.schema", path, error.message)
-    if version in ("0.4.0", "0.5.0"):
+    if version in ("0.4.0", "0.5.0", "0.6.0"):
         from friskoli_cad.engine.spatial_runtime import MAX_CELLS, MAX_VOXELS, MAX_SPECIES
         cells = sum(len(group["ids"]) for group in document["groups"].values())
         voxels = math.prod(document["domain"]["counts_xyz"])
@@ -107,6 +107,9 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     if version == "0.5.0":
         from friskoli_cad.engine.chemotaxis_runtime import validate_chemotaxis_project
         validate_chemotaxis_project(document, manifests, registry=registry)
+    if version == "0.6.0":
+        from friskoli_cad.engine.modular_runtime import validate_modular_project
+        validate_modular_project(document, manifests, registry=registry)
     if version == "0.3.0":
         from friskoli_cad.engine.pts_runtime import validate_pts_project
         validate_pts_project(document, manifests)
@@ -164,7 +167,7 @@ def simulation_from_project(document: Mapping[str, object], registry=None, *, se
     from friskoli_cad.engine.profiles import registry_for_project
     registry = registry_for_project(document) if registry is None else registry
     validate_project(document, registry.manifests, registry=registry)
-    if document['project_version'] not in ('0.4.0', '0.5.0') and field_backend != 'numpy-cpu':
+    if document['project_version'] not in ('0.4.0', '0.5.0', '0.6.0') and field_backend != 'numpy-cpu':
         _fail('project.backend', '/', 'This execution profile supports only numpy-cpu')
     domain = document["domain"]
     nx, ny, nz = domain["counts_xyz"]
@@ -211,6 +214,9 @@ def simulation_from_project(document: Mapping[str, object], registry=None, *, se
         for schedule_id, entry in document["controls"].items()
     }
     world = World(grid, groups, initial, controls)
+    if document["project_version"] == "0.6.0":
+        from friskoli_cad.engine.modular_runtime import ModularSimulation
+        return ModularSimulation(world, document, registry, seed=seed, field_backend=field_backend)
     if document["project_version"] == "0.5.0":
         from friskoli_cad.engine.chemotaxis_runtime import ChemotaxisSimulation
         return ChemotaxisSimulation(world, document, registry, seed=seed, field_backend=field_backend)
