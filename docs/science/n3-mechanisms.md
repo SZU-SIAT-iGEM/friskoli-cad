@@ -1,6 +1,6 @@
 # N3：趋化、直接释放与细胞生理
 
-核查日期：2026-10-01。执行语义为 `chemotaxis-spatial-v1`。本文解释当前机制和来源差异；实际数值验收见 [完整 N3 验证](../verification-n3-complete.md)。这些模型用于比较假设，尚无本工程菌的实验标定。
+核查日期：2026-10-01。执行语义为 `chemotaxis-spatial-v1`。本文解释当前机制和来源差异；实际数值验收见 [完整 N3 验证](../archive/verification/verification-n3-complete.md)。这些模型用于比较假设，尚无本工程菌的实验标定。
 
 ## 来源与复现范围
 

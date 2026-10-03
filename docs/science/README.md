@@ -4,13 +4,13 @@
 
 更新：2026-10-01。两份来源模型已完成首轮代码/数学审查、确定缺陷修订、有限规模回归和独立复核。完整来源修订保存在相邻的 `friskoli-model-review` 仓库，原始目录与 ZIP 保留。CAD 的 `chemotaxis-spatial-v1` 现已注册 A 浓度记忆、B CheY-P 记忆、MCP 受体适应、信号驱动运动，以及 direct-bulk 水解、营养生长、总 copy 表达、health/death 和面积 adder。实现范围与实际通过的检查分开说明。
 
-当前入口：[N3 机制、单位与来源差异](n3-mechanisms.md)、[N3 中文 Wiki](../wiki/models/n3-chemotaxis.md)、[完整 N3 验收](../verification-n3-complete.md)。最小 PTS 链的历史入口仍可查阅：[PTS 方程与参数证据](pts-minimal.md)、[共享库存结算](settlement.md)、[bulk 执行协议](../protocol/pts-bulk-profile.md)及[早期验收](../verification-n3.md)。运行所需选定来源文件锁、证据和 fixtures 在包内，运行不依赖相邻模型目录。
+当前入口：[N3 机制、单位与来源差异](n3-mechanisms.md)、[N3 中文 Wiki](../wiki/models/n3-chemotaxis.md)、[完整 N3 验收](../archive/verification/verification-n3-complete.md)。最小 PTS 链的历史入口仍可查阅：[PTS 方程与参数证据](pts-minimal.md)、[共享库存结算](settlement.md)、[bulk 执行协议](../archive/legacy-protocols/pts-bulk-profile.md)及[早期验收](../archive/verification/verification-n3.md)。运行所需选定来源文件锁、证据和 fixtures 在包内，运行不依赖相邻模型目录。
 
 [多 seed、时间步和网格比较](n3-comparison.md)记录完整图构造研究，包括没有显示明确群体增益的结果，不把单次轨迹或只读信号响应当作工程菌趋化验证。
 
 本轮按明确选择使用 direct-bulk：接触水解产物进入同一个可溶场，不迁入 A 的 contact/surface/bulk 三池。因此 A 的传质假设已替换，当前组合不能称为原 A 的完整复刻。B 的活跃直接释放路径也经过 CAD 的接触、材料几何、事件定位与数值分拆适配。MCP 使用经典 MWC 结构和显式简化的 activity 反馈，参数没有本构建体实验标定。
 
-已有[空间无偏基线](spatial-baseline.md)保留独立执行语义；[checkpoint 文件入口](../checkpoint-files.md)及[M4 历史验收](../verification-m4.md)继续描述相应版本。新增趋化/生理状态的恢复与回滚检查见完整 N3 验收。支持数值状态恢复不等于服务级通用暂停续算。
+已有[空间无偏基线](spatial-baseline.md)保留独立执行语义；[checkpoint 文件入口](../checkpoint-files.md)及[M4 历史验收](../archive/verification/verification-m4.md)继续描述相应版本。新增趋化/生理状态的恢复与回滚检查见完整 N3 验收。支持数值状态恢复不等于服务级通用暂停续算。
 
 ## 来源、修订与阅读入口
 
@@ -37,6 +37,6 @@ rebuilt-v2 来源为 `D:/Wu Shangru/Documents/iGEM/model-A-rebuilt-v2`；simplif
 
 ## 接下来的工程顺序
 
-主线按[路线图](../design/roadmap-and-acceptance.md)推进。[迁入计划](migration-plan.md)保留历史来源审查与 M0–M7 依赖关系，并在顶部标明当前状态。早期“仅 M0–M3、暂不启动 M5–M7”的阶段限制已结束，不能作为缩减完整 N3 的依据。
+主线按[路线图](../archive/design/roadmap-and-acceptance.md)推进。[迁入计划](../archive/planning/science-migration-plan.md)保留历史来源审查与 M0–M7 依赖关系，并在顶部标明当前状态。早期“仅 M0–M3、暂不启动 M5–M7”的阶段限制已结束，不能作为缩减完整 N3 的依据。
 
 当前执行配置为 Project 0.5 / Catalog、Task、Plan 0.4 的 `chemotaxis-spatial-v1`；旧 `conservative-pts-bulk-v1`、空间基线和 `legacy-explicit-v1` 仍有各自的运行语义。N3 的对照、来源、物质账与生命周期检查完成后，后续设计搜索、发布、通用服务续算和实验拟合按各自验收开展。

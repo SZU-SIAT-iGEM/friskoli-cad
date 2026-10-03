@@ -43,7 +43,7 @@ OMEX 的 loss-report 逐项给出上述格式的 `unsupported`；SBOL 报告列�
 - [pySBOL3 官方代码](https://github.com/SynBioDex/pySBOL3) 与 [验证文档](https://pysbol3.readthedocs.io/en/latest/validation.html)：维护组织实现、validate 和回读机制。
 - [COMBINE Archive v1 官方规范](https://raw.githubusercontent.com/combine-org/combine-specifications/main/specifications/files/omex.version-1.pdf)：ZIP、根 manifest、location/format/master；OMEX 有效不等于内部模型可执行。
 
-本次没有声称通过独立 OMEX 第三方验证器或 SBML/SED-ML 求解器复现。SBOL 官方工具测试结果见 [交付检查](verification-n5-delivery.md)。
+本次没有声称通过独立 OMEX 第三方验证器或 SBML/SED-ML 求解器复现。SBOL 官方工具测试结果见 [交付检查](archive/verification/verification-n5-delivery.md)。
 
 ## 本地 HTTP 接口
 

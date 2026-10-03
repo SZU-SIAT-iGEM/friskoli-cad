@@ -1,8 +1,8 @@
 # 前端用户历程笔记
 
-更新：2026-10-01。目标、候选、模拟、比较和设计导出的完整历程见[产品与交互](design/product-and-interaction.md)及[开发路线](design/roadmap-and-acceptance.md)。本页记录已实现的工作区流程及其边界；N3 已提供完整趋化图、重复 seed 与运行比较；目标/候选档案和标准设计包导出仍属后续工作。
+更新：2026-10-01。目标、候选、模拟、比较和设计导出的完整历程见[产品与交互](archive/design/product-and-interaction.md)及[开发路线](archive/design/roadmap-and-acceptance.md)。本页记录已实现的工作区流程及其边界；N3 已提供完整趋化图、重复 seed 与运行比较；目标/候选档案和标准设计包导出仍属后续工作。
 
-状态：首版工作区已实现；这里记录用户从建立场地到检查结果需要看见的信息，以及仍待扩展的科学能力。数值能力的实际进度以 [PROGRESS.md](../PROGRESS.md) 为准；原[工作区 0.2 协议](workspace-protocol-0.2.md)继续兼容，当前保存采用 Workspace 0.7，注册与统一执行规则见[系统结构](system-execution.md)。扩展边界见[协议扩展计划](protocol-expansion-plan.md)，实施顺序见[开发安排](development-order.md)。
+状态：首版工作区已实现；这里记录用户从建立场地到检查结果需要看见的信息，以及仍待扩展的科学能力。数值能力的实际进度以 [PROGRESS.md](archive/planning/PROGRESS.md) 为准；原[工作区 0.2 协议](archive/legacy-protocols/workspace-protocol-0.2.md)继续兼容，当前保存采用 Workspace 0.7，注册与统一执行规则见[系统结构](system-execution.md)。扩展边界见[协议扩展计划](archive/planning/protocol-expansion-plan.md)，实施顺序见[开发安排](archive/planning/development-order.md)。
 
 界面默认英文，语言从 Settings 切换并保存在本地。整体采用专业软件的工作区、命令入口、视口、属性检查与时间轴。旧 WebUI 提供信息结构和使用经验的参考，实际代码与样式重新实现。欢迎页的示例先载入设计，再由用户运行；旧生长分裂示例可输出分裂帧、稳定 ID 和“只登记未计算”的氧，旧 spatial-unbiased-v1 示例使用固定菌体集合；N3 chemotaxis-spatial-v1 提供 PTS-A、PTS-B、MCP、无偏对照、材料和生命周期六类可编辑模板。时间轴控制只改变观察的帧。
 
@@ -18,7 +18,7 @@
 
 用户从功能清楚的模块目录连接环境、感知、摄取和其他机制。端口连接检查形状、单位、物种、owner 和时间语义。当前完整模板替换会先确认未保存修改，并载入真实行为图；新群可显式复制已有群的整条行为分支，重映射节点、通道、owner 和连接。Task 0.6 可以在已保存的提交边界预演同域守恒迁移，缺少映射时明确拒绝。社区模块应有版本、声明、测试和参数来源，不能仅凭同名端口视为科学等价。
 
-Workflow 现可编辑已经登记的行为图：节点可拖动，端口会按形状、单位、物种和时间语义限制连接，参数修改可撤销；Evidence 页显示公式、完整注册声明、成熟度、科学角色、适用范围、来源，以及当前参数值和 provenance。模块缺失的参数不会由最小值或零补入；Run 会在补齐前禁用。[空间 profile](protocol/spatial-profile.md)已提供注册驱动的障碍物、有限局部源和材料盒，旧空间 profile 的 PTS 信号仅记录，不影响无偏运动；N3 的显式信号—motor—运动图支持 PTS 和 MCP 趋化。旧 profile 的环境输入日程仍以项目数据导入；空间 profile 不接受外部日程。界面化日程编辑、脉冲入口及运行中替换环境仍见[环境变化安排](environment-schedule-plan.md)。
+Workflow 现可编辑已经登记的行为图：节点可拖动，端口会按形状、单位、物种和时间语义限制连接，参数修改可撤销；Evidence 页显示公式、完整注册声明、成熟度、科学角色、适用范围、来源，以及当前参数值和 provenance。模块缺失的参数不会由最小值或零补入；Run 会在补齐前禁用。[空间 profile](archive/legacy-protocols/spatial-profile.md)已提供注册驱动的障碍物、有限局部源和材料盒，旧空间 profile 的 PTS 信号仅记录，不影响无偏运动；N3 的显式信号—motor—运动图支持 PTS 和 MCP 趋化。旧 profile 的环境输入日程仍以项目数据导入；空间 profile 不接受外部日程。界面化日程编辑、脉冲入口及运行中替换环境仍见[环境变化安排](archive/planning/environment-schedule-plan.md)。
 
 运行前可检查初始输入，Evidence 展示模型适用范围；服务返回资源限制及数值错误。当前无耗时或内存预估面板。运行中可选择已公布帧中的菌体，查看稳定 ID、位置与模块状态历史。Task 0.3/0.4 可按输出计划传输真实浓度场，并始终传输有限对象库存；旧 Task 0.1/0.2 不传浓度场。[逐帧胶囊尺寸](growth-frames.md)与[分裂事件](adder-division.md)在旧生长分裂示例中已有输出；旧空间 profile 不包含生长或分裂；N3 的显式生命周期模块可记录生长、分裂和死亡。Task 0.4 同时记录指标、死亡明细，并支持稀疏输出帧。前端按菌体 ID 和实际结果帧呈现，播放与观察帧的频率不改变后端用于计算的菌体数量或数值时间步。
 
@@ -31,4 +31,4 @@ Workflow 现可编辑已经登记的行为图：节点可拖动，端口会按�
 - 默认通过[异步任务服务](task-service.md)运行，支持排队、取消、按 ID 恢复查询及明确标记的 partial 结果；旧同步 replay 仍保留兼容。恢复查询不会从中断步骤继续求解。
 - M4 的[保存与恢复](checkpoint-files.md)通过 Python 库或 CLI 继续独立空间运行；任务 pause/resume/checkpoint 能力仍为 false，界面项目导入不读取 checkpoint 文件。
 
-N3 实际浏览器与自动化验证见[前端验收记录](verification-n3-ui.md)。
+N3 实际浏览器与自动化验证见[前端验收记录](archive/verification/verification-n3-ui.md)。

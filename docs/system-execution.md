@@ -1,6 +1,6 @@
 # 系统运行结构
 
-适用：`modular-spatial-v1`，Project 0.6、Module/Graph 0.2、Catalog 0.5、Task 0.6、Workspace 0.7。旧 profile 保留各自原有时序。实施与验证状态见[本轮记录](implementation-2026-10-03.md)；本图描述可执行职责，不把物理时长验证当成实验标定。
+适用：`modular-spatial-v1`，Project 0.6、Module/Graph 0.2、Catalog 0.5、Task 0.6、Workspace 0.7。旧 profile 保留各自原有时序。实施与验证状态见[本轮记录](archive/planning/implementation-2026-10-03.md)；本图描述可执行职责，不把物理时长验证当成实验标定。
 
 只有两种可执行形式：**系统机制**与**注册模块**。基础模块、PTS/MCP 等特殊模块共用同一个入口。对象库、参数包、底盘/元件和模板都是可编辑的组合数据，不拥有隐藏算法。系统也不根据案例名称决定计算路径。
 
@@ -132,4 +132,4 @@ flowchart TB
 | 任务、数组、完整状态 | `tasks/service.py`、`tasks/worker.py`、`tasks/arrays.py`、`engine/task_checkpoint.py`、`engine/modular_checkpoint.py` |
 | 工作区、命令与事务 | `web/commands.mjs`、`web/workspace-transactions.mjs`、`web/workspace-session.mjs`、`web/task-store.mjs` |
 
-全部 73 个模块的名称、ID 和端口见[模块索引](module-reference.md)，科学说明与适用范围见[模块指南](module-guide.md)和[模块扩展说明](science/modular-processes.md)。未完成的外部标准、实验标定与实体设备验收继续单列在[剩余工作](remaining-work.md)。
+全部 73 个模块的名称、ID 和端口见[模块索引](module-reference.md)，科学说明与适用范围见[模块指南](module-guide.md)和[模块扩展说明](science/modular-processes.md)。未完成的外部标准、实验标定与实体设备验收继续单列在[剩余工作](archive/planning/remaining-work.md)。

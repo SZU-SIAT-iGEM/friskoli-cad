@@ -1,6 +1,6 @@
 # 保存与恢复数值运行状态
 
-2026-10-03 新入口：[Task 0.6 长时任务、二进制 checkpoint、暂停续算、边界迁移及数组分页](task-contract-0.6.md)。下文的未开放 pause/resume 等描述属于旧版本；新合同显式协商，不修改旧 Schema。
+2026-10-03 新入口：[Task 0.6 长时任务、二进制 checkpoint、暂停续算、边界迁移及数组分页](archive/legacy-protocols/task-contract-0.6.md)。下文的未开放 pause/resume 等描述属于旧版本；新合同显式协商，不修改旧 Schema。
 
 `spatial-unbiased-v1` 现在可以把已经提交的数值状态保存为自包含 JSON 文件，并在新的 Python 进程恢复。
 文件带有冻结的 Project 0.4 输入、实际执行 seed、完整 checkpoint 和两层 SHA-256，恢复不依赖原项目文件所在位置。
@@ -81,4 +81,4 @@ save_checkpoint(restored, "step21.friskoli-checkpoint.json")
 
 旧空间 profile 保持固定种群；新增科学 profile 已具备生长、分裂、死亡和可变实体 ID 的完整状态映射。外部日程及运行中更换环境仍需后续机制与验收。
 
-历史空间验证见 [M4 验收](verification-m4.md)，新增科学 profile、动态生命周期与独立续算见[完整 N3 验收](verification-n3-complete.md)。PTS 使用有限养分，MCP 案例使用均匀营养背景与独立引诱物；二者的完整动态状态均已进入文件保存。服务 pause/resume 仍属 N7。
+历史空间验证见 [M4 验收](archive/verification/verification-m4.md)，新增科学 profile、动态生命周期与独立续算见[完整 N3 验收](archive/verification/verification-n3-complete.md)。PTS 使用有限养分，MCP 案例使用均匀营养背景与独立引诱物；二者的完整动态状态均已进入文件保存。服务 pause/resume 仍属 N7。

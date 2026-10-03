@@ -19,4 +19,4 @@
 - `officials` 为 `official_assemblies()` 的数组，各项包含 `assembly` 和 `sha256`。
 - `revisionGuard()` 在请求前后返回草稿是否仍匹配打开对话框时版本。调用方必须在 apply 回包后、真正 edit 前再次检查，防止旧请求覆盖新草稿。
 
-服务端与主前端已接入 `POST /api/assemblies/extract`、`POST /api/assemblies/apply`、`POST /api/assemblies/validate` 和 `GET /api/assemblies`。目录仅返回数据，不安装或执行外部代码。模板托管、升级冲突和引用重写预览等剩余工作见[清单 U01](remaining-work.md)。
+服务端与主前端已接入 `POST /api/assemblies/extract`、`POST /api/assemblies/apply`、`POST /api/assemblies/validate` 和 `GET /api/assemblies`。目录仅返回数据，不安装或执行外部代码。模板托管、升级冲突和引用重写预览等剩余工作见[清单 U01](archive/planning/remaining-work.md)。

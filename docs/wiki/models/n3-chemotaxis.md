@@ -1,6 +1,6 @@
 # N3：把感知、营养和运动放在同一个场景中
 
-本页解释 CAD 的 `chemotaxis-spatial-v1`。A、B 两套来源模型经过拆分，可以比较不同适应方式；另有采用经典 MWC 结构的 MCP 受体模型。它们保留不同的生物假设，尚未经过本项目工程菌实验标定。公式、来源位置与数值差异见 [科学说明](../../science/n3-mechanisms.md)，实际验证结果见 [验证记录](../../verification-n3-complete.md)。
+本页解释 CAD 的 `chemotaxis-spatial-v1`。A、B 两套来源模型经过拆分，可以比较不同适应方式；另有采用经典 MWC 结构的 MCP 受体模型。它们保留不同的生物假设，尚未经过本项目工程菌实验标定。公式、来源位置与数值差异见 [科学说明](../../science/n3-mechanisms.md)，实际验证结果见 [验证记录](../../archive/verification/verification-n3-complete.md)。
 
 ## 三种感知方式
 

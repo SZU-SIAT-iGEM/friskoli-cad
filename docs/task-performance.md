@@ -1,8 +1,8 @@
 # Task transport performance and long-duration preparation
 
-**Current priority (2026-10-03):** the actual N5 256³/200-cell task took 25m50s to advance 745 steps and was paused by the user. The [full-scene diagnosis](verification-n5-performance.md) records real profiles, scientific observations, and P01–P05 follow-up work. This analysis has not delivered a new speedup. Historical small-scene numbers below do not establish acceptable performance for N5. The product target includes wall time until observable chemotactic aggregation, not only step throughput.
+**Current priority (2026-10-03):** the actual N5 256³/200-cell task took 25m50s to advance 745 steps and was paused by the user. The [full-scene diagnosis](archive/verification/verification-n5-performance.md) records real profiles, scientific observations, and P01–P05 follow-up work. This analysis has not delivered a new speedup. Historical small-scene numbers below do not establish acceptable performance for N5. The product target includes wall time until observable chemotactic aggregation, not only step throughput.
 
-Current long-duration implementation (2026-10-03): Task 0.6 provides 4,320,000-step admission, sparse output, bounded array transport, complete binary checkpoints, and automatic committed-boundary worker rotation. The 43,200 × 1 s foundation task has run to completion; it is not a PTS 4,320,000-step result. See [Task 0.6](task-contract-0.6.md) and [verification](verification-system-tasks.md). Sections below retain their dated historical measurements.
+Current long-duration implementation (2026-10-03): Task 0.6 provides 4,320,000-step admission, sparse output, bounded array transport, complete binary checkpoints, and automatic committed-boundary worker rotation. The 43,200 × 1 s foundation task has run to completion; it is not a PTS 4,320,000-step result. See [Task 0.6](archive/legacy-protocols/task-contract-0.6.md) and [verification](archive/verification/verification-system-tasks.md). Sections below retain their dated historical measurements.
 
 ## Conservative collision broad phase (2026-10-02)
 

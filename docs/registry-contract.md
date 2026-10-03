@@ -1,6 +1,6 @@
 # 注册目录与工作区 0.3
 
-本页保留 2026-09-29 N1 注册目录与 Workspace 0.3 的历史合同。**2026-10-03 扩展：** 新的 `modular-spatial-v1` 使用 Catalog 0.5、Project 0.6 与 Module/Graph 0.2，模块统一通过只读输入和提案接口执行；Workspace 0.7、Task 0.6 增加组合事务、长时任务与状态续算。完整结构见[系统运行图](system-execution.md)，接口见[新执行合同](protocol/modular-profile.md)，安装、依赖解析和精确锁见[包管理](package-management.md)。实施与验证进展见[本轮记录](implementation-2026-10-03.md)。下文“未实现”描述限于 N1 原阶段，不能代替上述当前合同。
+本页保留 2026-09-29 N1 注册目录与 Workspace 0.3 的历史合同。**2026-10-03 扩展：** 新的 `modular-spatial-v1` 使用 Catalog 0.5、Project 0.6 与 Module/Graph 0.2，模块统一通过只读输入和提案接口执行；Workspace 0.7、Task 0.6 增加组合事务、长时任务与状态续算。完整结构见[系统运行图](system-execution.md)，接口见[新执行合同](protocol/modular-profile.md)，安装、依赖解析和精确锁见[包管理](package-management.md)。实施与验证进展见[本轮记录](archive/planning/implementation-2026-10-03.md)。下文“未实现”描述限于 N1 原阶段，不能代替上述当前合同。
 
 当前按 execution profile 分别提供 Catalog 0.1/0.2/0.3、Project 0.1–0.4 与 Task 0.1/0.2/0.3；具体支持组合由 capabilities 公布。下方 N1 版本表记录原阶段合同，不代表当前服务只有这些版本。
 
@@ -64,5 +64,5 @@ LaTeX 使用固定版本 KaTeX 0.18.9 离线渲染，资源与 MIT 许可证随�
 
 - Python：目录完整性/引用、只读权限与源码声明、球极限、非均匀场采样、错误位置、旧帧逐值回归、HTTP 目录和离线资源。
 - JavaScript：动态登记、unsupported adapter、原子初始化、撤销/重做快照、保存重开、手改图不覆盖、未知模块、旧格式报告、离线 LaTeX。
-- N1 当时将新 workspace Schema 与已有 Project 引用一起验证，Task 草案只测结构与正反例；后续真实 worker、任务取消及恢复查询见 [N2 验收](verification-n2.md)，空间与 M4 验收分别见[空间记录](verification-spatial.md)和[M4 记录](verification-m4.md)。
-- 最新源码与安装包验证见 [PROGRESS](../PROGRESS.md)；未执行的设备或操作不视为通过。
+- N1 当时将新 workspace Schema 与已有 Project 引用一起验证，Task 草案只测结构与正反例；后续真实 worker、任务取消及恢复查询见 [N2 验收](archive/verification/verification-n2.md)，空间与 M4 验收分别见[空间记录](archive/verification/verification-spatial.md)和[M4 记录](archive/verification/verification-m4.md)。
+- 最新源码与安装包验证见 [PROGRESS](archive/planning/PROGRESS.md)；未执行的设备或操作不视为通过。

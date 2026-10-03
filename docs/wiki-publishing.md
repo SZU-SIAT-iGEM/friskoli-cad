@@ -29,7 +29,7 @@ python -m friskoli_cad.wiki_export D:/records/completed.result.json D:/publish/s
 
 目录包括入口、本地脚本与样式、共享三维 viewer、Three.js 及许可证、显示适配目录、示例清单、原始设计包或独立运行文件、完整 JSON、适用的比较报告、CSV 和 SHA-256 清单。原始下载文件字节保持不变。脚本读取发布目录内的数据与资源，无外部 CDN、Run、编辑、上传、求解、插件安装或 backend 调用。`viewer-catalog.json` 仅提供导出软件的显示适配器，不能替代冻结科学版本锁。
 
-保存的阅读位置按记录和运行恢复；页面隐藏会暂停播放。时间滑条使用浏览器原生键盘与触控交互。三维场景复用 `SpatialViewport`，截面读取保存场数组及其真实格距；原始三维坐标、场数组及全通道可在完整帧中查看和下载。当前一次构建只发布一个设计包或独立任务作为一个示例，设计运行列表保留该包全部候选和重复。真实样例、四尺寸浏览器检查与实体设备限制见[共享 viewer 验收](verification-n5-delivery.md)。
+保存的阅读位置按记录和运行恢复；页面隐藏会暂停播放。时间滑条使用浏览器原生键盘与触控交互。三维场景复用 `SpatialViewport`，截面读取保存场数组及其真实格距；原始三维坐标、场数组及全通道可在完整帧中查看和下载。当前一次构建只发布一个设计包或独立任务作为一个示例，设计运行列表保留该包全部候选和重复。真实样例、四尺寸浏览器检查与实体设备限制见[共享 viewer 验收](archive/verification/verification-n5-delivery.md)。
 
 ## 来源与完整性
 
@@ -39,7 +39,7 @@ python -m friskoli_cad.wiki_export D:/records/completed.result.json D:/publish/s
 
 ## 发布前检查
 
-核验公开许可证和真实完整版下载地址，测量目录总字节、最大 JSON、加载耗时与浏览器内存。网络下载分块显示进度，随后仍累积完整 JSON 并一次解析；按帧/块增量解析、按需加载与有界缓存尚未实现。按桌面、平板、手机横竖屏检查文本、滚动、时间滑条、键盘焦点与旋转后位置。浏览器尺寸模拟、手势逻辑测试和实体设备实测需分开记录。验证记录见 [N5 交付检查](verification-n5-delivery.md)。
+核验公开许可证和真实完整版下载地址，测量目录总字节、最大 JSON、加载耗时与浏览器内存。网络下载分块显示进度，随后仍累积完整 JSON 并一次解析；按帧/块增量解析、按需加载与有界缓存尚未实现。按桌面、平板、手机横竖屏检查文本、滚动、时间滑条、键盘焦点与旋转后位置。浏览器尺寸模拟、手势逻辑测试和实体设备实测需分开记录。验证记录见 [N5 交付检查](archive/verification/verification-n5-delivery.md)。
 
 
-Task 0.5 的场预览带独立field_domain与volume_mean标记，不能把预览当作完整计算分辨率。完整末帧NPZ是任务服务单独提供的artifact；静态记录中的链接和摘要不表示NPZ二进制已经打包进Wiki。需公开原始场时应另行保存并核对下载文件的SHA-256。完整模拟的验收状态以[当前N5记录](verification-n5-simulation.md)为准。
+Task 0.5 的场预览带独立field_domain与volume_mean标记，不能把预览当作完整计算分辨率。完整末帧NPZ是任务服务单独提供的artifact；静态记录中的链接和摘要不表示NPZ二进制已经打包进Wiki。需公开原始场时应另行保存并核对下载文件的SHA-256。完整模拟的验收状态以[当前N5记录](archive/verification/verification-n5-simulation.md)为准。

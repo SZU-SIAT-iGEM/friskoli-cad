@@ -2,14 +2,14 @@
 
 给系统增加底层信息会影响保存格式、计算模块和前端。现有模块接口能减少牵连，但不能保证“后来加字段完全无影响”。每增加一种状态，先确定它属于谁、单位是什么、由谁更新、哪些模块读取，以及怎样写入可回放结果。
 
-当前状态更新：2026-10-03。新统一执行合同、状态策略和资源规则见[运行结构](system-execution.md)。下表区分旧执行规则、空间基线与科学 profile；完整能力对应见[开发安排](development-order.md)。
+当前状态更新：2026-10-03。新统一执行合同、状态策略和资源规则见[运行结构](system-execution.md)。下表区分旧执行规则、空间基线与科学 profile；完整能力对应见[开发安排](archive/planning/development-order.md)。
 
 | 信息 | 归属与更新方式 | 当前实现 |
 | --- | --- | --- |
 | 某种物质的浓度 | 环境中按物种标识的空间场；输入、摄取、释放和输运分别改变它 | `species` 参数约束模块连接；[项目快照](project-schedule.md)可只登记物种，图中接入环境模块时才创建浓度场。双物种示例用 `substrate` 与 `oxygen` 检验独立物质账，新 profile 已注册显式氧消耗与气液交换，不自动与生长耦合 |
 | 环境黏度 | 介质属性。若空间均匀，可先是环境模块参数；若随位置或时间变化，需要环境状态场与更新模块 | 协议可声明带 `quantity`、单位的 `field.scalar` 端口；新 profile 提供条件物性目录、均匀黏度对扩散的 Stokes–Einstein 缩放及独立的构造运动响应；未实现任意变黏度流体力学 |
 | 扩散系数 | 具体物种在指定介质和条件下的输运参数，或由环境属性计算出的场 | 已有[均匀系数、无通量边界的基础扩散](no-flux-diffusion.md)；新 profile 的 `medium.viscosity_diffusion` 显式接入条件化缩放 |
-| 菌体位置与朝向 | 单菌体运动状态；一个运动模块更新，结果帧按 ID 输出，空间采样与沉积读取该位置 | legacy 保留[定时转向及中心点反射](moving-cells.md)；空间基线提供无偏 run/tumble 和胶囊碰撞保护；[科学 profile](protocol/chemotaxis-profile.md)另接 PTS/MCP 信号驱动的 hazard 运动 |
+| 菌体位置与朝向 | 单菌体运动状态；一个运动模块更新，结果帧按 ID 输出，空间采样与沉积读取该位置 | legacy 保留[定时转向及中心点反射](moving-cells.md)；空间基线提供无偏 run/tumble 和胶囊碰撞保护；[科学 profile](archive/legacy-protocols/chemotaxis-profile.md)另接 PTS/MCP 信号驱动的 hazard 运动 |
 | 菌体尺寸 | 单菌体几何状态。项目可逐菌体给初始尺寸及来源，生长模块更新总长 | Project 0.2 起可声明胶囊总长与直径；legacy 保留演示伸长与[长度 adder](adder-division.md)。科学 profile 使用实际营养接受量更新生长和面积 adder，几何受阻时保留未消费营养 |
 | 几何表面积与膜材料 | 表面积由当前胶囊尺寸推导；膜材料、受体拷贝数及其分布应是各自带单位的单菌体状态 | 已有 `geometry.capsule_readout` 与 `pts.capsule_area` 面积读数；按用户决定不设膜材料库存，分裂新增几何膜面积默认可获得并记录；受体/表达拷贝数按自己的规则继承，见[膜面积与拥挤生长](membrane-area-and-crowding.md) |
 | 有限源与实体底物 | 环境图节点持有几何与库存；自释放或接触降解提出有限释放，产物进入同物种场 | 空间 profile 已注册源/底物与降解机制，结果携带库存；部分降解保持原盒体，耗尽后退出碰撞和场阻挡 |

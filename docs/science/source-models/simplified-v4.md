@@ -255,7 +255,7 @@ Python3.11.9、NumPy2.1.2下：七个原有测试文件103项和`test_review_num
 
 ## 9. CAD注册拆分与迁入
 
-已对照 [registry-contract](../../registry-contract.md)、[numerics-and-modules](../../design/numerics-and-modules.md)、[contracts-and-execution](../../design/contracts-and-execution.md)。当前是N1：Catalog0.1.0、Module/Graph/Run0.1.0、Workspace0.3.0、legacy-explicit-v1。cad-next/1、propose/commit、显式读写集属于目标草案，不能塞入拒绝附加字段的当前Schema。
+已对照 [registry-contract](../../registry-contract.md)、[numerics-and-modules](../../archive/design/numerics-and-modules.md)、[contracts-and-execution](../../archive/design/contracts-and-execution.md)。当前是N1：Catalog0.1.0、Module/Graph/Run0.1.0、Workspace0.3.0、legacy-explicit-v1。cad-next/1、propose/commit、显式读写集属于目标草案，不能塞入拒绝附加字段的当前Schema。
 
 下列是候选ID，没有运行实现/安装承诺。cell scalar/vector须按同群组稳定ID对齐，fiber→cell与cell→grid必须有显式映射；旧合同无法表达的事务和实体关系可先封装为复合adapter，不靠数组长度猜身份。
 

@@ -1,23 +1,23 @@
 # 本地异步任务服务 · N2
 
-2026-10-03 新入口：[Task 0.6 长时任务、二进制 checkpoint、暂停续算、边界迁移及数组分页](task-contract-0.6.md)。下文的未开放 pause/resume 等描述属于旧版本；新合同显式协商，不修改旧 Schema。
+2026-10-03 新入口：[Task 0.6 长时任务、二进制 checkpoint、暂停续算、边界迁移及数组分页](archive/legacy-protocols/task-contract-0.6.md)。下文的未开放 pause/resume 等描述属于旧版本；新合同显式协商，不修改旧 Schema。
 
 N2 原始任务合同版本为 `0.1.0`，使用 NumPy 运行器与 `legacy-explicit-v1` 执行顺序；当前服务支持的其他版本见下文。
 输入、任务状态和结果分开保存；编辑当前项目不会修改已经提交的输入。
 接口与严格数据定义见[任务合同](protocol/task-contract.md)、[OpenAPI](protocol/tasks-openapi.json)。
 
 2026-09-30 起同一服务还支持 N3 的 `conservative-pts-bulk-v1`，其 Task 0.2 能力在
-`capabilities.task_profiles` 单独公布，按项目精确选择版本和锁。详见[新 profile](protocol/pts-bulk-profile.md)
+`capabilities.task_profiles` 单独公布，按项目精确选择版本和锁。详见[新 profile](archive/legacy-protocols/pts-bulk-profile.md)
 与[混合版本 OpenAPI](protocol/tasks-openapi-v0.2.json)；以下任务生命周期同样适用。
 
 当前还支持 `spatial-unbiased-v1` 的 Task 0.3，传输真实浓度场及有限对象库存，详见
-[空间 profile](protocol/spatial-profile.md)与[OpenAPI 0.3](protocol/tasks-openapi-v0.3.json)。
+[空间 profile](archive/legacy-protocols/spatial-profile.md)与[OpenAPI 0.3](protocol/tasks-openapi-v0.3.json)。
 M4 新增的 [checkpoint 文件与 CLI](checkpoint-files.md)恢复独立数值运行，不续接服务中的任务；
 服务能力中的 pause/resume/checkpoint 仍为 false，已中断任务仍保留 interrupted 状态。
 
-科学 `chemotaxis-spatial-v1` 使用 Task 0.4，新增 `metrics` 与 `lifecycle_details`，稀疏保存保留间隔内生命周期事件。用户可按显式 seed 列表顺序提交重复运行；只有完整结果进入完整比较。所有机制仍走相同服务预算、幂等与取消规则。见[科学合同](protocol/chemotaxis-profile.md)与[OpenAPI 0.4](protocol/tasks-openapi-v0.4.json)。
+科学 `chemotaxis-spatial-v1` 使用 Task 0.4，新增 `metrics` 与 `lifecycle_details`，稀疏保存保留间隔内生命周期事件。用户可按显式 seed 列表顺序提交重复运行；只有完整结果进入完整比较。所有机制仍走相同服务预算、幂等与取消规则。见[科学合同](archive/legacy-protocols/chemotaxis-profile.md)与[OpenAPI 0.4](protocol/tasks-openapi-v0.4.json)。
 
-通用 Task 0.5 在精确协商的 profile 上提供显式 CPU/CUDA 后端选择、独立场预览格距、体积平均与完整末帧 NPZ；CUDA 当前用于扩散。旧 Task 0.1–0.4 保持原合同。参数、资源配置和支持范围见[Task 0.5](task-field-previews.md)，后续实现缺口见[剩余工作清单](remaining-work.md)。
+通用 Task 0.5 在精确协商的 profile 上提供显式 CPU/CUDA 后端选择、独立场预览格距、体积平均与完整末帧 NPZ；CUDA 当前用于扩散。旧 Task 0.1–0.4 保持原合同。参数、资源配置和支持范围见[Task 0.5](task-field-previews.md)，后续实现缺口见[剩余工作清单](archive/planning/remaining-work.md)。
 
 ## 启动与存放位置
 
@@ -89,7 +89,7 @@ Project.run.run_id 保留原值，仍用于既有 frame 关联。
 当前工作区按对应 profile 的 capabilities 设置步数上限；异步预检查与工作区文件支持最多 10000 步，实际能接受的规模仍受服务预算约束。同步 replay 也接受最多 10000 步，但另受 100 万场数值、202000 个累计 cell-frames、128 MiB JSON 输出等限制；初始预算在求解前检查，增长后的累计细胞和实际 JSON 大小在每帧检查。因此小项目可运行 1900 步，不代表默认空间项目可以用同步入口保存全部 1901 帧。
 
 异步输出超预算时，错误显示预计值、当前上限，以及适用时的最小保存间隔。用户手动调整“每 N 步保存一帧”，数值 `dt_s` 和 `steps` 不变。单帧超过块限制时，减少存帧数量没有作用，提示会明确区分。生命周期模型的输出估算为可能增长到 256 个菌体预留空间；静态检查通过仍受服务公布的执行时间、实际内存与数值限制约束。
-主前端 TaskStore 最多保存 64 条运行元数据，持久化预算 16 MiB；使用 IndexedDB 保存恢复所需输入与标识，重新打开后从服务查询结果。设计归属、正在比较和当前 seed 批次的记录受保护，开始批次前检查容量。此预算不限制运行期解码缓存和 replay 数组，详见[主界面记录](verification-main-ui-task05.md)。稀疏输出的运行进度可以领先于最新已保存帧，前端按输出间隔校验两者关系，取消后的 partial 保留可查询的完整帧。
+主前端 TaskStore 最多保存 64 条运行元数据，持久化预算 16 MiB；使用 IndexedDB 保存恢复所需输入与标识，重新打开后从服务查询结果。设计归属、正在比较和当前 seed 批次的记录受保护，开始批次前检查容量。此预算不限制运行期解码缓存和 replay 数组，详见[主界面记录](archive/verification/verification-main-ui-task05.md)。稀疏输出的运行进度可以领先于最新已保存帧，前端按输出间隔校验两者关系，取消后的 partial 保留可查询的完整帧。
 RSS 每 10 ms 采样，超过限额后终止子进程，并非操作系统硬内存配额。
 保留期是最短保存承诺：`TaskService.reap()` 和 `prune_events()` 提供显式清理接口，
 尚未接入后台自动清理或管理 UI；活动任务不会清理，幂等保留期届满前不删除对应任务。

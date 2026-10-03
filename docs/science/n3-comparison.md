@@ -2,7 +2,7 @@
 
 日期：2026-10-01。完整图主研究为 **28 个场景 × 8 个 seed = 224 次运行**；每次 8 个细胞、10 s，均到达终点，0 次失败/partial。初始物理库存核对全部一致，运行前后实现源码 hash 相同。每组 64 条细胞轨迹中的同 seed 细胞并非独立重复，下面 SD、SE 均在 **8 个 seed 的组均值**之间计算。
 
-这是一组构造参数的数值研究。A/B/MCP 的参数和初始状态各不相同，应看同模型的对照差值，不能用本表给模型或工程菌性能排名。更全面的功能检查见 [完整 N3 验收](../verification-n3-complete.md)；[机器摘要](verification/n3-comparison.json)含全部场景、均值、SD、SE、配对差和代码指纹。
+这是一组构造参数的数值研究。A/B/MCP 的参数和初始状态各不相同，应看同模型的对照差值，不能用本表给模型或工程菌性能排名。更全面的功能检查见 [完整 N3 验收](../archive/verification/verification-n3-complete.md)；[机器摘要](verification/n3-comparison.json)含全部场景、均值、SD、SE、配对差和代码指纹。
 
 ## 固定条件与可复现性
 

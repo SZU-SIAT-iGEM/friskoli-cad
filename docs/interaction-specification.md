@@ -1,8 +1,8 @@
 # Friskoli-CAD Product & Interaction Specification · 1.0
 
-本页在 4b 交互规范基础上更新至 2026-10-01：N1 注册目录、N2 异步任务与 N3 趋化模板/指标/比较已交付。完整设计/候选流程和 Wiki 只读目标见[产品与交互设计](design/product-and-interaction.md)；具体实施范围以[开发安排](development-order.md)为准。
+本页在 4b 交互规范基础上更新至 2026-10-01：N1 注册目录、N2 异步任务与 N3 趋化模板/指标/比较已交付。完整设计/候选流程和 Wiki 只读目标见[产品与交互设计](archive/design/product-and-interaction.md)；具体实施范围以[开发安排](archive/planning/development-order.md)为准。
 
-产品定位：构建、执行与分析单菌体生物仿真的可视化工作区。本规范采纳所附用户历程中的对象操作、可撤销编辑、明确反馈与输入/结果分离原则；附件中的建议不视为已经实现的功能或发布承诺。原 [Workspace/API 0.2](workspace-protocol-0.2.md) 合同继续保留；当前工作区见[注册目录与 Workspace 0.4](registry-contract.md)，运行合同见[任务服务](task-service.md)及[空间 profile](protocol/spatial-profile.md)。
+产品定位：构建、执行与分析单菌体生物仿真的可视化工作区。本规范采纳所附用户历程中的对象操作、可撤销编辑、明确反馈与输入/结果分离原则；附件中的建议不视为已经实现的功能或发布承诺。原 [Workspace/API 0.2](archive/legacy-protocols/workspace-protocol-0.2.md) 合同继续保留；当前工作区见[注册目录与 Workspace 0.4](registry-contract.md)，运行合同见[任务服务](task-service.md)及[空间 profile](archive/legacy-protocols/spatial-profile.md)。
 
 ## 工作区与常规操作
 
@@ -62,4 +62,4 @@ Data 使用后端记录的位移、区域占比、曾到达比例与驻留时间
 
 每项功能都需核对成功路径、错误路径、撤销、保存重开与草稿/运行隔离。每个新增科学模块仍遵循 CONTRIBUTING 的公式、参数来源、单位、执行时序与回归要求。UI 改动不能宣称解决科学模型拟合、参数标定或数值适用性。
 
-4b 原验收边界见[前端迁移验收](frontend-migration.md)；后续证据见 [N3 UI](verification-n3-ui.md)、[N2](verification-n2.md)、[空间验收](verification-spatial.md)及 [M4](verification-m4.md)。浏览器尺寸模拟、触摸事件测试、实体设备测试分开报告。协议与交互变化需同时更新本页、数据协议、示例、测试、README 与 PROGRESS；不再允许仅在会话里记录已实现状态。
+4b 原验收边界见[前端迁移验收](archive/planning/frontend-migration.md)；后续证据见 [N3 UI](archive/verification/verification-n3-ui.md)、[N2](archive/verification/verification-n2.md)、[空间验收](archive/verification/verification-spatial.md)及 [M4](archive/verification/verification-m4.md)。浏览器尺寸模拟、触摸事件测试、实体设备测试分开报告。协议与交互变化需同时更新本页、数据协议、示例、测试、README 与 PROGRESS；不再允许仅在会话里记录已实现状态。

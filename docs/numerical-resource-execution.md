@@ -26,4 +26,4 @@
 
 Task 0.5 可以显式设置 `field_stride_xyz`，每个轴必须整除计算网格。回放场使用体积平均，并同时标注计算与显示格距；计算网格不变。`include_final_fields` 独立导出完整最终场 NPZ，包含数组、单位、计算域、摘要与 SHA-256。NPZ 不含 pickle，下载后可用 `numpy.load(..., allow_pickle=False)` 读取。具体合同见 [场预览与原始导出](task-field-previews.md)。
 
-10000 步的完整场景验收记录在 [N5 验收](verification-n5-simulation.md)。当前大场性能分析和加速是N5前置任务，见[剩余清单 P01–P04](remaining-work.md)。开发须剖析真实负载，在相同科学参数、网格、dt及精度下比较实现并验证结果；最终使用体验由用户验收。不以扩大时间步、缩小场景或降低精度作为系统优化的证据。
+10000 步的完整场景验收记录在 [N5 验收](archive/verification/verification-n5-simulation.md)。当前大场性能分析和加速是N5前置任务，见[剩余清单 P01–P04](archive/planning/remaining-work.md)。开发须剖析真实负载，在相同科学参数、网格、dt及精度下比较实现并验证结果；最终使用体验由用户验收。不以扩大时间步、缩小场景或降低精度作为系统优化的证据。

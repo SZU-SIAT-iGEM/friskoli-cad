@@ -43,9 +43,9 @@ manifest 记录文件长度和 SHA-256。导入检查校验和、重复路径、
 
 运行的完整冻结输入和版本锁均保留，重新计算仍需兼容的代码与依赖。导入结果为只读历史，可由 IndexedDB 归档恢复；原生包仍是跨机器备份。本机自己运行的任务只在浏览器保存冻结输入和服务端引用，不把长 replay 写进 localStorage。刷新后读取服务端已经提交的结果块；未知提交保留原 request_id 与 Idempotency-Key，不换新键猜测重试。清理历史需要先导出原生包并显式操作，活动任务不能清理。
 
-已提供明确元数据的 SBOL Component 子集与 OMEX 容器及损失说明；SBML/SED-ML 等仍明确拒绝不支持的转换，详见[标准范围](standards-export.md)。完整目标包目录见[交付设计](design/delivery-and-migration.md)，当前简化布局不丢弃payload信息。
+已提供明确元数据的 SBOL Component 子集与 OMEX 容器及损失说明；SBML/SED-ML 等仍明确拒绝不支持的转换，详见[标准范围](standards-export.md)。完整目标包目录见[交付设计](archive/design/delivery-and-migration.md)，当前简化布局不丢弃payload信息。
 
-实现：`design.py` 负责有限枚举，`design_delivery.py` 负责数据包和报告，`web/design-panel.mjs` 负责表单与候选界面，`app.mjs` 复用原任务批次。对应验收见[本轮记录](verification-n4-design.md)。
+实现：`design.py` 负责有限枚举，`design_delivery.py` 负责数据包和报告，`web/design-panel.mjs` 负责表单与候选界面，`app.mjs` 复用原任务批次。对应验收见[本轮记录](archive/verification/verification-n4-design.md)。
 
 ## 分批容量与持久化
 
