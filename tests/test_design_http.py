@@ -118,10 +118,10 @@ def test_design_transport_rejections_are_structured(server_url, path, body, stat
 def test_capabilities_publish_design_data_contract_without_starting_a_task(server_url):
     with urlopen(server_url + '/api/capabilities') as response:
         caps = json.load(response)
-    assert caps['design']['design_version'] == '0.2.0'
-    assert caps['design']['design_versions'] == ['0.1.0', '0.2.0']
+    assert caps['design']['design_version'] == '0.3.0'
+    assert caps['design']['design_versions'] == ['0.1.0', '0.2.0', '0.3.0']
     assert caps['design']['max_runs'] == 32
-    assert '0.5.0' in caps['workspace_versions']
+    assert '0.7.0' in caps['workspace_versions']
     assert 'task' not in caps
 
 
