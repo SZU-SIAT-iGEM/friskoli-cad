@@ -39,17 +39,17 @@ def _number(value, label, nonnegative=True):
     return value
 
 
-def export_checkpoint(sim):
+def export_checkpoint(sim, *, binary=False):
     payload = {'version': CHECKPOINT_VERSION, 'execution_profile': sim.project['execution_profile'],
         'project_sha256': _hash(sim.project), 'implementation_lock': _implementation_lock(sim.registry, sim.field_backend),
         'seed': sim.seed, 'time_s': sim.time_s, 'frame_index': sim.frame_index, 'last_dt_s': sim.last_dt_s,
         'world': {gid: {'ids': list(g.ids), 'positions_um': g.positions_um.tolist(), 'orientation_xyzw': g.orientation_xyzw.tolist(),
                          'geometry': [asdict(geom) for geom in g.geometry]} for gid, g in sim.world.groups.items()},
-        'local_fields': local_field_state_to_dict(sim.fields),
+        'local_fields': local_field_state_to_dict(sim.fields, binary=binary),
         'materials': {mid: asdict(material) for mid, material in sim.materials.items()},
         'material_ledger': {mid: asdict(ledger) for mid, ledger in sim.material_ledger.items()},
         'walks': {cid: state.to_dict() for cid, state in sim.walks.items()}, 'random_streams': sim.streams.to_dict(),
-        'outputs': _nested_to_dict(sim.outputs), 'state': _nested_to_dict(sim.state),
+        'outputs': _nested_to_dict(sim.outputs, binary=binary), 'state': _nested_to_dict(sim.state, binary=binary),
         'current_frame': deepcopy(sim.current.cell_frame), 'ledger': {s: asdict(v) for s, v in sim.ledger.items()},
         'frame_validator': _validator_record(sim.frame_validator), 'motion_contacts': [asdict(v) for v in sim.motion_contacts],
         'supply_totals': dict(sim.supply_totals), 'uptake_totals': dict(sim.uptake_totals),
@@ -59,7 +59,8 @@ def export_checkpoint(sim):
         'lifecycle_details': deepcopy(sim.current.lifecycle_details)}
     # Normalize dataclass tuple fields to ordinary JSON before hashing/return.
     import json
-    payload = json.loads(json.dumps(payload, allow_nan=False))
+    if not binary:
+        payload = json.loads(json.dumps(payload, allow_nan=False))
     payload['payload_sha256'] = _hash(payload)
     return payload
 
@@ -185,7 +186,7 @@ def restore_checkpoint(project, payload, registry=None):
         if (index == 0) != (last_dt == 0) or last_dt > time:
             _reject('Last interval disagrees with current clock')
         if index == 0:
-            if _hash(payload) != _hash(export_checkpoint(sim)):
+            if _hash(payload) != _hash(export_checkpoint(sim, binary=isinstance(payload['local_fields']['blocked'], np.ndarray))):
                 _reject('Frame-zero checkpoint differs from explicit project initialization')
             return sim
         _keys(payload['world'], sim.world.groups, 'world')

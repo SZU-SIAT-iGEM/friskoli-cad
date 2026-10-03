@@ -18,8 +18,8 @@ def _add(reasons, reason):
 def _evaluate(data):
     design = data['design']
     brief, candidates = design['brief'], design['candidates']
-    policy = brief.get('selection_policy') if brief['brief_version'] == '0.2.0' else None
-    result_constraints = brief.get('result_constraints', []) if brief['brief_version'] == '0.2.0' else []
+    policy = brief.get('selection_policy') if brief['brief_version'] in ('0.2.0', '0.3.0') else None
+    result_constraints = brief.get('result_constraints', []) if brief['brief_version'] in ('0.2.0', '0.3.0') else []
     goal, planned = brief['goal'], set(brief['seeds'])
     _, records = _report(data)
     evaluated, evidence, all_series = [], {}, set()

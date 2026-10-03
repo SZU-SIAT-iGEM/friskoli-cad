@@ -1,5 +1,7 @@
 # 本地异步任务服务 · N2
 
+2026-10-03 新入口：[Task 0.6 长时任务、二进制 checkpoint、暂停续算、边界迁移及数组分页](task-contract-0.6.md)。下文的未开放 pause/resume 等描述属于旧版本；新合同显式协商，不修改旧 Schema。
+
 N2 原始任务合同版本为 `0.1.0`，使用 NumPy 运行器与 `legacy-explicit-v1` 执行顺序；当前服务支持的其他版本见下文。
 输入、任务状态和结果分开保存；编辑当前项目不会修改已经提交的输入。
 接口与严格数据定义见[任务合同](protocol/task-contract.md)、[OpenAPI](protocol/tasks-openapi.json)。

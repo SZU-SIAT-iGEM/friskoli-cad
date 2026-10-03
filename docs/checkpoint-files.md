@@ -1,5 +1,7 @@
 # 保存与恢复数值运行状态
 
+2026-10-03 新入口：[Task 0.6 长时任务、二进制 checkpoint、暂停续算、边界迁移及数组分页](task-contract-0.6.md)。下文的未开放 pause/resume 等描述属于旧版本；新合同显式协商，不修改旧 Schema。
+
 `spatial-unbiased-v1` 现在可以把已经提交的数值状态保存为自包含 JSON 文件，并在新的 Python 进程恢复。
 文件带有冻结的 Project 0.4 输入、实际执行 seed、完整 checkpoint 和两层 SHA-256，恢复不依赖原项目文件所在位置。
 这是 M4 的库与命令行入口；异步任务服务的 pause/resume 仍未开放，原任务记录不会因此改为续算中。

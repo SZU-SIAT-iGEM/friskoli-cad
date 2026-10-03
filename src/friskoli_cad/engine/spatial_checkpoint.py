@@ -47,7 +47,8 @@ def _reject(message):
 
 
 def _hash(value):
-    return hashlib.sha256(rfc8785.dumps(value)).hexdigest()
+    from friskoli_cad.tasks.arrays import hashable
+    return hashlib.sha256(rfc8785.dumps(hashable(value))).hexdigest()
 
 
 def _keys(value, expected, label):
@@ -88,8 +89,8 @@ def _implementation_lock(registry, field_backend='numpy-cpu'):
             "machine": platform.machine(), "system": platform.system()}
 
 
-def _nested_to_dict(nested):
-    return {node: {port: np.asarray(value).tolist() for port, value in ports.items()}
+def _nested_to_dict(nested, *, binary=False):
+    return {node: {port: (np.asarray(value) if binary else np.asarray(value).tolist()) for port, value in ports.items()}
             for node, ports in nested.items()}
 
 
@@ -97,7 +98,7 @@ def _record(value):
     return {key: list(item) if isinstance(item, tuple) else item for key, item in asdict(value).items()}
 
 
-def export_checkpoint(sim):
+def export_checkpoint(sim, *, binary=False):
     """Return only standard JSON values, with an exact-version implementation lock."""
     from .spatial_runtime import SpatialSimulation
     if not isinstance(sim, SpatialSimulation):
@@ -108,13 +109,13 @@ def export_checkpoint(sim):
         "world": {gid: {"ids": list(group.ids), "positions_um": group.positions_um.tolist(),
                          "orientation_xyzw": group.orientation_xyzw.tolist()}
                   for gid, group in sim.world.groups.items()},
-        "local_fields": local_field_state_to_dict(sim.fields),
+        "local_fields": local_field_state_to_dict(sim.fields, binary=binary),
         "materials": {mid: _record(material) for mid, material in sim.materials.items()},
         "material_ledger": {mid: _record(ledger) for mid, ledger in sim.material_ledger.items()},
         "object_states": {mid: dict(values) for mid, values in sim.current.object_states.items()},
         "walks": {cid: walk.to_dict() for cid, walk in sim.walks.items()},
-        "random_streams": sim.streams.to_dict(), "outputs": _nested_to_dict(sim.outputs),
-        "state": _nested_to_dict(sim.state), "current_frame": deepcopy(sim.current.cell_frame),
+        "random_streams": sim.streams.to_dict(), "outputs": _nested_to_dict(sim.outputs, binary=binary),
+        "state": _nested_to_dict(sim.state, binary=binary), "current_frame": deepcopy(sim.current.cell_frame),
         "ledger": {species: asdict(ledger) for species, ledger in sim.ledger.items()},
         "frame_validator": _validator_record(sim.frame_validator),
         "motion_contacts": [_record(contact) for contact in sim.motion_contacts]}
@@ -129,6 +130,10 @@ def _number(value, label, *, nonnegative=True):
 
 
 def _array(value, shape, label):
+    if isinstance(value, np.ndarray):
+        if value.shape != tuple(shape) or value.dtype.kind not in 'fiu' or not np.isfinite(value).all():
+            _reject(f'{label} has incompatible binary dtype/shape/values')
+        return np.asarray(value, dtype=float)
     # Validate numeric leaf types before NumPy can coerce strings or booleans.
     def check(entry, remaining):
         if not remaining:
@@ -162,7 +167,7 @@ def _same(actual, expected, label):
 
 def _restore_fields(sim, payload, index, materials):
     from .spatial_runtime import MAX_SPECIES, MAX_VOXELS
-    template = local_field_state_to_dict(sim.fields)
+    template = local_field_state_to_dict(sim.fields, binary=True)
     _keys(payload, template, "local_fields")
     _keys(payload["grid"], template["grid"], "local_fields.grid")
     if type(payload["sources"]) is not list:
@@ -177,7 +182,7 @@ def _restore_fields(sim, payload, index, materials):
         _array(payload["concentrations_uM"][species], (len(initial_values),), "field concentration")
     for value in payload["diffusivities_um2_s"].values():
         _number(value, "diffusivity")
-    if type(payload["blocked"]) is not list or any(type(v) is not bool for v in payload["blocked"]):
+    if not ((isinstance(payload["blocked"], np.ndarray) and payload["blocked"].dtype == np.bool_) or (type(payload["blocked"]) is list and all(type(v) is bool for v in payload["blocked"]))):
         _reject("field blocked mask must contain booleans")
     fields = local_field_state_from_dict(payload, max_voxels=MAX_VOXELS,
                                          max_values=MAX_VOXELS * MAX_SPECIES * 2)
@@ -194,7 +199,7 @@ def _restore_fields(sim, payload, index, materials):
         a, b = asdict(now), asdict(before)
         if a.pop("remaining_molecules") > b.pop("remaining_molecules") or a != b:
             _reject("finite source configuration changed or inventory exceeds project initial stock")
-    if index == 0 and local_field_state_to_dict(fields) != local_field_state_to_dict(initial):
+    if index == 0 and _hash(local_field_state_to_dict(fields, binary=True)) != _hash(local_field_state_to_dict(initial, binary=True)):
         _reject("frame-zero fields differ from project initialization")
     return fields
 
@@ -485,7 +490,7 @@ def restore_checkpoint(project, payload, registry=None):
                 _reject('field ledger stage balance exceeds reported bound')
             ledger[species] = entry
         if index == 0:
-            if poses != export_checkpoint(sim)["world"] or _nested_to_dict(outputs) != _nested_to_dict(sim.outputs) or _nested_to_dict(state) != _nested_to_dict(sim.state):
+            if poses != export_checkpoint(sim)["world"] or _hash(_nested_to_dict(outputs, binary=True)) != _hash(_nested_to_dict(sim.outputs, binary=True)) or _hash(_nested_to_dict(state, binary=True)) != _hash(_nested_to_dict(sim.state, binary=True)):
                 _reject("frame-zero checkpoint differs from project initialization")
         sim.world, sim.fields, sim.walks, sim.streams = world, fields, walks, streams
         sim.materials, sim.material_ledger = materials, material_ledger

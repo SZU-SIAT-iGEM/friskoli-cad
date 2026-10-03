@@ -62,19 +62,20 @@ def _parameter(nodes, registry, node_id, parameter, path):
     return spec
 
 
-def _settings(settings):
+def _settings(settings, version="0.2.0"):
+    maximum = 4320000 if version == "0.3.0" else 10000
     _object(settings, ('dt_s', 'steps'), ('frame_every_steps', 'include_fields', 'seed', 'backend', 'field_stride_xyz', 'include_final_fields'), '/settings')
     result = deepcopy(settings)
     if _number(result['dt_s'], '/settings/dt_s') <= 0:
         _fail('dt_s must be positive', '/settings/dt_s')
-    if type(result['steps']) is not int or not 1 <= result['steps'] <= 10000:
-        _fail('steps must be an integer in [1, 10000]', '/settings/steps')
+    if type(result['steps']) is not int or not 1 <= result['steps'] <= maximum:
+        _fail(f'steps must be an integer in [1, {maximum}]', '/settings/steps')
     if not math.isfinite(result['dt_s'] * result['steps']):
         _fail('Simulation duration must remain finite', '/settings')
     result.setdefault('frame_every_steps', 1)
     result.setdefault('include_fields', True)
-    if type(result['frame_every_steps']) is not int or not 1 <= result['frame_every_steps'] <= 10000:
-        _fail('frame_every_steps must be an integer in [1, 10000]', '/settings/frame_every_steps')
+    if type(result['frame_every_steps']) is not int or not 1 <= result['frame_every_steps'] <= maximum:
+        _fail(f'frame_every_steps must be an integer in [1, {maximum}]', '/settings/frame_every_steps')
     if type(result['include_fields']) is not bool:
         _fail('include_fields must be boolean', '/settings/include_fields')
     if 'backend' in result and result['backend'] not in ('numpy-cpu', 'numpy-cupy-cuda'):
@@ -91,7 +92,7 @@ def _settings(settings):
 
 @lru_cache(maxsize=2)
 def _brief_validator(version='0.1.0'):
-    filename = {'0.1.0': 'design-brief-v0.1.schema.json', '0.2.0': 'design-brief-v0.2.schema.json'}.get(version)
+    filename = {'0.1.0': 'design-brief-v0.1.schema.json', '0.2.0': 'design-brief-v0.2.schema.json', '0.3.0': 'design-brief-v0.3.schema.json'}.get(version)
     if filename is None:
         _fail('Unsupported design brief version', '/brief/brief_version')
     schema = json.loads(files('friskoli_cad.protocol').joinpath('schemas', filename).read_text(encoding='utf-8'))
@@ -110,7 +111,7 @@ def validate_design_brief(project, brief, registry=None):
     if error is not None:
         _fail(error.message, '/brief/' + '/'.join(str(p) for p in error.absolute_path))
     required = ('brief_version', 'id', 'name', 'goal', 'chassis', 'variables', 'constraints', 'seeds', 'max_runs')
-    if version == '0.2.0':
+    if version in ('0.2.0', '0.3.0'):
         required += ('result_constraints', 'selection_policy')
     _object(brief, required, path='/brief')
     for key in ('id', 'name'):
@@ -134,7 +135,7 @@ def validate_design_brief(project, brief, registry=None):
         _fail('Duplicate seeds are not independent repeats', '/brief/seeds')
     if type(brief['max_runs']) is not int or not 1 <= brief['max_runs'] <= MAX_RUNS:
         _fail('max_runs must be an integer in [1, 32]', '/brief/max_runs')
-    if version == '0.2.0':
+    if version in ('0.2.0', '0.3.0'):
         policy = brief['selection_policy']
         _object(policy, ('min_repeats', 'min_control_improvement'), path='/brief/selection_policy')
         if type(policy['min_repeats']) is not int or not 2 <= policy['min_repeats'] <= 8:
@@ -206,11 +207,11 @@ def _prepare(project, settings):
     return compiled_plan(project, registry)
 
 
-def _resource_estimate(project, settings, registry, limits=None):
+def _resource_estimate(project, settings, registry, limits=None, *, modern=False):
     from friskoli_cad.tasks.metadata import estimate
     from friskoli_cad.tasks.service import TaskLimits
     limits = limits or TaskLimits()
-    submission = {'task_contract_version': '0.5.0' if any(k in settings for k in ('backend', 'field_stride_xyz', 'include_final_fields')) else '0.4.0',
+    submission = {'task_contract_version': '0.6.0' if modern or settings['steps'] > 10000 or project.get('project_version') == '0.6.0' else '0.5.0' if any(k in settings for k in ('backend', 'field_stride_xyz', 'include_final_fields')) else '0.4.0',
         'project': project, 'execution': {'steps': settings['steps']},
         'output_plan': {'observables': list(project['run']['channels']),
             'frame_every_steps': settings['frame_every_steps'], 'include_fields': settings['include_fields'],
@@ -224,7 +225,11 @@ def _resource_estimate(project, settings, registry, limits=None):
             reasons.append(f'Estimated {field} {budget[field]} exceeds TaskLimits {getattr(limits, limit)}')
     frames = 1 + settings['steps'] // settings['frame_every_steps'] + int(settings['steps'] % settings['frame_every_steps'] != 0)
     from friskoli_cad.tasks.artifacts import final_field_estimate
-    if (budget['output_bytes'] - final_field_estimate(submission)) // frames > limits.chunk_bytes:
+    frame_budget = budget['output_bytes'] - final_field_estimate(submission)
+    if submission['task_contract_version'] == '0.6.0':
+        meta = {**submission,'output_plan':{**submission['output_plan'],'include_fields':False,'include_final_fields':False}}
+        frame_budget = estimate(meta,registry)['output_bytes']
+    if frame_budget // frames > limits.chunk_bytes:
         reasons.append(f'Estimated complete frame exceeds TaskLimits chunk_bytes {limits.chunk_bytes}')
     return budget, reasons
 
@@ -276,9 +281,9 @@ def _control(baseline, brief):
 
 def generate_design(project, settings, brief, *, task_limits=None):
     """Enumerate and preflight candidates without advancing the numerical simulation."""
-    if type(project) is not dict or project.get('project_version') != '0.5.0' or project.get('execution_profile') != CHEMOTAXIS_PROFILE:
+    if type(project) is not dict or project.get('project_version') not in ('0.5.0','0.6.0') or project.get('execution_profile') not in (CHEMOTAXIS_PROFILE,'modular-spatial-v1'):
         _fail('Design requires a scientific Project 0.5', '/project')
-    settings = _settings(settings)
+    settings = _settings(settings, brief.get('brief_version') if isinstance(brief, dict) else None)
     baseline = deepcopy(project)
     try:
         _prepare(baseline, settings)
@@ -314,7 +319,7 @@ def generate_design(project, settings, brief, *, task_limits=None):
                 penalty += constraint.get('weight', 1.) * violation
         if not math.isfinite(penalty):
             reasons.append('Soft constraint penalty exceeds finite numeric range')
-        resource, resource_reasons = _resource_estimate(candidate, settings, registry, task_limits)
+        resource, resource_reasons = _resource_estimate(candidate, settings, registry, task_limits, modern=brief['brief_version']=='0.3.0')
         reasons.extend(resource_reasons)
         if not reasons:
             try:
@@ -331,7 +336,7 @@ def generate_design(project, settings, brief, *, task_limits=None):
     feasible = len(candidates)
     if feasible:
         control = _control(baseline, brief)
-        resource, reasons = _resource_estimate(control['project'], settings, registry, task_limits)
+        resource, reasons = _resource_estimate(control['project'], settings, registry, task_limits, modern=brief['brief_version']=='0.3.0')
         if reasons:
             _fail('Fixed control exceeds task resources: ' + '; '.join(reasons), '/control', 'design.budget')
         try:

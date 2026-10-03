@@ -193,15 +193,15 @@ def _validate(payload):
     if not {'design', 'workspace', 'runs', 'registry'} <= data.keys():
         _fail('structure', 'Package must preserve design, workspace, runs and registry')
     design = _object(data['design'], 'design')
-    if design.get('design_version') not in ('0.1.0', '0.2.0'):
+    if design.get('design_version') not in ('0.1.0', '0.2.0', '0.3.0'):
         _fail('version', 'Unsupported design version')
     _text(design.get('id'), 'design.id')
     brief = _object(design.get('brief'), 'brief')
     if brief.get('brief_version') != design['design_version']:
         _fail('version', 'Unsupported brief version')
-    if brief['brief_version'] == '0.2.0':
+    if brief['brief_version'] in ('0.2.0', '0.3.0'):
         from friskoli_cad.design import _brief_validator
-        error = next(_brief_validator('0.2.0').iter_errors(brief), None)
+        error = next(_brief_validator(brief['brief_version']).iter_errors(brief), None)
         if error is not None:
             _fail('structure', 'Invalid design brief: ' + error.message)
     _text(brief.get('id'), 'brief.id')
@@ -460,7 +460,7 @@ def _csv(data):
             goal['metric'], goal['group_id'], row['series'], row['run_id'], row['seed'], '', '', '', row['value'],
             row['reason'] or 'included', _json(row['version_lock']).decode('utf-8'), candidate.get('soft_penalty'),
             _json({'project': original.get('project'), 'settings': original.get('settings'), 'submission': original.get('submission')}).decode('utf-8')])
-    if data['design']['brief']['brief_version'] == '0.2.0':
+    if data['design']['brief']['brief_version'] in ('0.2.0', '0.3.0'):
         from friskoli_cad.design_evaluation import _evaluate
         evaluation = _evaluate(data)
         rows[0].append('evaluation_json')
@@ -489,7 +489,7 @@ def _html(data):
                       'budget': design['budget'], 'run_evidence': [{k: r.get(k) for k in ('id', 'design_ref', 'project', 'settings', 'submission', 'task', 'manifest')} for r in data['runs']]}).decode('utf-8')
     evaluation_html = ''
     disclaimer = '此报告不宣称实验性能或自动推荐。'
-    if design['brief']['brief_version'] == '0.2.0':
+    if design['brief']['brief_version'] in ('0.2.0', '0.3.0'):
         from friskoli_cad.design_evaluation import _evaluate
         evaluation = _evaluate(data)
         disclaimer = '推荐仅为探索性模拟排序，不代表统计显著性或实验性能。'

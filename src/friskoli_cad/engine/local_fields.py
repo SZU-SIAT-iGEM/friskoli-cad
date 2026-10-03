@@ -261,14 +261,14 @@ def copy_concentrations(state: LocalFieldState) -> dict[str, np.ndarray]:
     return {key: np.array(values).reshape(state.grid.shape) for key, values in state.concentrations_uM.items()}
 
 
-def local_field_state_to_dict(state: LocalFieldState) -> dict:
+def local_field_state_to_dict(state: LocalFieldState, *, binary=False) -> dict:
     """JSON-compatible checkpoint; no executable serialization format."""
     grid = state.grid
     return {"format": "local_fields/v1", "grid": {
         "geometry": grid.geometry, "nx": grid.nx, "ny": grid.ny, "nz": grid.nz,
         "dx_um": grid.dx_um, "dy_um": grid.dy_um, "dz_um": grid.dz_um},
-        "concentrations_uM": {s: np.asarray(v).tolist() for s, v in state.concentrations_uM.items()},
-        "diffusivities_um2_s": dict(state.diffusivities_um2_s), "blocked": np.asarray(state.blocked).tolist(),
+        "concentrations_uM": {s: (np.asarray(v) if binary else np.asarray(v).tolist()) for s, v in state.concentrations_uM.items()},
+        "diffusivities_um2_s": dict(state.diffusivities_um2_s), "blocked": np.asarray(state.blocked) if binary else np.asarray(state.blocked).tolist(),
         **({'backend':state.backend} if state.backend != 'numpy-cpu' else {}),
         "revision": state.revision, "sources": [dict(id=s.id, species=s.species,
             center_um=list(s.center_um), radius_um=s.radius_um, remaining_molecules=s.remaining_molecules,
@@ -287,8 +287,12 @@ def local_field_state_from_dict(data: Mapping, *, max_voxels: int = 250_000,
             _fail("checkpoint exceeds max_voxels")
         if grid.voxel_count * max(1, len(fields) + len(sources)) > _budget(max_values, "max_values"):
             _fail("checkpoint exceeds max_values")
+        mask = data['blocked']
+        if grid.voxel_count <= ARRAY_THRESHOLD:
+            fields = {key: value.tolist() if isinstance(value, np.ndarray) else value for key,value in fields.items()}
+            mask = mask.tolist() if isinstance(mask, np.ndarray) else mask
         state = LocalFieldState(grid, fields, coefficients, tuple(LocalSource(**s) for s in sources),
-                                data["blocked"], data["revision"], data.get('backend','numpy-cpu'))
+                                mask, data["revision"], data.get('backend','numpy-cpu'))
         blocked = np.asarray(state.blocked).reshape(grid.shape)
         seen = set()
         for source in state.sources:

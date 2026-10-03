@@ -38,6 +38,8 @@ MAX_REPLAY_CELL_FRAMES = MAX_VIEW_CELLS * 101
 MAX_REPLAY_BYTES = 128 * 1024 * 1024
 MAX_DESIGN_REQUEST_BYTES = 64 * 1024 * 1024
 STATIC_FILES = {
+    "/service-worker.js": ("service-worker.js", "application/javascript; charset=utf-8"),
+    **{f"/{name}.mjs": (f"{name}.mjs", "text/javascript; charset=utf-8") for name in ("commands", "transaction-dialog", "workspace-transactions", "workspace-session", "result-analysis", "resolution-guidance", "paged-replay", "package-panel")},
     "/design-panel.mjs": ("design-panel.mjs", "text/javascript; charset=utf-8"),
     "/metrics.mjs": ("metrics.mjs", "text/javascript; charset=utf-8"),
     "/metric-results.mjs": ("metric-results.mjs", "text/javascript; charset=utf-8"),
@@ -308,8 +310,6 @@ class ReplayHandler(BaseHTTPRequestHandler):
         length = int(lengths[0])
         if length < 1 or length > maximum:
             raise TaskError(413, "task.resource_limit", "request bytes exceed the published input limit")
-        if self.headers.get_content_type() != "application/json":
-            raise TaskError(415, "task.content_type", "Content-Type must be application/json")
         self.connection.settimeout(10)
         try:
             body = self.rfile.read(length)
@@ -317,12 +317,14 @@ class ReplayHandler(BaseHTTPRequestHandler):
             raise TaskError(400, "task.request_invalid", "request body was not received completely") from error
         if len(body) != length:
             raise TaskError(400, "task.request_invalid", "request body was not received completely")
+        if self.headers.get_content_type() != "application/json":
+            raise TaskError(415, "task.content_type", "Content-Type must be application/json")
         return body
 
     def _get_task(self, path: str, query: str) -> None:
         try:
             service = self._task_service()
-            match = re.fullmatch(r"/api/runs/([A-Za-z0-9_-]{1,128})(?:/(input|events|result|chunks/([A-Za-z0-9_-]{1,128})|artifacts/(final_fields)))?", path)
+            match = re.fullmatch(r"/api/runs/([A-Za-z0-9_-]{1,128})(?:/(input|events|result|chunks/([A-Za-z0-9_-]{1,128})|artifacts/([A-Za-z0-9_-]{1,128})|checkpoint))?", path)
             if match is None:
                 raise TaskError(404, "task.not_found", "unknown task resource")
             run_id, resource, chunk_id, artifact_id = match.groups()
@@ -338,6 +340,11 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 page_size = service.capabilities()["limits"]["event_page_size"]
                 result = service.events(run_id, after=int(params.get("after", ["0"])[0]),
                                         limit=int(params.get("limit", [str(page_size)])[0]))
+            elif resource == 'result' and query:
+                params = parse_qs(query,keep_blank_values=True)
+                if set(params)-{'offset','limit'} or any(len(v)!=1 or not re.fullmatch(r'[0-9]{1,10}',v[0]) for v in params.values()):
+                    raise TaskError(400,'task.manifest_cursor','Invalid manifest offset/limit')
+                result = service.manifest(run_id,offset=int(params.get('offset',['0'])[0]),limit=int(params.get('limit',['1024'])[0]))
             elif query:
                 raise TaskError(400, "task.request_invalid", "this resource does not accept query parameters")
             elif resource is None:
@@ -346,14 +353,15 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 result = service.input(run_id)
             elif resource == "result":
                 result = service.manifest(run_id)
-            elif artifact_id is not None:
+            elif artifact_id is not None or resource == "checkpoint":
+                artifact_id = "checkpoint" if resource == "checkpoint" else artifact_id
                 artifact_path, metadata = service.artifact(run_id, artifact_id)
                 with artifact_path.open("rb") as stream:
                     self.send_response(200)
                     self.send_header("Content-Type", metadata["media_type"])
                     self.send_header("Content-Length", str(metadata["bytes"]))
                     self.send_header("Cache-Control", "no-store")
-                    self.send_header("Content-Disposition", 'attachment; filename="final-fields.npz"')
+                    self.send_header("Content-Disposition", 'attachment; filename="' + (metadata.get('filename') or 'final-fields.npz') + '"')
                     self.send_header("ETag", '"' + metadata["sha256"] + '"')
                     self.end_headers()
                     for block in iter(lambda: stream.read(1024 * 1024), b""):
@@ -371,6 +379,48 @@ class ReplayHandler(BaseHTTPRequestHandler):
             service = self._task_service()
             if query:
                 raise TaskError(400, "task.request_invalid", "task mutations do not accept query parameters")
+            if path == '/api/runs/checkpoint-import':
+                import uuid
+                from friskoli_cad.engine.task_checkpoint import load_task_checkpoint
+                if self.headers.get('Transfer-Encoding'):
+                    raise TaskError(400, 'task.request_invalid', 'Checkpoint upload requires Content-Length.')
+                try:
+                    length = int(self.headers.get('Content-Length', '-1'))
+                except ValueError:
+                    length = -1
+                if not 0 < length <= service.limits.estimated_memory_bytes:
+                    raise TaskError(413, 'task.resource_limit', 'Checkpoint upload exceeds its byte budget.')
+                self.connection.settimeout(10)
+                folder = service.directory / 'imports'
+                folder.mkdir(exist_ok=True)
+                if len(list(folder.glob('*.zip'))) >= service.limits.queued_runs * 2:
+                    raise TaskError(429, 'task.import_limit', 'Import staging limit reached.')
+                identifier = 'import_' + uuid.uuid4().hex
+                destination = folder / (identifier + '.zip')
+                remaining = length
+                try:
+                    with destination.open('xb') as outgoing:
+                        while remaining:
+                            block = self.rfile.read(min(1024 * 1024, remaining))
+                            if not block:
+                                raise ValueError('Incomplete checkpoint upload')
+                            outgoing.write(block)
+                            remaining -= len(block)
+                    sim = load_task_checkpoint(destination, maximum=service.limits.estimated_memory_bytes)
+                    self._json(201, {'checkpoint_id':identifier, 'project':sim.project,
+                        'step_index':sim.frame_index, 'time_s':sim.time_s, 'seed':sim.seed})
+                except (ValueError, OSError) as error:
+                    destination.unlink(missing_ok=True)
+                    raise TaskError(422, 'task.checkpoint_invalid', str(error)) from error
+                return
+            if path == '/api/runs/from-checkpoint':
+                request = strict_json_loads(self._task_body(service.limits.request_bytes))
+                if type(request) is not dict or set(request) != {'checkpoint_id','submission'} or not re.fullmatch(r'import_[a-f0-9]{32}', str(request.get('checkpoint_id'))):
+                    raise TaskError(422, 'task.import_request', 'Import needs a staged checkpoint_id and submission.')
+                source = service.directory / 'imports' / (request['checkpoint_id'] + '.zip')
+                task, created = service.import_checkpoint(source, request['submission'], self.headers.get('Idempotency-Key'))
+                self._json(202 if created else 200, task)
+                return
             if path == "/api/runs/preflight":
                 self._json(200, service.preflight(self._task_body(service.limits.request_bytes)))
                 return
@@ -387,21 +437,70 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 task, created = service.submit(submission, keys[0])
                 self._json(202 if created else 200, task, {"Location": f"/api/runs/{task['run_id']}"})
                 return
-            match = re.fullmatch(r"/api/runs/([A-Za-z0-9_-]+)/cancel", path)
+            match = re.fullmatch(r"/api/runs/([A-Za-z0-9_-]+)/(cancel|pause|resume|migration-preview|migrate)", path)
             if match is None:
                 raise TaskError(404, "task.not_found", "unknown task resource")
+            action = match.group(2)
+            if action in ('resume','migration-preview','migrate'):
+                request = strict_json_loads(self._task_body(service.limits.request_bytes))
+                if action == 'resume':
+                    task, created = service.resume(match.group(1), request, self.headers.get('Idempotency-Key'))
+                    self._json(202 if created else 200, task)
+                else:
+                    self._json(200, service.migrate(match.group(1), request, self.headers.get('Idempotency-Key'), preview=action=='migration-preview'))
+                return
             if self.headers.get("Transfer-Encoding") or self.headers.get("Content-Length", "0") != "0":
                 raise TaskError(400, "task.request_invalid", "cancel does not accept a request body")
-            task, accepted = service.cancel(match.group(1))
+            task, accepted = (service.pause if action == 'pause' else service.cancel)(match.group(1))
             self._json(202 if accepted else 200, task)
         except TaskValidationError as error:
             self._json(422, {"task_contract_version": "0.1.0", "issues": error.issues})
         except TaskError as error:
             self._task_error(error)
 
+    def _packages(self, path, *, mutate=False):
+        from friskoli_cad.packages import PackageStore, inspect_package, MAX_ARCHIVE
+        import base64
+        try:
+            store = PackageStore.default()
+            if not mutate and path == '/api/packages':
+                self._json(200, {'packages':store.list()})
+                return
+            request = strict_json_loads(self._task_body((MAX_ARCHIVE * 4 // 3) + 65536))
+            if type(request) is not dict:
+                raise ValueError('Package request must be an object')
+            if path in ('/api/packages/preview','/api/packages/install'):
+                data = base64.b64decode(request['archive_base64'], validate=True)
+                if len(data) > MAX_ARCHIVE:
+                    raise ValueError('Package archive exceeds 32 MiB')
+                result = inspect_package(data)[0] if path.endswith('/preview') else store.install(data, expected_sha256=request['expected_sha256'])
+            elif path == '/api/packages/resolve':
+                result = store.resolve(request['requirements'], pin_id=request.get('pin_id'))
+            elif path == '/api/packages/uninstall':
+                result = store.uninstall(request['id'], request['version'])
+            elif path == '/api/packages/file':
+                if set(request) != {'id','version','path','expected_sha256'}:
+                    raise ValueError('Package file requires id, version, path and expected_sha256')
+                data = store.read_file(request['id'], request['version'], request['path'], expected_sha256=request['expected_sha256'])
+                if len(data) > 64 * 1024 * 1024:
+                    raise TaskError(413,'package.file_limit','Package file exceeds 64 MiB')
+                self._send(200,data,'application/octet-stream',{'Content-Disposition':'attachment; filename="package-file.bin"','X-Content-Type-Options':'nosniff'})
+                return
+            else:
+                raise TaskError(404,'package.not_found','Unknown package operation')
+            self._json(200, result)
+        except TaskError as error:
+            self._task_error(error)
+        except (ValueError, KeyError, TypeError, ProtocolError) as error:
+            self._json(422, {'issues':[{'code':getattr(error,'code','package.invalid'), 'severity':'error',
+                'phase':'validate','path':getattr(error,'path','/package'),'targets':[],'message':str(error)}]})
+
     def do_GET(self) -> None:  # noqa: N802 - stdlib handler API
         target = urlsplit(self.path)
         path = target.path
+        if path == "/api/packages":
+            self._packages(path)
+            return
         if path == "/api/runs" or path.startswith("/api/runs/"):
             self._get_task(path, target.query)
             return
@@ -410,6 +509,9 @@ class ReplayHandler(BaseHTTPRequestHandler):
         elif path == "/api/examples/registry-readout":
             self._send(200, files("friskoli_cad").joinpath("examples", "registry_readout.project.json").read_bytes(),
                        "application/json; charset=utf-8")
+        elif path in ('/api/examples/modular-foundation', '/api/examples/modular-material'):
+            from friskoli_cad.engine.science_extensions import make_modular_example
+            self._json(200, make_modular_example(path.rsplit('/', 1)[-1]))
         elif path.startswith(('/api/examples/chemotaxis-', '/api/examples/foundation-', '/api/examples/n5-')):
             from friskoli_cad.engine.chemotaxis_templates import REGISTERED_EXAMPLES
             key = path.rsplit('/', 1)[-1]
@@ -432,22 +534,22 @@ class ReplayHandler(BaseHTTPRequestHandler):
             except ValueError:
                 query = {"invalid": []}
             profile = query.get("execution_profile", [LEGACY_PROFILE])
-            if set(query) - {"execution_profile"} or len(profile) != 1 or profile[0] not in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE):
+            if set(query) - {"execution_profile"} or len(profile) != 1 or profile[0] not in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
                 self._json(422, {"error": {"code": "catalog.profile", "path": "/execution_profile", "message": "Unsupported execution profile"}})
                 return
             self._json(200, registry_for_profile(profile[0]).catalog)
         elif path == "/api/capabilities":
             from friskoli_cad.standards_export import standards_capabilities
             capabilities = {
-                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0"],
+                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0"],
                 "catalog_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"], "execution_semantics": "legacy-explicit-v1",
-                "execution_profiles": [LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE],
-                "design": {"design_version": "0.2.0", "design_versions": ["0.1.0", "0.2.0"],
+                "execution_profiles": [LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'],
+                "design": {"design_version": "0.3.0", "design_versions": ["0.1.0", "0.2.0", "0.3.0"],
                            "evaluation_version": "0.1.0", "package_version": "0.1.0",
-                           "execution_profiles": [CHEMOTAXIS_PROFILE], "max_runs": 32,
+                           "execution_profiles": [CHEMOTAXIS_PROFILE, "modular-spatial-v1"], "max_runs": 32,
                            "request_bytes": MAX_DESIGN_REQUEST_BYTES, "standards": standards_capabilities()},
                 "biological_assemblies": {"assembly_versions": ["0.1.0"], "extract": True, "apply": True},
-                "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0"], "replay_versions": ["0.1.0"],
+                "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0"], "replay_versions": ["0.1.0"],
                 "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
                 "limits": {"request_bytes": MAX_REQUEST_BYTES, "cells": MAX_VIEW_CELLS,
                            "xy_tiles": MAX_VIEW_TILES, "replay_values": MAX_REPLAY_VALUES, "steps": MAX_STEPS,
@@ -456,12 +558,18 @@ class ReplayHandler(BaseHTTPRequestHandler):
                                for item in default_registry().catalog["objects"]],
                 "placeable_profiles": {profile: [item["initializer"]["module"]
                     for item in registry_for_profile(profile).catalog["objects"]]
-                    for profile in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)},
+                    for profile in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1')},
             }
             service = getattr(self.server, "task_service", None)
             if service is not None:
                 capabilities["task_preflight"] = {"href": "/api/runs/preflight", "method": "POST"}
                 capabilities["task"] = service.capabilities()
+                capabilities['task_longrun_profiles'] = {profile:service.capabilities(profile, '0.6.0') for profile in
+                    (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)}
+                try:
+                    capabilities['task_longrun_profiles']['modular-spatial-v1'] = service.capabilities('modular-spatial-v1', '0.6.0')
+                except (TaskError, ImportError):
+                    pass
                 capabilities["task_profiles"] = {PTS_PROFILE: service.capabilities(PTS_PROFILE),
                                                   SPATIAL_PROFILE: service.capabilities(SPATIAL_PROFILE),
                                                   CHEMOTAXIS_PROFILE: service.capabilities(CHEMOTAXIS_PROFILE)}
@@ -478,11 +586,29 @@ class ReplayHandler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - stdlib handler API
         target = urlsplit(self.path)
+        if target.path in ('/api/catalog/project','/api/diagnostics'):
+            try:
+                from friskoli_cad.engine.profiles import registry_for_project
+                from friskoli_cad.diagnostics import diagnose_project
+                request = strict_json_loads(self._task_body(MAX_REQUEST_BYTES))
+                if type(request) is not dict or set(request) != {'project'}:
+                    raise ValueError('Request needs exactly one project')
+                registry = registry_for_project(request['project'])
+                self._json(200, {'catalog':registry.catalog,'version_lock':self._task_service().version_lock(request['project'])}
+                    if target.path == '/api/catalog/project' else diagnose_project(request['project'],registry=registry))
+            except TaskError as error:
+                self._task_error(error)
+            except (ValueError,TypeError,KeyError,ProtocolError) as error:
+                self._json(422,{'issues':[{'code':getattr(error,'code','request.invalid'),'message':str(error)}]})
+            return
         if target.path.startswith("/api/assemblies/"):
             self._post_assembly(target.path, target.query)
             return
         if target.path.startswith("/api/design/"):
             self._post_design(target.path, target.query)
+            return
+        if target.path.startswith("/api/packages/"):
+            self._packages(target.path, mutate=True)
             return
         if target.path == "/api/runs" or target.path.startswith("/api/runs/"):
             self._post_task(target.path, target.query)

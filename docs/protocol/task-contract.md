@@ -1,5 +1,7 @@
 # 异步任务合同 0.1.0
 
+2026-10-03 新入口：[Task 0.6 长时任务、二进制 checkpoint、暂停续算、边界迁移及数组分页](../task-contract-0.6.md)。下文的未开放 pause/resume 等描述属于旧版本；新合同显式协商，不修改旧 Schema。
+
 状态：**N2 稳定合同，`task_contract_version: 0.1.0`**。
 日期：2026-09-29。本文与 [OpenAPI 3.1](tasks-openapi.json)、
 [JSON Schema](../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json) 共同定义 N2 的请求与结果。
