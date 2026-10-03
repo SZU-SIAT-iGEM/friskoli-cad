@@ -16,7 +16,7 @@ from .runtime import World, CellGroup, CapsuleGeometry, Snapshot, SimulationErro
 from .random_streams import RandomStreams
 from .motion import heading_from_orientation, orientation_after_heading
 from .local_fields import FieldSpecies, make_local_field_state, propose_local_field_step, _stored_values
-from .collision import Capsule, BoxObstacle, guard_motion
+from .collision import Capsule, BoxObstacle, guard_motion, contested_mask
 
 PROFILE = 'modular-spatial-v1'
 
@@ -309,7 +309,7 @@ class ModularSimulation:
             caps = self._capsules(world)
             guard_motion(caps, caps, extent_um=world.grid.extent_um, obstacles=obstacles, geometry=world.grid.geometry)
         snapshot = self._snapshot(world, fields, outputs, self.time_s + dt, self.frame_index + (not initialize), events, metrics)
-        validator = deepcopy(self.frame_validator); validator.accept(snapshot.cell_frame)
+        validator = deepcopy(self.frame_validator); validator.accept(snapshot.cell_frame, validate_schema=initialize)
         self.world, self.fields, self.outputs, self.state = world, fields, freeze(outputs), freeze(state)
         self.streams, self.ledger, self.metrics, self.dead_material = streams, ledger, metrics, dead
         self.obstacles, self.geometry_state = obstacles, obstacle_specs
@@ -530,38 +530,64 @@ class ModularSimulation:
             for cid, value in zip(world.groups[gid].ids, scale, strict=True):
                 if not math.isfinite(value) or value < 0: raise SimulationError('modular.motion_scale', 'Propulsion factor must be finite and nonnegative')
                 paths[cid]['speed_um_s'] *= value
-        capsules = self._capsules(world)
-        boundaries = sorted({s['end_s'] for p in paths.values() for s in p['segments']})
-        elapsed = 0.; blocked = set()
-        for boundary in boundaries:
-            proposed = []
-            for capsule in capsules:
-                path = paths.get(capsule.cell_id)
-                segment = next((s for s in path['segments'] if s['start_s'] <= elapsed < s['end_s']), None) if path else None
-                if segment is None: proposed.append(capsule); continue
-                heading = segment['heading']; speed = path['speed_um_s'] if segment['phase'] == 'run' else 0.
-                proposed.append(replace(capsule, heading=tuple(heading), position_um=tuple(np.asarray(capsule.position_um) + speed * (boundary - elapsed) * np.asarray(heading))))
-            guarded = guard_motion(capsules, tuple(proposed), extent_um=world.grid.extent_um, obstacles=obstacles, geometry=world.grid.geometry)
-            capsules = guarded.capsules; blocked.update(guarded.blocked_ids); elapsed = boundary
-        if displacements:
-            delta_by_id = {cid: displacements[gid][i] for gid in displacements for i, cid in enumerate(world.groups[gid].ids)}
-            proposed = tuple(replace(c, position_um=tuple(np.asarray(c.position_um) + delta_by_id.get(c.cell_id, 0.))) for c in capsules)
-            guarded = guard_motion(capsules, proposed, extent_um=world.grid.extent_um, obstacles=obstacles, geometry=world.grid.geometry)
-            capsules = guarded.capsules; blocked.update(guarded.blocked_ids)
-        final = tuple(replace(c, heading=tuple(paths[c.cell_id]['final_heading'])) if c.cell_id in paths else c for c in capsules)
-        guarded = guard_motion(capsules, final, extent_um=world.grid.extent_um, obstacles=obstacles, geometry=world.grid.geometry)
-        capsules = guarded.capsules; blocked.update(guarded.blocked_ids)
-        by_id = {c.cell_id: c for c in capsules}; groups = {}
+        grid, groups_in = world.grid, list(world.groups.values())
+        ids = [cid for g in groups_in for cid in g.ids]
+        geometry = [geo for g in groups_in for geo in g.geometry]
+        centers = np.vstack([g.positions_um.reshape(-1, 3) for g in groups_in])
+        start_headings = np.vstack([heading_from_orientation(g.orientation_xyzw).reshape(-1, 3) if len(g.ids) else np.zeros((0, 3)) for g in groups_in])
+        delta_by_id = {cid: np.asarray(displacements[gid][i], dtype=float) for gid in displacements for i, cid in enumerate(world.groups[gid].ids)}
+        travel = np.zeros(len(ids))
+        for k, cid in enumerate(ids):
+            path = paths.get(cid)
+            if path: travel[k] = path['speed_um_s'] * math.fsum(s['end_s'] - s['start_s'] for s in path['segments'] if s['phase'] == 'run')
+            if cid in delta_by_id: travel[k] += float(np.linalg.norm(delta_by_id[cid]))
+        scale = max(1., *grid.extent_um, float(np.abs(centers).max()) + float(travel.max()))
+        # Cells whose whole-step swept sphere is clear of walls, solids and every other swept sphere cannot
+        # collide: they take their path directly and only contested cells run the exact interval certification.
+        contested = contested_mask(centers, [g.length_um / 2 for g in geometry], travel, grid.extent_um, obstacles, 1e-9 + 1024 * np.finfo(float).eps * scale)
+        positions, headings = centers.copy(), start_headings.copy()
+        for k, cid in enumerate(ids):
+            if contested[k]: continue
+            path = paths.get(cid)
+            if path:
+                for s in path['segments']:
+                    if s['phase'] == 'run': positions[k] += path['speed_um_s'] * (s['end_s'] - s['start_s']) * np.asarray(s['heading'])
+                headings[k] = path['final_heading']
+            if cid in delta_by_id: positions[k] += delta_by_id[cid]
+        blocked = set()
+        if contested.any():
+            index = np.flatnonzero(contested)
+            capsules = tuple(Capsule(ids[k], centers[k], start_headings[k], geometry[k].length_um, geometry[k].diameter_um) for k in index)
+            boundaries = sorted({s['end_s'] for p in paths.values() for s in p['segments']})
+            elapsed = 0.
+            for boundary in boundaries:
+                proposed = []
+                for capsule in capsules:
+                    path = paths.get(capsule.cell_id)
+                    segment = next((s for s in path['segments'] if s['start_s'] <= elapsed < s['end_s']), None) if path else None
+                    if segment is None: proposed.append(capsule); continue
+                    heading = segment['heading']; speed = path['speed_um_s'] if segment['phase'] == 'run' else 0.
+                    proposed.append(replace(capsule, heading=tuple(heading), position_um=tuple(np.asarray(capsule.position_um) + speed * (boundary - elapsed) * np.asarray(heading))))
+                guarded = guard_motion(capsules, tuple(proposed), extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry)
+                capsules = guarded.capsules; blocked.update(guarded.blocked_ids); elapsed = boundary
+            if displacements:
+                proposed = tuple(replace(c, position_um=tuple(np.asarray(c.position_um) + delta_by_id.get(c.cell_id, 0.))) for c in capsules)
+                guarded = guard_motion(capsules, proposed, extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry)
+                capsules = guarded.capsules; blocked.update(guarded.blocked_ids)
+            final = tuple(replace(c, heading=tuple(paths[c.cell_id]['final_heading'])) if c.cell_id in paths else c for c in capsules)
+            guarded = guard_motion(capsules, final, extent_um=grid.extent_um, obstacles=obstacles, geometry=grid.geometry)
+            for k, c in zip(index, guarded.capsules): positions[k], headings[k] = c.position_um, c.heading
+            blocked.update(guarded.blocked_ids)
+        groups, offset = {}, 0
         for gid, group in world.groups.items():
-            positions = np.asarray([by_id[c].position_um for c in group.ids]).reshape(-1, 3)
-            headings = np.asarray([by_id[c].heading for c in group.ids]).reshape(-1, 3)
-            groups[gid] = CellGroup(gid, group.ids, positions, orientation_after_heading(group.orientation_xyzw, headings), group.geometry)
+            n = len(group.ids); group_positions, group_headings = positions[offset:offset + n], headings[offset:offset + n]; offset += n
+            groups[gid] = CellGroup(gid, group.ids, group_positions, orientation_after_heading(group.orientation_xyzw, group_headings), group.geometry)
             nid = node_by_group.get(gid)
             if nid:
-                outputs[nid]['position'], outputs[nid]['heading'] = positions, headings
+                outputs[nid]['position'], outputs[nid]['heading'] = group_positions, group_headings
                 outputs[nid]['blocked'] = np.asarray([float(c in blocked) for c in group.ids])
-                state[nid]['heading'] = headings
-                for i, heading in enumerate(headings): state[nid]['walks'][i]['heading'] = heading.tolist()
+                state[nid]['heading'] = group_headings
+                for i, heading in enumerate(group_headings): state[nid]['walks'][i]['heading'] = heading.tolist()
         return World(world.grid, groups, world.species_initial_uM, world.schedules), []
 
     def _lifecycle_effects(self, world, effects, outputs, state, dead, time):

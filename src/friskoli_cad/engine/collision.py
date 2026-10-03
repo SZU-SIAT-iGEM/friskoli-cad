@@ -262,6 +262,35 @@ def _certify(gap: Callable[[float], float], speed: float, tolerance: float,
     return None, evaluations
 
 
+def contested_mask(centers, half_lengths, travel, extent, obstacles, margin, block=512):
+    """True for cells whose swept sphere is not provably clear of walls, solids and other swept spheres.
+
+    A capsule always lies inside the sphere of radius length/2 about its center, so the
+    start center with radius length/2 + center travel bounds the whole path, rotation included.
+    False cells cannot touch anything and need no exact certification.
+    """
+    centers = np.asarray(centers, dtype=float).reshape(-1, 3)
+    n = len(centers)
+    if n == 0:
+        return np.zeros(0, dtype=bool)
+    reach = np.asarray(half_lengths, dtype=float) + np.asarray(travel, dtype=float)
+    clear = np.all(centers - reach[:, None] >= margin, axis=1) & np.all(centers + reach[:, None] <= np.asarray(extent) - margin, axis=1)
+    for box in obstacles:
+        lower, upper = np.asarray(box.lower_um), np.asarray(box.upper_um)
+        outside = np.maximum(np.maximum(lower - centers, centers - upper), 0.)
+        clear &= np.linalg.norm(outside, axis=1) > reach + margin
+    for lo in range(0, n, block):
+        hi = min(lo + block, n)
+        squared = np.zeros((hi - lo, n))
+        for axis in range(3):
+            delta = centers[lo:hi, axis, None] - centers[None, :, axis]
+            squared += delta * delta
+        close = squared <= (reach[lo:hi, None] + reach[None, :] + margin) ** 2
+        close[np.arange(hi - lo), np.arange(lo, hi)] = False
+        clear[lo:hi] &= ~close.any(axis=1)
+    return ~clear
+
+
 def guard_motion(
     start: Sequence[Capsule], end: Sequence[Capsule], *, extent_um: Sequence[float],
     obstacles: Sequence[BoxObstacle] = (), geometry: str = "volume",
@@ -300,6 +329,12 @@ def guard_motion(
                  *(abs(v) for b in obstacles for v in b.lower_um + b.upper_um)])
     if tolerance < 128 * np.finfo(float).eps * scale:
         raise ValueError("tolerance_um too small for coordinate scale")
+    if use_broad_phase and ids:
+        centers = np.asarray([first[i].position_um for i in ids]).reshape(-1, 3)
+        travel = np.linalg.norm(np.asarray([last[i].position_um for i in ids]).reshape(-1, 3) - centers, axis=1)
+        contested = contested_mask(centers, [first[i].length_um / 2 for i in ids], travel, extent, obstacles,
+                                   tolerance + 1024 * np.finfo(float).eps * scale)
+        ids = [i for i, flag in zip(ids, contested) if flag]
     # A capsule is contained in the sphere of radius total_length / 2 about
     # its center, regardless of orientation. A separated coordinate alone is
     # a lower bound on Euclidean center distance. Inflate the threshold for

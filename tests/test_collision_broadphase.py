@@ -66,7 +66,28 @@ def test_sparse_200_cells_skip_far_pairs_without_changing_output():
     end=[replace(c,position_um=(c.position_um[0]+.1,*c.position_um[1:])) for c in start]
     compare(start,end)
     optimized=guard_motion(start,end,extent_um=(128.,)*3)
-    assert optimized.evaluations==200 # Walls remain exact; all far cell pairs are proven safe.
+    assert optimized.evaluations==0 # Swept spheres clear of walls and each other are proven safe without certification.
+
+
+@pytest.mark.parametrize('seed',range(8))
+def test_mixed_wall_obstacle_and_cluster_cells_match_full_certification(seed):
+    rng=np.random.default_rng(100+seed)
+    extent=(60.,30.,12.)
+    start=[];end=[]
+    for i in range(10):
+        for j in range(4):
+            for k in range(2):
+                heading=rng.normal(size=3);heading/=np.linalg.norm(heading)
+                position=np.asarray((3.+6.*i,3.75+7.5*j,3.+6.*k))+rng.uniform(-.8,.8,3)
+                cell=body(f'{i}-{j}-{k}',tuple(position),tuple(heading))
+                start.append(cell)
+                step=rng.normal(size=3)*rng.choice([.2,2.,6.])
+                rotation=rng.normal(size=3);rotation/=np.linalg.norm(rotation)
+                end.append(replace(cell,position_um=tuple(position+step),heading=tuple(rotation)))
+    boxes=[BoxObstacle('block',(29.5,5.,0.),(30.5,20.,12.))]
+    reference=guard_motion(start,end,extent_um=extent,obstacles=boxes,use_broad_phase=False)
+    assert reference.blocked_ids and len(reference.blocked_ids)<len(start)
+    compare(start,end,extent_um=extent,obstacles=boxes)
 
 
 def test_empty_and_sphere_limit():
