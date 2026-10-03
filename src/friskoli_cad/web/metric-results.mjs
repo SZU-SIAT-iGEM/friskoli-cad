@@ -61,13 +61,13 @@ export function renderMetrics(root,replay,selectedId,t,project,definitions=[]) {
   if(deaths.length){root.append(el('p',t('deathRuleHint'),'task-note'));table(root,['t [s]','Cell','Node','Policy','Health','Hazard [1/min]','P','Draw'],deaths.map(d=>[fmt(d.time_s),d.cell_id,`${d.node_id} · ${d.module_id}`,d.policy,fmt(d.health),fmt(d.death_hazard_per_min),fmt(d.probability),fmt(d.random_draw)]));}
 }
 export function renderComparison(root,variants,t) {
-  root.replaceChildren();root.append(el('p',t('comparisonStatistics'),'task-note'));
+  root.replaceChildren();root.append(el('p',t('comparisonStatistics'),'task-note'),el('p','95% t intervals assume independent approximately normal run-level replicates. Missing values suppress the interval. Cell counts and repeated frames are not replicates; n=1 has no interval.','task-note'));
   for(const variant of variants) {
     root.append(el('strong',`${variant.label} · seed ${variant.seeds.join(', ')}`));
     const provenance=el('details','','metric-definitions');provenance.append(el('summary',variant.provenance),el('pre',JSON.stringify(variant.versionLock??{kind:'legacy-sync'},null,2),'parameter-record'));root.append(provenance);
     for(const [group,metrics] of Object.entries(variant.byGroup)) {
       root.append(el('p',group));
-      table(root,[t('metric'), 'n', t('mean'), 'SD'],METRIC_KEYS.map(key=>[t(key),metrics[key].n,fmt(metrics[key].mean),fmt(metrics[key].sd)]));
+      table(root,[t('metric'), 'n', t('mean'), 'SD','95% t interval'],METRIC_KEYS.map(key=>[t(key),metrics[key].n,fmt(metrics[key].mean),fmt(metrics[key].sd),metrics[key].interval?`${fmt(metrics[key].interval.lower)} … ${fmt(metrics[key].interval.upper)}`:'—']));
     }
     table(root,['Run','seed',t('population'),...METRIC_KEYS.map(t)],variant.runs.flatMap(run=>Object.entries(run.replay.snapshots.at(-1).metrics.by_group).map(([group,values])=>[run.id,run.submission?.execution.seed??run.project.random_seed,group,...METRIC_KEYS.map(key=>fmt(values[key]))])));
   }

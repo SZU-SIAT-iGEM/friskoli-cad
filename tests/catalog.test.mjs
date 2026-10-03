@@ -85,7 +85,7 @@ test('legacy adapter reports metadata migration without changing graph timing or
     const workspace=writeWorkspace(readWorkspace(template));workspace.workspace_format_version=version;
     const before=structuredClone(workspace.project);
     const {state,report}=adaptWorkspace(workspace,registry.modules);
-    assert.equal(report.target_version,'0.6.0');
+    assert.equal(report.target_version,'0.7.0');
     assert.equal(report.execution_semantics,'legacy-explicit-v1');
     assert.ok(report.changes.length);
     assert.deepEqual(state.project,before);

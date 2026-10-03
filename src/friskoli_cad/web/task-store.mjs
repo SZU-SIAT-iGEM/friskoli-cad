@@ -1,3 +1,4 @@
+import {PagedReplay} from './paged-replay.mjs';
 // Task records outlive editor documents. Only committed server snapshots enter this store.
 import { TASK_CONTRACT_VERSION } from './kernel-client.mjs';
 import { normalizeReplay } from './replay.mjs';
@@ -5,9 +6,10 @@ import { validateMetrics } from './metrics.mjs';
 import {fieldDisplayDomain} from './field-slice.mjs';
 
 export const TASK_STORAGE_KEY = 'friskoli.tasks.v1';
-export const TERMINAL_TASK_STATES = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
+export const TERMINAL_TASK_STATES = new Set(['completed', 'failed', 'cancelled', 'interrupted', 'paused']);
 const SERVER_STATES = new Set(['queued', 'running', ...TERMINAL_TASK_STATES]);
 const freeze = value => {
+  if(ArrayBuffer.isView(value))return value;
   if (value && typeof value === 'object' && !Object.isFrozen(value)) {
     Object.values(value).forEach(freeze); Object.freeze(value);
   }
@@ -21,8 +23,9 @@ const digestKeys = ['document_sha256', 'scientific_sha256', 'registry_sha256', '
 const sameInput = (a, b) => ['document_sha256', 'scientific_sha256', 'registry_sha256', 'plan_sha256', 'edit_revision']
   .every(key => a?.[key] === b?.[key]);
 
-const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0', '0.3.0', '0.4.0', '0.5.0']);
+const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0', '0.3.0', '0.4.0', '0.5.0','0.6.0']);
 export function taskCapability(capabilities, project) {
+  const longrun=capabilities?.task_longrun_profiles?.[project?.execution_profile];if(longrun?.task_contract_version==='0.6.0')return longrun;
   const extended=capabilities?.task_profiles?.[project?.execution_profile];
   if(((project?.execution_profile==='chemotaxis-spatial-v1'&&project.project_version==='0.5.0')||(project?.execution_profile==='spatial-unbiased-v1'&&project.project_version==='0.4.0'))&&extended?.task_contract_versions?.includes('0.5.0')&&extended.execution?.semantics===project.execution_profile)return {...extended,task_contract_version:'0.5.0'};
   if (project?.execution_profile === 'chemotaxis-spatial-v1' && project.project_version === '0.5.0') {
@@ -58,13 +61,13 @@ export function buildSubmission(capabilities, project, settings, editRevision, r
       !execution?.semantics || !execution.backend || !Number.isSafeInteger(execution.default_seed)) {
     throw failure('task.invalid_capabilities');
   }
-  const spatial = ['spatial-unbiased-v1','chemotaxis-spatial-v1'].includes(project.execution_profile);
+  const spatial = ['spatial-unbiased-v1','chemotaxis-spatial-v1','modular-spatial-v1'].includes(project.execution_profile);
   const seed = settings.seed ?? (spatial ? project.random_seed : execution.default_seed);
   if (spatial && settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw failure('task.invalid_output_plan');
   if (!Number.isSafeInteger(seed) || seed < 0) throw failure('task.invalid_seed');
-  const stride = ['0.4.0','0.5.0'].includes(task.task_contract_version) ? (settings.frame_every_steps ?? 1) : 1;
-  if (!Number.isSafeInteger(stride) || stride < 1 || stride > 10000) throw failure('task.invalid_output_plan');
-  const modern=task.task_contract_version==='0.5.0',backend=settings.backend??execution.backend;
+  const stride = ['0.4.0','0.5.0','0.6.0'].includes(task.task_contract_version) ? (settings.frame_every_steps ?? 1) : 1;
+  if (!Number.isSafeInteger(stride) || stride < 1 || stride > (task.task_contract_version==='0.6.0'?4320000:10000)) throw failure('task.invalid_output_plan');
+  const modern=['0.5.0','0.6.0'].includes(task.task_contract_version),backend=settings.backend??execution.backend;
   if(!(modern?execution.available_backends??[execution.backend]:[execution.backend]).includes(backend))throw failure('task.unsupported_backend');
   const fieldStride=settings.field_stride_xyz??[1,1,1];
   if(modern&&(!Array.isArray(fieldStride)||fieldStride.length!==3||fieldStride.some((s,i)=>!Number.isSafeInteger(s)||s<1||project.domain.counts_xyz[i]%s!==0)))throw failure('task.invalid_field_stride');
@@ -163,7 +166,7 @@ export class TaskStore {
     maxErrors = 3, pollMs = 1000, onChange = () => {}, isProtected = () => false} = {}) {
     this.client = client; this.storage = storage; this.now = now; this.newId = newId;
     this.maxRecords = maxRecords; this.maxBytes = maxBytes; this.maxErrors = maxErrors; this.pollMs = pollMs;
-    this.onChange = onChange; this.isProtected = isProtected; this.records = new Map(); this.inflight = new Set(); this.cache = new Map();
+    this.onChange = onChange; this.isProtected = isProtected; this.records = new Map(); this.inflight = new Set(); this.cache = new Map();this.pagers=new Map();
     this.timer = null; this.started = false; this.persistenceError = null;
   }
   list() { return [...this.records.values()]; }
@@ -293,8 +296,8 @@ export class TaskStore {
       if(this.storage?.flush)await this.flushPersistence();
       // Retrying uses the exact accepted-or-unknown bytes, including the first request_id.
       sent=true;
-      const task = await this.client.submitTask(record.submission, record.idempotencyKey);
-      this.applyTask(id, task); this.replace(id, {failures:0, paused:false});
+      const task = record.operation?await this.client.request(record.operation.path,record.operation.body,{'Idempotency-Key':record.idempotencyKey}):await this.client.submitTask(record.submission, record.idempotencyKey);
+      this.applyTask(id, task.task??task); this.replace(id, {failures:0, paused:false});
     } catch (error) { this.fault(id, error, true);if(!sent)this.persistenceError=error.message; }
     finally { this.inflight.delete(id); }
     return this.get(id);
@@ -342,6 +345,7 @@ export class TaskStore {
           manifest.completeness !== record.completeness) return;
     }
     if (record.manifest && JSON.stringify(record.manifest) === JSON.stringify(manifest)) return;
+    if(record.submission.task_contract_version==='0.6.0'){const pager=new PagedReplay(this.client,record,manifest),index=(manifest.total_chunks??manifest.chunks.length)-1;const frame=await pager.frame(index);this.releaseOtherPagers(id);this.pagers.set(id,pager);this.replace(id,{manifest,replay:pager.replay({...frame,concentrations:{}},index)});return;}
     const cache = this.cache.get(id) ?? new Map(), seenChunks = new Set(), frames = [];
     this.cache.set(id, cache);
     let previousStep = -1;
@@ -392,6 +396,15 @@ export class TaskStore {
     } catch (error) { this.fault(id, error); }
     finally { this.inflight.delete(id); }
     return this.get(id);
+  }
+  releaseOtherPagers(id){for(const [key,pager]of this.pagers)if(key!==id){pager.cache.clear();pager.bytes=0;}}
+  async frame(id,index){this.releaseOtherPagers(id);const pager=this.pagers.get(id);if(!pager)throw failure('task.no_paged_result');const snapshot=await pager.frame(index);return pager.replay(snapshot,index);}
+  async startOperation(submission,context,path,body){const record=this.create(submission,context);this.replace(record.localId,{operation:{path,body}});await this.submit(record.localId);return this.get(record.localId);}
+  async pauseTask(id){const record=this.get(id);try{this.applyTask(id,await this.client.pauseTask(record.runId));}catch(error){this.fault(id,error);}return this.get(id);}
+  async resumeTask(id){const original=this.get(id),requestId=this.newId(),editRevision=original.submission.edit_revision;
+    const submission={...structuredClone(original.submission),request_id:requestId};
+    const record=this.create(submission,{draftToken:original.draftToken,revision:original.revision,idempotencyRetentionSeconds:Math.max(60,(original.retryDeadline-original.createdAt)/1000),design_ref:original.design_ref});
+    this.replace(record.localId,{operation:{path:`/api/runs/${encodeURIComponent(original.runId)}/resume`,body:{request_id:requestId,edit_revision:editRevision}}});await this.submit(record.localId);return this.get(record.localId);
   }
   async cancel(id) {
     const record = this.get(id);

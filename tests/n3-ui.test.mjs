@@ -26,7 +26,7 @@ test('radial saved metrics retain configured centers, radii and founder denomina
 function record(seed,value=1){return{id:`r${seed}`,project:structuredClone(template),settings:{seed,dt_s:.05,steps:200},status:'completed',replay:{snapshots:[{frame:{frame_index:200,time_s:10},metrics:metric(value)}]}};}
 test('N3 workspace saves as current workspace with profile, observation and sparse output settings intact',()=>{
   const state=readWorkspace(template);state.settings={dt_s:.05,steps:200,frame_every_steps:7,include_fields:false};
-  const saved=writeWorkspace(state);assert.equal(saved.workspace_format_version,'0.6.0');
+  const saved=writeWorkspace(state);assert.equal(saved.workspace_format_version,'0.7.0');
   assert.deepEqual(readWorkspace(saved).project,template);assert.equal(readWorkspace(saved).settings.frame_every_steps,7);
 });
 test('comparison keeps variants separate, computes sample SD, and rejects partial, duplicate and incompatible runs',()=>{

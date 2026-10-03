@@ -1,9 +1,17 @@
+import {exportPagedResult} from './paged-replay.mjs';
+import {openPackagePanel} from './package-panel.mjs';
+import {renderParameterComparison,trajectorySegments} from './result-analysis.mjs';
+import {renderResolutionGuidance} from './resolution-guidance.mjs';
+import {WorkspaceSession,captureViewState} from './workspace-session.mjs';
+import {reviewTransaction} from './transaction-dialog.mjs';
+import {alignBlock,deletionPreview,managedRecord,templateUpgradePreview} from './workspace-transactions.mjs';
+import {CommandRegistry, graphMutationReason, settingControl} from './commands.mjs';
 import {renderDesignPanel,planDesignBatch,designPackagePayload} from './design-panel.mjs';
 import { normalizeReplay, cellHistory } from './replay.mjs';
 import {fieldDisplayDomain} from './field-slice.mjs';
 import { registerCatalog, resolveGraph, readableManifest, unavailableModules } from './catalog.mjs';
 import { adaptWorkspace } from './migration.mjs';
-import { renderModuleDocumentation } from './math-inspector.mjs';
+import { renderModuleDocumentation,linkPortMathematics } from './math-inspector.mjs';
 import { blocksFromProject, createBlock, checkBlock } from './population.mjs';
 import { readWorkspace, writeWorkspace, validateDesignBrief, validateDesignDocument, draftSnapshot, blankProject, deletePopulation, exportRun, metricsCSV, RECOVERY_KEY } from './workspace.mjs';
 import { KernelClient } from './kernel-client.mjs';
@@ -42,8 +50,20 @@ const state = { project: null, blocks: [], modules: new Map(), replay: null, vie
   revision: 0, draftToken: crypto.randomUUID(), latestTask: null, saved: '', busy: false, checks: [], runs: [], activeRun: null, template: null, capabilities: null,
   assemblyDraft: null, assemblyBusy: false, assemblyError: '', assemblyNotice: '', assemblyToken: 0 };
 const kernel = new KernelClient();
+const commands = new CommandRegistry(()=>state);
+const graphReason = selection => {
+  const reason=graphMutationReason(state.project,state.blocks,selection,id=>requiredRoleRemovalProblem(state.project,id,state.objects,state.modules));
+  return reason==='locked' ? (currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.') : reason.startsWith('role:') ? t('requiredMechanism',{role:reason.slice(5)}) : reason;
+};
+for(const action of ['duplicate','delete','scatter','top','bottom','center'])commands.register(`population.${action}`,{
+  reason:(s,id)=>{const block=s.blocks.find(b=>b.id===id);return !block?'selection':block.locked?(currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.'):!objectForBlock(block,s.objects)&&action!=='delete'?'Population adapter unavailable':'';},
+  run:(_,id)=>action==='duplicate'?duplicateBlock(id):action==='delete'?removeBlock(id):action==='scatter'?scatter(id):edit('updated',()=>{const block=state.blocks.find(b=>b.id===id);Object.assign(block,alignBlock(state.project.domain,block,action));checkBlock(state.project.domain,block);})
+});
+commands.register('graph.delete',{reason:(_,selection)=>graphReason(selection),run:(_,selection)=>deleteGraphItem(selection)});
+
 let taskStorage = null;
 try { taskStorage = localStorage; } catch { /* display unavailable recovery in the task panel */ }
+const workspaceSession=new WorkspaceSession(taskStorage);
 let taskPersistence = null, taskPersistenceError = null;
 try { taskPersistence = await openTaskPersistence(taskStorage); }
 catch (error) { taskPersistenceError = error.message; }
@@ -56,7 +76,9 @@ state.objects = new Map();
 state.registries = new Map();
 state.activeObject = null;
 state.comparison = new Set();
-const isSpatial = project => ['spatial-unbiased-v1','chemotaxis-spatial-v1'].includes(project?.execution_profile);
+const isSpatial = project => ['spatial-unbiased-v1','chemotaxis-spatial-v1','modular-spatial-v1'].includes(project?.execution_profile);
+const replayLength=()=>state.replay?.paged?.frame_count??state.replay?.snapshots.length??0;
+const replayIndex=()=>state.replay?.paged?.index??state.frameIndex;
 const stepLimit = () => executionStepLimit(state.capabilities, state.project);
 const TOOLS = { select: 'select-tool', population: 'population-tool', move: 'move-tool', scale: 'scale-tool',
   rotate: 'rotate-tool', hand: 'hand-tool', orbit: 'orbit-tool', measure: 'measure-tool' };
@@ -64,7 +86,7 @@ let viewport;
 installDockSizing($('studio'), $('diagnostics'));
 
 // Undo keeps whole-document snapshots; projects are small enough that this stays cheap.
-const snapshot = () => structuredClone({ project: state.project, blocks: state.blocks, layout: state.layout, settings: state.settings, design:state.design, designBrief:state.designBrief });
+const snapshot = () => structuredClone({ project: state.project, blocks: state.blocks, layout: state.layout, settings: state.settings, design:state.design, designBrief:state.designBrief, managedTemplates:state.managedTemplates??{}, draftLinks:state.draftLinks??[] });
 const fingerprint = () => JSON.stringify(snapshot());
 function changed() {
   clearDesignEvaluation();
@@ -281,15 +303,16 @@ function renderScene() {
 function renderTimeline() {
   const replay = state.replay;
   if (!replay) return;
-  $('frame-range').max = String(replay.snapshots.length - 1);
-  $('frame-range').value = String(state.frameIndex);
+  $('frame-range').max = String(replayLength() - 1);
+  $('frame-range').value = String(replayIndex());
   const frame = replay.snapshots[state.frameIndex].frame;
   $('time-label').textContent = `${fmt(frame.time_s, 3)} s`;
-  $('frame-label').textContent = `${t('frame')} ${state.frameIndex} / ${replay.snapshots.length - 1}`;
-  $('previous-button').disabled = state.frameIndex === 0;
-  $('next-button').disabled = state.frameIndex === replay.snapshots.length - 1;
+  $('frame-label').textContent = `${t('frame')} ${replayIndex()} / ${replayLength() - 1}`;
+  $('previous-button').disabled = replayIndex() === 0;
+  $('next-button').disabled = replayIndex() === replayLength() - 1;
   const track = $('event-track');
   track.replaceChildren();
+  if(replay.paged){const note=el('span','task-note',`On-demand frames · ${Math.round(replay.paged.cache_bytes/1048576)} / ${replay.paged.max_bytes/1048576} MiB cache`);track.append(note);return;}
   for (const {index, start, end, events} of timelineMarkers(replay.snapshots, state.frameIndex)) {
     const snapshot = replay.snapshots[index];
     const tick = el('button', `event-tick${events ? ' has-event' : ''}${index === state.frameIndex ? ' current' : ''}`, events ? '◆' : '·');
@@ -536,7 +559,7 @@ function renderBlockInspector(root, block) {
   const action = el('button', 'inspector-action', t('scatter'));
   action.type = 'button';
   action.disabled = Boolean(block.locked) || !object;
-  action.addEventListener('click', () => scatter(block.id));
+  commands.bind(action,'population.scatter',block.id);
   root.append(action);
   if (!object) root.append(el('p','pending-note',t('unsupportedObject')));
   if (block.binding) {
@@ -553,8 +576,12 @@ function renderBlockInspector(root, block) {
   }
   for (const [label, handler] of [['duplicate', () => duplicateBlock(block.id)], ['delete', () => removeBlock(block.id)]]) {
     const button = el('button', 'inspector-action', t(label)); button.disabled = Boolean(block.locked);
-    button.addEventListener('click', handler); root.append(button);
+    commands.bind(button,`population.${label}`,block.id); root.append(button);
   }
+  for(const [key,en,zh]of [['top','Align top face','顶面贴齐'],['bottom','Align bottom face','底面贴齐'],['center','Center in domain','移至空间中心']]){const button=el('button','inspector-action',currentLanguage()==='zh-CN'?zh:en);commands.bind(button,`population.${key}`,block.id);root.append(button);}
+  const distribution=[...state.modules.values()].find(m=>m.id==='control.seeded_distribution');if(distribution){const addDistribution=el('button','inspector-action',currentLanguage()==='zh-CN'?'添加有seed的群内分布':'Add seeded population distribution');addDistribution.disabled=block.locked;addDistribution.addEventListener('click',()=>{state.selectedBlock=block.id;addGraphNode(distribution);});root.append(addDistribution);}
+  if(state.managedTemplates?.[block.id]){const upgrade=el('button','inspector-action',currentLanguage()==='zh-CN'?'预览模板升级':'Preview template upgrade');upgrade.disabled=block.locked;upgrade.addEventListener('click',()=>{
+    const input=el('input');input.type='file';input.accept='.json,application/json';input.addEventListener('change',async()=>{try{const file=input.files[0];if(!file||file.size>1024*1024)throw Error('Template update must be at most 1 MiB');const incoming=JSON.parse(await file.text());if(!Array.isArray(incoming.nodes)||typeof incoming.template_version!=='string')throw Error('Expected template_version and nodes');const record=state.managedTemplates[block.id],preview=templateUpgradePreview(record,state.project,incoming.nodes),revision=state.revision,token=state.draftToken;reviewTransaction({title:'Template upgrade',description:'Conflicting user overrides require an explicit policy. Only declared parameters are updated; topology is preserved.',rows:[...preview.updates.map(u=>`${u.id}.${u.parameter}`),...preview.conflicts.map(c=>`Conflict: ${c.id}.${c.parameter??c.reason}`)],fields:[{name:'policy',label:'Conflicts',value:'keep',options:[['keep','Keep local overrides'],['incoming','Use incoming values']]}],commit:values=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');return edit('updated',()=>{for(const update of [...preview.updates,...(values.policy==='incoming'?preview.conflicts.filter(c=>c.parameter).map(c=>({id:c.id,parameter:c.parameter,value:c.incoming})):[])]){const node=findNode(update.id),manifest=state.modules.get(moduleKey(node));const problem=setParameter(node,manifest,update.parameter,update.value.value);if(problem)throw Error(problem);}record.template_version=incoming.template_version;record.base_nodes=structuredClone(incoming.nodes);});}});}catch(error){status('editFailed',{message:error.message},true);}});input.click();});root.append(upgrade);const detach=el('button','inspector-action',currentLanguage()==='zh-CN'?'解除模板托管':'Detach managed template');detach.disabled=block.locked;detach.addEventListener('click',()=>edit('updated',()=>delete state.managedTemplates[block.id]));root.append(detach);}
   if (isSpatial(state.project) && !block.dirty) {
     const part = section(root,t('copyBranch'));
     const source = el('select'); source.setAttribute('aria-label',t('sourcePopulation'));
@@ -660,12 +687,12 @@ function renderEnvironmentInspector(root,object) {
 }
 
 function removeEnvironment(id) {
-  edit('nodeRemoved',() => {
-    deleteEnvironmentObject(state.project,id); delete state.layout[id]; state.selectedEnvironment = null;
-  },{id});
+  const preview=deletionPreview(state.project,[id]),revision=state.revision,token=state.draftToken;
+  reviewTransaction({title:t('deleteObject'),description:currentLanguage()==='zh-CN'?'删除此初始化、有限源或维持浓度对象；检查受影响连接。共享场保留供修复。':'Remove this initializer, finite source or maintained concentration object. Review affected connections; shared fields remain available for repair.',rows:[...preview.nodes,...preview.edges.map(e=>e.id),...preview.channels.map(c=>c.id)],commit:()=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');return edit('nodeRemoved',()=>{state.draftLinks??=[];state.draftLinks.push(...preview.edges);deleteEnvironmentObject(state.project,id);delete state.layout[id];state.selectedEnvironment=null;},{id});}});
 }
 
 function renderCellInspector(root, cell) {
+  if(cell&&state.replay){const trajectory=el('button','inspector-action',currentLanguage()==='zh-CN'?'显示此菌体3D轨迹':'Show cell 3D trajectory');trajectory.addEventListener('click',async()=>{if(state.replay.paged){trajectory.disabled=true;try{const result=await taskStore.pagers.get(state.activeRun.localId).scan({start:0,end:Infinity},cell.id);viewport?.setTrajectory(result.points.length>1?[result.points]:[]);trajectory.textContent=`${result.points.length}/${result.pointCount} positions · stride ${result.pointStride}`;}catch(error){status('runFailed',{message:error.message},true);}finally{trajectory.disabled=false;}}else viewport?.setTrajectory(trajectorySegments(state.replay,cell.id));});root.append(trajectory);}
   root.append(el('div', 'inspector-title', state.selectedCell), el('div', 'inspector-subtitle', t('cells')));
   if (!cell) { root.append(el('p', 'empty-message', t('noCell'))); return; }
   const location = section(root, t('geometry'));
@@ -687,6 +714,16 @@ function renderCellInspector(root, cell) {
 }
 
 function renderDomainInspector(root) {
+  renderResolutionGuidance(root,state.project,currentLanguage()==='zh-CN');
+  const gradient=el('button','inspector-action',currentLanguage()==='zh-CN'?'梯度与来源向导':'Gradient and source wizard');gradient.addEventListener('click',()=>{
+    const kinds=[['initial','Initial gradient / 初始梯度：仅初始化',/initial.*field|linear_gradient|initial.*gradient/],['finite','Finite source / 有限源：库存耗尽后停止',/source\.finite_local/],['maintained','Maintained concentration / 维持浓度：持续外部物质交换',/ideal_local_reservoir|concentration_boundary/]];
+    const choices=kinds.flatMap(([kind,label,re])=>[...state.modules.values()].filter(m=>re.test(m.id)).map(m=>[moduleKey({module_id:m.id,module_version:m.version}),`${label} · ${m.id}`]));
+    if(!choices.length){status('editFailed',{message:'No registered gradient provider in this profile'},true);return;}
+    reviewTransaction({title:currentLanguage()==='zh-CN'?'选择浓度机制':'Choose concentration mechanism',description:currentLanguage()==='zh-CN'?'向导加入普通可编辑模块；参数、物种、输入连接在工作流中设置，检查通过后运行。':'The wizard adds an ordinary editable module. Set parameters, species and connections in Workflow before running.',fields:[{name:'module',label:'Mechanism',value:choices[0][0],options:choices}],commit:values=>addGraphNode(state.modules.get(values.module))});
+  });root.append(gradient);
+  const durationPart=section(root,currentLanguage()==='zh-CN'?'物理运行时间':'Physical duration'),duration=el('input');duration.type='number';duration.step='any';duration.min='0';duration.value=state.settings.dt_s*state.settings.steps;duration.setAttribute('aria-label','Physical duration seconds');
+  duration.addEventListener('change',()=>edit('updated',()=>{const steps=Number(duration.value)/state.settings.dt_s;if(!Number.isSafeInteger(Math.round(steps))||Math.abs(steps-Math.round(steps))>1e-8||steps<1||steps>stepLimit())throw Error('Duration must be an integer multiple of dt within the task limit; dt is never changed automatically');state.settings.steps=Math.round(steps);}));durationPart.append(duration,el('p','task-note',`s · dt ${state.settings.dt_s} s · ${state.settings.steps} steps`));
+  const suggestion=Math.max(1,Math.ceil(state.settings.steps/2000));const suggest=el('button','inspector-action',`${currentLanguage()==='zh-CN'?'采用约2000帧输出间隔':'Use ~2000-frame output interval'}: ${suggestion}`);suggest.addEventListener('click',()=>edit('updated',()=>{state.settings.frame_every_steps=suggestion;}));durationPart.append(suggest);
   const part = section(root, t('geometry'));
   const form = el('form', 'domain-form');
   const name = el('input'); name.value = state.project.id; name.required = true; name.setAttribute('aria-label', t('name'));
@@ -694,34 +731,34 @@ function renderDomainInspector(root) {
   let seed = null;
   if (isSpatial(state.project)) {
     seed = el('input'); seed.type = 'number'; seed.min = '0'; seed.max = String(Number.MAX_SAFE_INTEGER); seed.step = '1'; seed.required = true;
-    seed.value = state.settings.seed ?? state.project.random_seed; seed.setAttribute('aria-label',t('randomSeed'));
+    seed.id='setting-seed'; seed.value = state.settings.seed ?? state.project.random_seed; seed.setAttribute('aria-label',t('randomSeed'));
     const row = el('label','edit-row',t('randomSeed')); row.append(seed); form.append(row);
     const outputRow = el('label','edit-row',t('includeFields')), output = el('input');
-    output.type = 'checkbox'; output.checked = state.settings.include_fields !== false;
+    output.id='setting-include_fields'; output.type = 'checkbox'; output.checked = state.settings.include_fields !== false;
     output.addEventListener('change',() => edit('updated',() => { state.settings.include_fields = output.checked; }));
     outputRow.append(output); part.append(outputRow);
     const capability=taskCapability(state.capabilities,state.project);
-    if(capability?.task_contract_version==='0.5.0'){
+    if(['0.5.0','0.6.0'].includes(capability?.task_contract_version)){
       const label=(en,zh)=>currentLanguage()==='zh-CN'?zh:en;
       const backends=capability.execution.available_backends??[capability.execution.backend],backend=el('select');
       for(const value of backends)backend.add(new Option(value==='numpy-cupy-cuda'?'CUDA · '+label('diffusion only; CPU physiology','仅扩散，生理过程用 CPU'):'CPU',value));
       if(state.settings.backend&&!backends.includes(state.settings.backend)){const missing=new Option(`${state.settings.backend} · ${label('unavailable on this service','此服务不可用')}`,state.settings.backend);missing.disabled=true;backend.add(missing);}
-      backend.value=state.settings.backend??capability.execution.backend;backend.setAttribute('aria-label','Execution backend');
+      backend.id='setting-backend';backend.value=state.settings.backend??capability.execution.backend;backend.setAttribute('aria-label','Execution backend');
       backend.addEventListener('change',()=>edit('updated',()=>{state.settings.backend=backend.value;}));
       const backendRow=el('label','edit-row',label('Execution backend','计算后端'));backendRow.append(backend);part.append(backendRow);
       const strideRow=el('div','design-row');
       for(let axis=0;axis<3;axis++){
-        const row=el('label','edit-row',`${label('Preview block','预览块')} ${'XYZ'[axis]}`),input=el('input');input.type='number';input.min='1';input.step='1';input.value=state.settings.field_stride_xyz?.[axis]??1;input.setAttribute('aria-label',`Field preview stride ${'XYZ'[axis]}`);
+        const row=el('label','edit-row',`${label('Preview block','预览块')} ${'XYZ'[axis]}`),input=el('input');input.id=`setting-field_stride_xyz-${axis}`;input.type='number';input.min='1';input.step='1';input.value=state.settings.field_stride_xyz?.[axis]??1;input.setAttribute('aria-label',`Field preview stride ${'XYZ'[axis]}`);
         input.addEventListener('change',()=>edit('updated',()=>{const value=Number(input.value);if(!Number.isSafeInteger(value)||value<1||state.project.domain.counts_xyz[axis]%value)throw Error(label('Preview block must divide the computation grid count.','预览块须整除计算网格数。'));const next=[...(state.settings.field_stride_xyz??[1,1,1])];next[axis]=value;state.settings.field_stride_xyz=next;}));row.append(input);strideRow.append(row);
       }part.append(strideRow);
       const strides=state.settings.field_stride_xyz??[1,1,1],spacing=state.project.domain.spacing_um_xyz;
       part.append(el('p','task-note',`${label('Computation spacing','计算格距')}: ${spacing.join(' × ')} µm; ${label('volume-mean preview spacing','体积平均预览格距')}: ${spacing.map((v,i)=>v*strides[i]).join(' × ')} µm. ${label('Preview averaging changes saved fields only.','预览平均只改变保存的浓度场。')}`));
-      const finalRow=el('label','edit-row',label('Save full final field (NPZ)','保存完整末帧浓度场（NPZ）')),finalInput=el('input');finalInput.type='checkbox';finalInput.checked=state.settings.include_final_fields??false;finalInput.addEventListener('change',()=>edit('updated',()=>{state.settings.include_final_fields=finalInput.checked;}));finalRow.append(finalInput);part.append(finalRow);
+      const finalRow=el('label','edit-row',label('Save full final field (NPZ)','保存完整末帧浓度场（NPZ）')),finalInput=el('input');finalInput.id='setting-include_final_fields';finalInput.type='checkbox';finalInput.checked=state.settings.include_final_fields??false;finalInput.addEventListener('change',()=>edit('updated',()=>{state.settings.include_final_fields=finalInput.checked;}));finalRow.append(finalInput);part.append(finalRow);
     }
-    if (state.project.project_version === '0.5.0') {
-      const row = el('label','edit-row',t('frameInterval')), input = el('input'); input.type='number'; input.min='1'; input.step='1'; input.value=state.settings.frame_every_steps ?? 1;
+    if (['0.5.0','0.6.0'].includes(state.project.project_version)) {
+      const row = el('label','edit-row',t('frameInterval')), input = el('input'); input.type='number'; input.min='1'; input.step='1'; input.value=state.settings.frame_every_steps ?? 1; input.id='setting-frame_every_steps';
       input.addEventListener('change',()=>edit('updated',()=>{
-        const value=Number(input.value); if (!Number.isSafeInteger(value)||value<1||value>10000) throw new Error('Invalid frame interval'); state.settings.frame_every_steps=value;
+        const value=Number(input.value); if (!Number.isSafeInteger(value)||value<1||value>stepLimit()) throw new Error('Invalid frame interval'); state.settings.frame_every_steps=value;
       })); row.append(input);part.append(row);
     }
   }
@@ -824,22 +861,19 @@ function renderDomainInspector(root) {
 }
 
 function duplicateBlock(id) {
-  const source = state.blocks.find(b => b.id === id);
-  if (!source || source.locked || !objectForBlock(source,state.objects)) return;
-  edit('updated', () => {
-    const newId = createBlock(state.project, source.center, state.blocks.map(b => b.id)).id;
-    const copy = {...structuredClone(source), id:newId, name:source.name + ' copy', dirty:true, hidden:false, locked:false};
-    delete copy.binding;
-    state.blocks.push(copy); state.selectedBlock = copy.id;
-  });
+  const source=state.blocks.find(b=>b.id===id);if(!source||source.locked||!objectForBlock(source,state.objects))return;
+  const draft=structuredClone(state.project),newId=createBlock(draft,source.center,state.blocks.map(b=>b.id)).id;
+  const copy={...structuredClone(source),id:newId,name:source.name+' copy',dirty:true,hidden:false,locked:false};delete copy.binding;
+  const rows=[`${source.id} → ${newId}`];
+  if(draft.groups[id]){const group=structuredClone(draft.groups[id]);group.ids=group.ids.map((old,i)=>{const next=`${newId}:cell_${i}`;rows.push(`${old} → ${next}`);return next;});draft.groups[newId]=group;draft.run.groups.push(newId);const nodes=copyPopulationBranch(draft,id,newId);copy.binding={data_nodes:nodes};rows.push(...nodes);}
+  const revision=state.revision,token=state.draftToken;
+  reviewTransaction({title:t('duplicate'),description:currentLanguage()==='zh-CN'?'预览对象、菌体、节点、连接与观测引用的重写。复制后须重新散布，避免相同位置的重叠。':'Review rewritten object, cell, node, connection and observation references. Scatter the copy before running to resolve coincident positions.',rows,commit:()=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');return edit('updated',()=>{state.project=draft;state.blocks.push(copy);state.selectedBlock=newId;state.managedTemplates??={};if(state.managedTemplates[id])state.managedTemplates[newId]=managedRecord(copy,draft);state.layout=autoLayout(draft.graph,state.modules,state.layout);});}});
 }
 
 function removeBlock(id) {
-  if (state.blocks.find(b => b.id === id)?.locked) return;
-  edit('updated', () => {
-    deletePopulation(state.project, id); state.blocks = state.blocks.filter(b => b.id !== id); state.selectedBlock = null;
-    for (const key of Object.keys(state.layout)) if (!findNode(key)) delete state.layout[key];
-  });
+  if(state.blocks.find(b=>b.id===id)?.locked)return;
+  const nodeIds=state.project.graph.nodes.filter(n=>n.owner.kind==='population'&&n.owner.id===id).map(n=>n.id),affected=deletionPreview(state.project,nodeIds),revision=state.revision,token=state.draftToken;
+  reviewTransaction({title:t('delete'),description:currentLanguage()==='zh-CN'?'确认删除菌群及依赖。可保留连接草稿，供替代节点重新连接。':'Review population dependencies. Connection drafts can be retained for replacement nodes.',rows:[id,...affected.nodes,...affected.edges.map(e=>e.id),...affected.channels.map(c=>c.id)],fields:[{name:'draft',label:'Connection drafts',value:'keep',options:[['keep','Keep repairable drafts'],['remove','Remove dependencies']]}],commit:values=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');return edit('updated',()=>{if(values.draft==='keep'){state.draftLinks??=[];state.draftLinks.push(...affected.edges);}deletePopulation(state.project,id);state.blocks=state.blocks.filter(b=>b.id!==id);state.selectedBlock=null;delete state.managedTemplates?.[id];for(const key of Object.keys(state.layout))if(!findNode(key))delete state.layout[key];});}});
 }
 
 function renderDiagnostics() {
@@ -878,6 +912,12 @@ function renderDiagnostics() {
       if(artifact.artifact_id!=='final_fields'||!/^\/api\/runs\/[A-Za-z0-9_-]+\/artifacts\/final_fields$/.test(artifact.href))continue;
       const link=el('a','menu-button',currentLanguage()==='zh-CN'?'下载完整末帧场 NPZ':'Download full final field NPZ');link.href=artifact.href;link.download=`${run.id}.final-fields.npz`;link.title=`${artifact.bytes} bytes · SHA-256 ${artifact.sha256}`;actions.append(link);
     }
+    if(run.localId&&run.submission.task_contract_version==='0.6.0'){
+      if(['queued','running'].includes(run.status))action(currentLanguage()==='zh-CN'?'暂停并保存':'Pause and save',()=>taskStore.pauseTask(run.localId));
+      if(run.task?.checkpoint&&['paused','interrupted','failed','cancelled'].includes(run.status))action(currentLanguage()==='zh-CN'?'从保存点续算':'Resume checkpoint',()=>taskStore.resumeTask(run.localId));
+      if(run.task?.checkpoint&&['paused','interrupted','failed','cancelled'].includes(run.status))action(currentLanguage()==='zh-CN'?'环境/网格迁移':'Migrate environment/grid',()=>previewRunMigration(run));
+      if(run.task?.checkpoint){const link=el('a','menu-button',currentLanguage()==='zh-CN'?'下载 Checkpoint':'Download checkpoint');link.href=`/api/runs/${encodeURIComponent(run.runId)}/checkpoint`;link.download=`${run.id}.checkpoint.zip`;actions.append(link);}
+    }
     if (run.localId && !run.imported) {
       action('inputSnapshot', () => { $('task-input-json').value = JSON.stringify(run.submission, null, 2); $('task-input-dialog').showModal(); });
       if (['queued', 'running'].includes(run.status) && !run.task?.cancel_requested) action('cancelTask', () => taskStore.cancel(run.localId));
@@ -909,7 +949,23 @@ function locateDiagnostic(target) {
   const root=$('inspector');root?.classList.remove('diagnostic-focus');
   requestAnimationFrame(()=>root?.classList.add('diagnostic-focus'));
   if(target.parameter)Array.from(root?.querySelectorAll('input,select')??[]).find(e=>e.getAttribute('aria-label')===target.parameter)?.focus({preventScroll:false});
-  if(target.kind==='settings')$(target.parameter==='dt_s'?'dt-input':'steps-input')?.focus();
+  if(target.kind==='settings'){const control=$(settingControl(target));control?.scrollIntoView({block:'center'});control?.focus({preventScroll:true});}
+}
+
+function previewRunMigration(run){
+  reviewTransaction({title:'Environment / grid migration',description:'Edit the target Project. This operation requires conservative same-domain field mapping and identity mapping for cells/module state. Preview is read-only.',fields:[{name:'project',label:'Target Project JSON',type:'textarea',value:JSON.stringify(run.project,null,2)}],commit:async values=>{
+    const project=JSON.parse(values.project),mapping={fields:'conservative-volume',cells:'identity',module_state:'identity'},path=`/api/runs/${encodeURIComponent(run.runId)}`;
+    const preview=await kernel.request(path+'/migration-preview',{project,mapping});if(!preview.valid)throw Error(JSON.stringify(preview));
+    reviewTransaction({title:'Confirm conservative migration',description:'The previous run and checkpoint remain available. Confirm creates a linked segment.',rows:[JSON.stringify(preview.audit)],commit:async()=>{const request_id=crypto.randomUUID(),edit_revision=run.submission.edit_revision;const submission={...structuredClone(run.submission),request_id,project};return taskStore.startOperation(submission,{draftToken:run.draftToken,revision:run.revision,idempotencyRetentionSeconds:86400},path+'/migrate',{project,mapping,request_id,edit_revision,preview_sha256:preview.preview_sha256});}});
+  }});
+}
+async function importCheckpoint(file){
+  const response=await fetch('/api/runs/checkpoint-import',{method:'POST',headers:{'Content-Type':'application/vnd.friskoli.checkpoint+zip'},body:file});
+  const checkpoint=await response.json();if(!response.ok)throw Error(JSON.stringify(checkpoint));
+  reviewTransaction({title:'Continue imported checkpoint',description:`${checkpoint.project.id} · step ${checkpoint.step_index} · ${checkpoint.time_s} s. The imported frozen project and RNG state are retained.`,fields:[{name:'steps',label:'Absolute target steps',value:checkpoint.step_index+100,min:checkpoint.step_index+1,step:1},{name:'dt_s',label:'dt [s] (must match checkpoint)',value:checkpoint.dt_s??state.settings.dt_s,min:.000001}],commit:async values=>{
+    const settings={...state.settings,...values,seed:checkpoint.seed},submission=buildSubmission(state.capabilities,checkpoint.project,settings,`checkpoint:${checkpoint.checkpoint_id}`);
+    return taskStore.startOperation(submission,{draftToken:state.draftToken,revision:state.revision,idempotencyRetentionSeconds:86400},'/api/runs/from-checkpoint',{checkpoint_id:checkpoint.checkpoint_id,submission});
+  }});
 }
 
 function renderComparisons() {
@@ -921,7 +977,7 @@ function renderComparisons() {
   if(selected.length){
     const heading=el('h3','',t('comparison'));comparison.append(heading);
     try{
-      const variants=compareRuns(selected),output=el('div','result-data');renderComparison(output,variants,t);comparison.append(output);
+      const variants=compareRuns(selected),output=el('div','result-data');renderComparison(output,variants,t);renderParameterComparison(output,selected);comparison.append(output);
       const exportButton=el('button','menu-button',t('exportComparison'));
       exportButton.addEventListener('click',()=>{
         const rows=[['variant','version_lock','run_id','seed','group_id','statistic','n',...METRIC_KEYS]];
@@ -935,10 +991,11 @@ function renderComparisons() {
   }
 }
 
-function selectRun(record) {
+async function selectRun(record) {
   if (!record.replay) return;
-  state.activeRun = record; state.replay = record.replay; state.frameIndex = 0; state.selectedCell = null; state.selectedEnvironment = null;
-  state.field = Object.keys(record.replay.snapshots[0]?.concentrations ?? {})[0] ?? '';
+  const token=++frameRequest;let replay=record.replay;if(replay.paged){try{replay=await taskStore.frame(record.localId,replay.paged.index);if(token!==frameRequest)return;}catch(error){status('runFailed',{message:error.message},true);return;}}
+  state.activeRun = record; state.replay = replay; state.frameIndex = 0; state.selectedCell = null; state.selectedEnvironment = null;
+  state.field = Object.keys(replay.snapshots[0]?.concentrations ?? {})[0] ?? '';
   updateRanges(); setView('results');
 }
 
@@ -956,7 +1013,7 @@ function taskUpdated(record, records) {
     status(record.status, {}, ['failed', 'rejected', 'unavailable'].includes(record.status));
   if (state.activeRun?.localId === record.localId) {
     state.activeRun = record;
-    if (record.replay) { state.replay = record.replay; state.frameIndex = Math.min(state.frameIndex, record.replay.snapshots.length - 1); updateRanges(); }
+    if (record.replay&&!record.replay.paged) { state.replay = record.replay; state.frameIndex = Math.min(state.frameIndex, record.replay.snapshots.length - 1); updateRanges(); }
   }
   if (record.replay && record.replay !== previous?.replay && record.status === 'completed' &&
       record.localId === state.latestTask && matchesDraft(record, state) && !record.design_ref) selectRun(record);
@@ -967,7 +1024,7 @@ function taskUpdated(record, records) {
 
 function renderData() { renderResultData($('data-pane'), state.replay, state.selectedCell, setFrame,
   {empty:t('noResults'),cells:t('cells'),events:t('events'),frame:t('frame'),curve:t('cellCountHistory')},
-  {t,project:state.activeRun?.project,definitions:state.registries.get(state.activeRun?.project?.execution_profile)?.observations??[]}); }
+  {t,project:state.activeRun?.project,scan:state.replay?.paged?(...args)=>taskStore.pagers.get(state.activeRun.localId).scan(...args):null,trajectory:segments=>viewport?.setTrajectory(segments),definitions:state.registries.get(state.activeRun?.project?.execution_profile)?.observations??[]}); }
 
 function startSeedBatch(text) {
   if(state.batch || !state.project || $('run-button').disabled || !supportsTasks(state.capabilities,state.project))return;
@@ -1187,13 +1244,14 @@ const findNode = id => state.project.graph.nodes.find(node => node.id === id);
 
 function parameterField(parent, node, manifest, name, definition, {readOnly=false}={}) {
   const row = el('label', 'edit-row');
-  const input = el(definition.enum ? 'select' : 'input');
+  const input = el(definition.enum ? 'select' : ['array','object'].includes(definition.type)?'textarea':'input');
   const entry = node.parameters[name];
   const isReadOnly=readOnly||state.view==='results'||populationNodeLocked(node,state.blocks)||Boolean(manifest.unavailable);
   input.disabled=isReadOnly;
   if(isReadOnly)input.title=currentLanguage()==='zh-CN'?(readOnly||state.view==='results'?'冻结运行参数，只读。':'菌群已锁定或模块不可用。'):(readOnly||state.view==='results'?'Frozen run parameter; read-only.':'The population is locked or the module is unavailable.');
-  input.dataset.parameter=name;input.dataset.node=node.id;
-  if (definition.enum) {
+  input.dataset.parameter=name;input.dataset.node=node.id;input.dataset.mathTarget=`parameters.${name}`;
+  if(['array','object'].includes(definition.type)){input.value=entry?.value===undefined?'':JSON.stringify(entry.value,null,2);input.rows=6;input.spellcheck=false;}
+  else if (definition.enum) {
     input.append(new Option(t('parameterMissing'), ''));
     for (const value of definition.enum) input.append(new Option(String(value), value));
     input.value = entry?.value ?? '';
@@ -1229,8 +1287,14 @@ function parameterField(parent, node, manifest, name, definition, {readOnly=fals
       if(populationNodeLocked(target,state.blocks))throw new Error(currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.');
       const problem = setParameter(target, manifest, name, raw);
       if (problem) throw new Error(problem);
+      const managed=state.managedTemplates?.[target.owner.id];if(managed)managed.overrides[`${target.id}.${name}`]=structuredClone(target.parameters[name]);
     }, { name });
   });
+  const tier=entry?.value===undefined?'required':entry?.provenance?.kind==='unknown'?'research':entry?.provenance&&entry.provenance.kind!=='user'?'reference':'provided';
+  row.dataset.parameterTier=tier;
+  const badge=el('small','parameter-tier',currentLanguage()==='zh-CN'?({required:'必须提供',research:'待研究',reference:'有来源参考值',provided:'已提供'})[tier]:tier);row.prepend(badge);
+  if(entry?.uncertainty)evidence.append(el('pre','parameter-record',JSON.stringify(entry.uncertainty,null,2)));
+  if(!isReadOnly){const unknown=el('button','menu-button',currentLanguage()==='zh-CN'?'标记未知':'Mark unknown');unknown.type='button';unknown.addEventListener('click',()=>edit('updated',()=>{delete findNode(node.id).parameters[name];}));evidence.append(unknown);}
   parent.append(row, evidence);
 }
 
@@ -1260,8 +1324,11 @@ function addGraphNode(manifest) {
   }
 }
 
-function deleteGraphItem(selection) {
-  if (!selection) return;
+function deleteGraphItem(selection, confirmed=false, keepDraft=false) {
+  if (!selection || graphReason(selection)) return;
+  if(!confirmed){const affected=deletionPreview(state.project,selection.kind==='node'?[selection.id]:[]),revision=state.revision,token=state.draftToken;
+    reviewTransaction({title:t(selection.kind==='node'?'deleteNode':'deleteEdge'),description:currentLanguage()==='zh-CN'?'确认删除及受影响的连接和观测通道。':'Review the node, dependent connections and observation channels.',rows:[...affected.nodes,...affected.edges.map(e=>`${e.id}: ${e.from.node}.${e.from.port} → ${e.to.node}.${e.to.port}`),...affected.channels.map(c=>c.id)],fields:affected.edges.length?[{name:'draft',label:currentLanguage()==='zh-CN'?'连接草稿':'Connection drafts',value:'keep',options:[['keep','Keep repairable drafts'],['remove','Remove dependencies']]}]:[],commit:values=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');return deleteGraphItem(selection,true,values.draft==='keep');}});return;
+  }
   edit(selection.kind === 'node' ? 'nodeRemoved' : 'edgeRemoved', () => {
     const graph = state.project.graph;
     if (selection.kind === 'node') {
@@ -1269,6 +1336,7 @@ function deleteGraphItem(selection) {
       const role = requiredRoleRemovalProblem(state.project,selection.id,state.objects,state.modules);
       if (role) throw new Error(t('requiredMechanism',{role}));
     }
+    if(keepDraft){state.draftLinks??=[];state.draftLinks.push(...deletionPreview(state.project,[selection.id]).edges);}
     const removed = selection.kind === 'node' ? removeNode(graph, selection.id) : disconnect(graph, selection.id);
     if (!removed) throw new Error('edge.node');
     if (selection.kind === 'node') delete state.layout[selection.id];
@@ -1280,6 +1348,7 @@ function deleteGraphItem(selection) {
 }
 
 function setEdgeTiming(edgeId, timing) {
+  if(graphReason({kind:'edge',id:edgeId}))return;
   edit('edgeUpdated', () => {
     const graph = state.project.graph;
     const edge = graph.edges.find(item => item.id === edgeId);
@@ -1304,13 +1373,13 @@ function renderEdgeInspector(root, edge) {
   const select = el('select');
   select.setAttribute('aria-label', t('timing'));
   for (const timing of ['same_step', 'previous_step']) select.append(new Option(t(timing), timing));
-  select.value = edge.timing;
+  select.value = edge.timing;select.disabled=Boolean(graphReason({kind:'edge',id:edge.id}));select.title=graphReason({kind:'edge',id:edge.id});
   select.addEventListener('change', () => setEdgeTiming(edge.id, select.value));
   row.append(el('span', '', t('timing')), select);
   part.append(row);
   const remove = el('button', 'inspector-action danger', t('deleteEdge'));
   remove.type = 'button';
-  remove.addEventListener('click', () => deleteGraphItem({ kind: 'edge', id: edge.id }));
+  commands.bind(remove,'graph.delete',{kind:'edge',id:edge.id});
   root.append(remove);
 }
 
@@ -1338,6 +1407,11 @@ function renderGraphSummary(root) {
     button.type = 'button';
     button.addEventListener('click', () => selectGraph({ kind: 'node', id: item.node }));
     check.append(button);
+  }
+  for(const [index,draft]of (state.draftLinks??[]).entries()){
+    const box=section(root,`Draft · ${draft.id}`),from=el('select'),to=el('select');from.setAttribute('aria-label','Draft source');to.setAttribute('aria-label','Draft target');
+    for(const node of graph.nodes){const manifest=state.modules.get(moduleKey(node));for(const port of Object.keys(manifest?.outputs??{}))from.add(new Option(`${node.id}.${port}`,JSON.stringify({node:node.id,port})));for(const port of Object.keys(manifest?.inputs??{}))to.add(new Option(`${node.id}.${port}`,JSON.stringify({node:node.id,port})));}
+    from.value=JSON.stringify(draft.from);to.value=JSON.stringify(draft.to);const repair=el('button','inspector-action',currentLanguage()==='zh-CN'?'修复连接':'Repair connection');repair.addEventListener('click',()=>edit('updated',()=>{if(!from.value||!to.value)throw Error('Choose both endpoints');connect(graph,state.modules,JSON.parse(from.value),JSON.parse(to.value),draft.timing);state.draftLinks.splice(index,1);}));box.append(from,to,repair);
   }
   root.append(el('p', 'empty-message', t('graphHint')));
 }
@@ -1368,7 +1442,7 @@ function renderManifest(root, manifest, node = null) {
     remove.disabled = Boolean(role)||populationNodeLocked(node,state.blocks);
     if(populationNodeLocked(node,state.blocks))remove.title=currentLanguage()==='zh-CN'?'菌群已锁定。':'The population is locked.';
     if (role) { remove.title = t('requiredMechanism',{role}); root.append(el('p','pending-note',remove.title)); }
-    remove.addEventListener('click', () => deleteGraphItem({ kind: 'node', id: node.id }));
+    commands.bind(remove,'graph.delete',{kind:'node',id:node.id});
     root.append(remove);
   } else {
     const params = section(root, t('parameters'));
@@ -1388,8 +1462,7 @@ function renderManifest(root, manifest, node = null) {
   }
   for (const side of ['inputs', 'outputs']) {
     const part = section(root, t(side));
-    for (const [name, port] of Object.entries(manifest[side])) kv(part, name,
-      `${port.shape} · ${port.quantity} [${port.unit}]`);
+    for (const [name, port] of Object.entries(manifest[side])) {kv(part,name,`${port.shape} · ${port.quantity} [${port.unit}]`);linkPortMathematics(root,manifest,side,name,part.lastElementChild);}
   }
 }
 
@@ -1521,13 +1594,13 @@ function showGraphContext(selection, x, y) {
   menu.replaceChildren();
   const remove = el('button', '', t(selection.kind === 'node' ? 'deleteNode' : 'deleteEdge'));
   remove.type = 'button';
-  remove.addEventListener('click', () => { menu.hidden = true; deleteGraphItem(selection); });
+  commands.bind(remove,'graph.delete',selection);remove.addEventListener('click',()=>{menu.hidden=true;});
   menu.append(remove);
   if (selection.kind === 'edge') {
     const edge = state.project.graph.edges.find(item => item.id === selection.id);
     const other = edge?.timing === 'same_step' ? 'previous_step' : 'same_step';
     const flip = el('button', '', `${t('timing')} → ${t(other)}`);
-    flip.type = 'button';
+    flip.type = 'button';flip.disabled=Boolean(graphReason(selection));flip.title=graphReason(selection);
     flip.addEventListener('click', () => { menu.hidden = true; setEdgeTiming(selection.id, other); });
     menu.append(flip);
   }
@@ -1537,7 +1610,7 @@ function showGraphContext(selection, x, y) {
 }
 
 function updateRunButton() {
-  const pending = state.blocks.some(block => block.dirty);
+  const pending = state.blocks.some(block => block.dirty) || state.connected===false;
   const missing = state.project ? missingInputs(state.project.graph, state.modules).length : 0;
   const missingValues = state.project ? missingParameters(state.project.graph,state.modules).length : 0;
   const unavailable = state.project ? unavailableModules(state.project.graph, state.modules).length : 0;
@@ -1591,8 +1664,12 @@ function setView(view) {
   renderAll();
 }
 
-function setFrame(index) {
+let frameRequest=0,frameLoading=false,framePending=null;
+async function setFrame(index) {
   if (!state.replay) return;
+  if(state.replay.paged){framePending=Math.max(0,Math.min(replayLength()-1,index));if(frameLoading)return;frameLoading=true;const run=state.activeRun,token=++frameRequest;
+    try{while(framePending!==null){const requested=framePending;framePending=null;const replay=await taskStore.frame(run.localId,requested);if(token!==frameRequest||state.activeRun?.localId!==run.localId)return;state.replay=replay;state.frameIndex=0;updateRanges();renderAll();}}catch(error){status('runFailed',{message:error.message},true);}finally{frameLoading=false;}return;
+  }
   state.frameIndex = Math.max(0, Math.min(state.replay.snapshots.length - 1, index));
   renderTimeline();
   renderScene();
@@ -1648,7 +1725,16 @@ async function executeProject(candidate) {
 function scatter(id) {
   const block = state.blocks.find(item => item.id === id);
   if (!block || block.locked) return;
-  edit('scattered', () => initializeObject(state.project, block, objectForBlock(block, state.objects), state.modules), {count:block.count, id});
+  const draft=structuredClone(state.project),copy=structuredClone(block),revision=state.revision,token=state.draftToken;
+  let proposed=block.count,packingError=null;
+  try{initializeObject(draft,copy,objectForBlock(block,state.objects),state.modules);}
+  catch(error){packingError=error;}
+  if(packingError){try{initializeObject(draft,copy,objectForBlock(block,state.objects),state.modules,{allowShortfall:true});proposed=copy.count;}catch(error){status('editFailed',{message:error.message},true);return;}}
+  const old=state.project.groups[id]?.ids??[];
+  reviewTransaction({title:currentLanguage()==='zh-CN'?'确认重散布':'Review population scatter',description:currentLanguage()==='zh-CN'?'预览使用当前 seed；确认后替换初始分布，已有运行结果保留。':'The preview uses the current seed. Confirm replaces the initial distribution; saved runs remain unchanged.',confirm:proposed<block.count?(currentLanguage()==='zh-CN'?`接受较少数量：${proposed} / ${block.count}`:`Accept fewer: ${proposed} / ${block.count}`):t('apply'),rows:[`${old.length} → ${proposed} cells`,...old.slice(0,20),...(old.length>20?[`… ${old.length-20} more`]:[])],commit:()=>{
+    if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');
+    return edit('scattered',()=>{state.project=draft;Object.assign(block,copy);state.managedTemplates??={};state.managedTemplates[id]=managedRecord(copy,draft);},{count:proposed,id});
+  },preview:value=>{viewport?.setPlacementPreview?.(value?copy:null);}});
 }
 
 function showContext(id, x, y) {
@@ -1656,12 +1742,12 @@ function showContext(id, x, y) {
   menu.replaceChildren();
   const scatterButton = el('button', '', t('scatter'));
   scatterButton.type = 'button';
-  scatterButton.addEventListener('click', () => { menu.hidden = true; scatter(id); });
+  commands.bind(scatterButton,'population.scatter',id);scatterButton.addEventListener('click',()=>{menu.hidden=true;});
   menu.append(scatterButton);
   const block = state.blocks.find(b => b.id === id);
   scatterButton.disabled = Boolean(block?.locked) || !objectForBlock(block,state.objects);
   for (const [key, action] of [['duplicate', () => duplicateBlock(id)], ['delete', () => removeBlock(id)]]) {
-    const b = el('button', '', t(key)); b.disabled = Boolean(block?.locked) || (key === 'duplicate' && !objectForBlock(block,state.objects)); b.addEventListener('click', () => { menu.hidden = true; action(); }); menu.append(b);
+    const b = el('button', '', t(key)); b.disabled = Boolean(block?.locked) || (key === 'duplicate' && !objectForBlock(block,state.objects)); commands.bind(b,`population.${key}`,id);b.addEventListener('click', () => { menu.hidden = true; }); menu.append(b);
   }
   menu.style.left = `${Math.min(x, innerWidth - 190)}px`;
   menu.style.top = `${Math.max(0, Math.min(y, innerHeight - 150))}px`;
@@ -1674,6 +1760,7 @@ function showContext(id, x, y) {
 
 function saveWorkspace() {
   if (!state.project) return;
+  state.viewState=captureViewState(state,viewport);workspaceSession.remember(writeWorkspace(state),state.viewState);
   download(`${state.project.id}.friskoli-workspace.json`, JSON.stringify(writeWorkspace(state), null, 2));
   state.saved = fingerprint(); renderAll(); status('saved');
 }
@@ -1692,7 +1779,8 @@ async function loadProject(document,recommendedSettings=null) {
   if(recommendedSettings&&!document.workspace_format_version){const loaded=readWorkspace(document);loaded.settings={...loaded.settings,...structuredClone(recommendedSettings)};document=writeWorkspace(loaded);}
   const project = document.workspace_format_version ? document.project : document;
   const profile = project?.execution_profile ?? 'legacy-explicit-v1';
-  const registry = state.registries.get(profile);
+  let registry = state.registries.get(profile);
+  if(project.dependency_lock){const resolved=state.connected?await kernel.request('/api/catalog/project',{project}):workspaceSession.projectCatalog(project.dependency_lock);if(!resolved)throw Error('Project catalog unavailable offline');registry=registerCatalog(resolved.catalog);workspaceSession.cacheProjectCatalog(project.dependency_lock,resolved);state.capabilities=structuredClone(state.kernelCapabilities??state.capabilities);const capability=state.capabilities.task_longrun_profiles?.[profile];if(capability)capability.version_lock=resolved.version_lock;}else state.capabilities=structuredClone(state.kernelCapabilities??state.capabilities);
   if (!registry) throw new Error('Unsupported execution profile: ' + profile);
   const {state:loaded,report} = adaptWorkspace(document, registry.modules);
   state.modules = registry.modules; state.objects = registry.objects;
@@ -1716,6 +1804,7 @@ async function loadProject(document,recommendedSettings=null) {
     state.saved = fingerprint();
     $('welcome-dialog').close();
     setView('space');
+    if(loaded.viewState){const v=loaded.viewState;state.selectedBlock=v.selected_block??state.selectedBlock;state.selectedEnvironment=v.selected_environment??null;state.graphSelection=v.graph_selection??null;state.left=v.left??'objects';setView(['space','workflow','design'].includes(v.view)?v.view:'space');viewport?.restoreView(v.camera);requestAnimationFrame(()=>{for(const [id,top]of Object.entries(v.scroll??{}))if($(id))$(id).scrollTop=top;});}
     status('opened');
     state.checks = [...report.issues, ...report.changes.map(change => ({...change,severity:'info'}))];
     if (state.checks.length) { showBottom('checks'); renderDiagnostics(); }
@@ -1745,11 +1834,11 @@ try {
     },
     placePopulation(point) {
       if (!state.project || !availablePlaceables(state.modules,state.capabilities,state.objects,state.project).some(item => item.id === state.activeObject && item.kind === 'population' && item.status === 'ready')) return;
-      edit('blockPlaced', () => {
-        const block = createBlock(state.project, point, state.blocks.map(item => item.id));
-        block.object_type = state.activeObject;
-        state.blocks.push(block); state.selectedBlock = block.id;
-      });
+      const block=createBlock(state.project,point,state.blocks.map(item=>item.id));block.object_type=state.activeObject;
+      const revision=state.revision,token=state.draftToken;
+      const fields=[...block.center.map((v,i)=>({name:`center${i}`,label:`${'XYZ'[i]} [µm]`,value:v})),{name:'count',label:currentLanguage()==='zh-CN'?'菌数':'Cell count',value:block.count,min:1,step:1},{name:'name',label:t('name'),type:'text',value:block.name}];
+      const update=values=>{if(values){block.center=block.center.map((_,i)=>values[`center${i}`]);block.count=values.count;block.name=values.name;checkBlock(state.project.domain,block);}viewport?.setPlacementPreview(values?block:null);};
+      reviewTransaction({title:currentLanguage()==='zh-CN'?'放置菌群':'Place population',description:currentLanguage()==='zh-CN'?'调整预览位置与属性，确认后加入草稿。':'Review position and properties before adding the draft.',fields,preview:update,commit:values=>{if(state.revision!==revision||state.draftToken!==token)throw Error('Document changed; preview again');update(values);if(!Number.isInteger(block.count)||block.count<1||block.count>2000)throw Error('Invalid cell count');return edit('blockPlaced',()=>{state.blocks.push(structuredClone(block));state.selectedBlock=block.id;});}});
       useTool('select');
     },
     contextBlock: showContext,
@@ -1842,17 +1931,17 @@ $('snap-tool').addEventListener('click', () => {
   status(state.snap ? 'snapOn' : 'snapOff');
 });
 $('frame-range').addEventListener('input', event => { stop(); setFrame(Number(event.target.value)); });
-$('previous-button').addEventListener('click', () => { stop(); setFrame(state.frameIndex - 1); });
-$('next-button').addEventListener('click', () => { stop(); setFrame(state.frameIndex + 1); });
+$('previous-button').addEventListener('click', () => { stop(); setFrame(replayIndex() - 1); });
+$('next-button').addEventListener('click', () => { stop(); setFrame(replayIndex() + 1); });
 $('play-button').addEventListener('click', () => {
   if (!state.replay) return;
   if (state.timer !== null) { stop(); return; }
-  if (state.frameIndex >= state.replay.snapshots.length - 1) setFrame(0);
+  if (replayIndex() >= replayLength() - 1) setFrame(0);
   $('play-button').textContent = 'Ⅱ';
   $('play-button').setAttribute('aria-label', 'Pause');
   state.timer = setInterval(() => {
-    if (state.frameIndex >= state.replay.snapshots.length - 1) { stop(); return; }
-    setFrame(state.frameIndex + 1);
+    if (replayIndex() >= replayLength() - 1) { stop(); return; }
+    setFrame(replayIndex() + 1);
   }, 650);
 });
 for (const [button, dock] of [['objects-tool', 'left'], ['properties-tool', 'right']]) {
@@ -1901,14 +1990,14 @@ document.addEventListener('keydown', event => {
     const tool = {v:'select',b:'population',t:'move',w:'move',e:'rotate',r:'scale',m:'measure',h:'hand',o:'orbit'}[key];
     if (tool) { event.preventDefault(); useTool(tool); return; }
     if ((key === 'delete' || key === 'backspace') && state.selectedEnvironment) { event.preventDefault(); removeEnvironment(state.selectedEnvironment); return; }
-    if ((key === 'delete' || key === 'backspace') && state.selectedBlock) { event.preventDefault(); removeBlock(state.selectedBlock); return; }
+    if ((key === 'delete' || key === 'backspace') && state.selectedBlock) { event.preventDefault(); commands.execute('population.delete',state.selectedBlock); return; }
   }
   if (state.view === 'workflow' && (event.key === 'Delete' || event.key === 'Backspace') && state.graphSelection) {
-    event.preventDefault(); deleteGraphItem(state.graphSelection); return;
+    event.preventDefault(); commands.execute('graph.delete',state.graphSelection); return;
   }
   if (state.view !== 'results') return;
-  if (event.key === 'ArrowLeft') { stop(); setFrame(state.frameIndex - 1); }
-  if (event.key === 'ArrowRight') { stop(); setFrame(state.frameIndex + 1); }
+  if (event.key === 'ArrowLeft') { stop(); setFrame(replayIndex() - 1); }
+  if (event.key === 'ArrowRight') { stop(); setFrame(replayIndex() + 1); }
 });
 
 for (const [id, key] of [['dt-input', 'dt_s'], ['steps-input', 'steps']]) $(id).addEventListener('change', () => {
@@ -1946,6 +2035,9 @@ function refreshWelcome() {
   $('welcome-dialog').setAttribute('aria-busy', String(welcomePending));
 }
 function showWelcome() {
+  let recents=$('recent-projects');if(!recents){recents=el('section','property-section');recents.id='recent-projects';$('welcome-dialog').append(recents);}recents.replaceChildren(el('h3','',currentLanguage()==='zh-CN'?'最近项目':'Recent projects'));
+  for(const item of workspaceSession.recent()){const button=el('button','inspector-action',`${item.id} · ${item.saved_at.slice(0,16)}`);button.addEventListener('click',()=>loadWelcome(()=>({...item.document,view_state:item.view_state})));recents.append(button);}
+
   welcomeEpoch++;
   welcomePending = false;
   $('welcome-error').hidden = true;
@@ -2008,14 +2100,21 @@ $('data-apply').addEventListener('click', () => {
 });
 $('export-button').addEventListener('click', () => { if (state.activeRun?.replay) $('export-dialog').showModal(); });
 $('export-close').addEventListener('click', () => $('export-dialog').close());
+async function exportPaged(run,csv){
+  try{let writer=null;const name=`${run.id}.${csv?'csv':'result.json'}`;if(window.showSaveFilePicker){const handle=await window.showSaveFilePicker({suggestedName:name});writer=await handle.createWritable();}
+    const blob=await exportPagedResult(taskStore.pagers.get(run.localId),{csv,writer,onProgress:(n,total)=>status('updated',{message:`${n}/${total}`})});
+    if(blob){const url=URL.createObjectURL(blob),link=el('a');link.href=url;link.download=name;link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  }catch(error){if(error.name!=='AbortError')status('runFailed',{message:error.message},true);}
+}
 $('export-json').addEventListener('click', () => {
   const run = state.activeRun; if (!run?.replay) return;
+  if(run.replay.paged){exportPaged(run,false);return;}
   const payload = run.localId ? {task_contract_version:run.submission.task_contract_version, task_run_id:run.runId, status:run.manifest.status,
     completeness:run.manifest.completeness, task:run.task, submission:run.submission, manifest:run.manifest, replay:run.replay} : exportRun(run);
   download(`${run.id}.result.json`, JSON.stringify(payload, null, 2));
 });
 $('task-input-close').addEventListener('click', () => $('task-input-dialog').close());
-$('export-csv').addEventListener('click', () => { if (state.replay) download(`${state.activeRun?.id ?? state.replay.run.run_id}.metrics.csv`, metricsCSV(state.replay), 'text/csv'); });
+$('export-csv').addEventListener('click', () => { if(state.activeRun?.replay?.paged){exportPaged(state.activeRun,true);return;} if (state.replay) download(`${state.activeRun?.id ?? state.replay.run.run_id}.metrics.csv`, metricsCSV(state.replay), 'text/csv'); });
 window.addEventListener('beforeunload', event => { if (state.project && fingerprint() !== state.saved) { event.preventDefault(); event.returnValue = ''; } });
 for (const [id, glyph] of Object.entries({'select-tool':'select','population-tool':'cell','move-tool':'move','rotate-tool':'reset','scale-tool':'scale',
   'snap-tool':'grid','measure-tool':'measure','fit-tool':'fit','objects-tool':'layers','properties-tool':'settings','hand-tool':'hand','orbit-tool':'reset'})) $(id).innerHTML = icon(glyph);
@@ -2038,28 +2137,31 @@ for (const dialog of document.querySelectorAll('dialog')) {
   });
 }
 
-try {
-  const [catalogResponse, projectResponse, capabilities] = await Promise.all([fetch('/api/catalog'), fetch('/api/example-project'), kernel.capabilities()]);
-  if (!catalogResponse.ok || !projectResponse.ok) throw new Error('Local kernel unavailable');
-  const registry = registerCatalog(await catalogResponse.json());
-  state.registries.set('legacy-explicit-v1', registry);
-  if (capabilities.execution_profiles?.includes('conservative-pts-bulk-v1')) {
-    const ptsRegistry = registerCatalog(await kernel.request('/api/catalog?execution_profile=conservative-pts-bulk-v1'));
-    state.registries.set('conservative-pts-bulk-v1', ptsRegistry);
-  }
-  $('welcome-pts').disabled = !state.registries.has('conservative-pts-bulk-v1');
-  if (capabilities.execution_profiles?.includes('spatial-unbiased-v1')) {
-    const spatialRegistry = registerCatalog(await kernel.request('/api/catalog?execution_profile=spatial-unbiased-v1'));
-    state.registries.set('spatial-unbiased-v1',spatialRegistry);
-  }
-  if (capabilities.execution_profiles?.includes('chemotaxis-spatial-v1')) {
-    state.registries.set('chemotaxis-spatial-v1',registerCatalog(await kernel.request('/api/catalog?execution_profile=chemotaxis-spatial-v1')));
-  }
-  state.modules = registry.modules; state.objects = registry.objects;
-  state.activeObject = availablePlaceables(state.modules, capabilities, state.objects).find(item => item.status === 'ready')?.id ?? null;
-  state.capabilities = capabilities;
-  if (supportsTasks(capabilities)) { state.runs.push(...taskStore.restore()); taskStore.start(); renderDiagnostics(); }
-  state.template = await projectResponse.json();
-  showWelcome();
-  updateRunButton(); status('ready');
-} catch (error) { status('loadFailed', { message: error.message }, true); }
+async function connectKernel({cold=false}={}) {
+  const cache=workspaceSession.cachedCatalog();
+  try{
+    const [legacy,template,capabilities]=await Promise.all([kernel.request('/api/catalog'),kernel.request('/api/example-project'),kernel.capabilities()]);
+    const registries={'legacy-explicit-v1':legacy};
+    for(const profile of capabilities.execution_profiles??[])if(profile!=='legacy-explicit-v1')registries[profile]=await kernel.request('/api/catalog?execution_profile='+encodeURIComponent(profile));
+    workspaceSession.cacheCatalog({registries,template,capabilities});
+    installConnection({registries,template,capabilities},true,cold);
+  }catch(error){if(cold&&cache){installConnection(cache,false,true);status('loadFailed',{message:'Offline · cached Catalog; editing available. '+error.message},true);}else {state.connected=false;status('loadFailed',{message:error.message},true);updateRunButton();}}
+}
+function installConnection(data,online,cold){
+  state.registries=new Map(Object.entries(data.registries).map(([id,value])=>[id,registerCatalog(value)]));
+  state.capabilities=structuredClone(data.capabilities);state.kernelCapabilities=structuredClone(data.capabilities);state.template=data.template;state.connected=online;
+  const registry=state.registries.get(state.project?.execution_profile??'legacy-explicit-v1');
+  state.modules=registry.modules;state.objects=registry.objects;
+  state.activeObject=availablePlaceables(state.modules,state.capabilities,state.objects,state.project).find(item=>item.status==='ready')?.id??null;
+  $('welcome-pts').disabled=!state.registries.has('conservative-pts-bulk-v1');
+  if(cold){state.runs.push(...taskStore.restore());if(online)taskStore.start();showWelcome();}
+  else {taskStore.start();if(state.project)renderAll();}
+  updateRunButton();
+}
+const reconnect=el('button','menu-button',currentLanguage()==='zh-CN'?'重新连接内核 / Catalog':'Reconnect kernel / Catalog');reconnect.id='kernel-reconnect';reconnect.addEventListener('click',()=>connectKernel());$('settings-overlay').querySelector('section, .dialog-body, div')?.append(reconnect);
+const packages=el('button','menu-button',currentLanguage()==='zh-CN'?'模块包管理':'Package manager');packages.id='package-manager';packages.addEventListener('click',()=>openPackagePanel(kernel,{onChanged:()=>connectKernel(),pinId:state.project?.id,onLock:async lock=>{if(!state.project)return;const project={...structuredClone(state.project),dependency_lock:lock};const resolved=await kernel.request('/api/catalog/project',{project});if(edit('updated',()=>{state.project.dependency_lock=lock;})){workspaceSession.cacheProjectCatalog(lock,resolved);const registry=registerCatalog(resolved.catalog);state.modules=registry.modules;state.objects=registry.objects;const capability=state.capabilities.task_longrun_profiles?.[project.execution_profile];if(capability)capability.version_lock=resolved.version_lock;renderAll();}}}));reconnect.after(packages);
+const checkpointButton=el('button','menu-button',currentLanguage()==='zh-CN'?'导入 Checkpoint':'Import checkpoint');checkpointButton.addEventListener('click',()=>{const file=el('input');file.type='file';file.accept='.zip';file.addEventListener('change',()=>{if(file.files[0])importCheckpoint(file.files[0]).catch(error=>status('runFailed',{message:error.message},true));});file.click();});packages.after(checkpointButton);
+window.addEventListener('beforeunload',()=>{if(state.project)try{state.viewState=captureViewState(state,viewport);workspaceSession.remember(writeWorkspace(state),state.viewState);}catch{}});
+await connectKernel({cold:true});
+
+if('serviceWorker'in navigator)navigator.serviceWorker.register('/service-worker.js').catch(error=>{state.offlineShellError=error.message;});

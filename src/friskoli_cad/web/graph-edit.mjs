@@ -120,7 +120,11 @@ export function setParameter(node, manifest, name, raw) {
     if (definition.type === 'integer' && !Number.isInteger(value)) return 'parameter.type';
     if (definition.minimum !== undefined && value < definition.minimum) return 'parameter.range';
     if (definition.maximum !== undefined && value > definition.maximum) return 'parameter.range';
-  } else if (definition.type === 'boolean') value = raw === true || raw === 'true';
+  } else if (['array','object'].includes(definition.type)) {
+      try{value=typeof raw==='string'?JSON.parse(raw):structuredClone(raw);}catch{return 'parameter.type';}
+      if(definition.type==='array'?!Array.isArray(value):!value||typeof value!=='object'||Array.isArray(value))return 'parameter.type';
+      if(definition.minItems!==undefined&&value.length<definition.minItems||definition.maxItems!==undefined&&value.length>definition.maxItems)return 'parameter.range';
+    } else if (definition.type === 'boolean') value = raw === true || raw === 'true';
   else if (typeof raw !== 'string' || !raw.trim()) return 'parameter.type';
   if (definition.enum && !definition.enum.includes(value)) return 'parameter.range';
   const entry = { value, provenance: { ...USER } };

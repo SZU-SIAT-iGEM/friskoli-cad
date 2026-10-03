@@ -26,9 +26,9 @@ test('design batch enumerates every candidate and control across seeds with inde
  queue[0].project.id='changed';assert.notEqual(queue[1].project.id,'changed');assert.notEqual(project.id,'changed');
  assert.throws(()=>designRunQueue({...design,candidates:[design.candidates[2]]}),/No feasible/);
 });
-test('Workspace0.6 preserves design and editable brief separately while accepting 0.5 documents',()=>{
+test('Workspace0.7 preserves design and editable brief separately while accepting 0.5 documents',()=>{
  const state=readWorkspace(project);state.design=design;state.designBrief=brief;const document=writeWorkspace(state),loaded=readWorkspace(document);
- assert.equal(document.workspace_format_version,'0.6.0');assert.deepEqual(loaded.design,design);assert.deepEqual(loaded.designBrief,brief);assert.deepEqual(loaded.project,project);assert.equal(loaded.project.design,undefined);
+ assert.equal(document.workspace_format_version,'0.7.0');assert.deepEqual(loaded.design,design);assert.deepEqual(loaded.designBrief,brief);assert.deepEqual(loaded.project,project);assert.equal(loaded.project.design,undefined);
  const old={...document,workspace_format_version:'0.5.0'};assert.deepEqual(readWorkspace(old).design,design);
  const older={...document,workspace_format_version:'0.4.0'};delete older.design;delete older.design_brief;assert.equal(readWorkspace(older).design,null);
 });

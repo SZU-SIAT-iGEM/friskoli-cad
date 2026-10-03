@@ -1,3 +1,4 @@
+import {meanInterval} from './result-analysis.mjs';
 // These are recorded solver observables. The viewer never estimates arrivals from saved frames.
 export const METRIC_KEYS = ['initial_count','live_count','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s'];
 export function validateMetrics(metrics, project) {
@@ -56,7 +57,7 @@ export function compareRuns(records) {
         const values = runs.map(r => r.replay.snapshots.at(-1).metrics.by_group[group][metric]);
         const mean = values.every(Number.isFinite) ? values.reduce((a,b)=>a+b,0)/values.length : null;
         const sd = mean !== null && values.length > 1 ? Math.sqrt(values.reduce((a,b)=>a+(b-mean)**2,0)/(values.length-1)) : null;
-        byGroup[group][metric] = {n:values.filter(Number.isFinite).length,mean,sd};
+        byGroup[group][metric] = {n:values.filter(Number.isFinite).length,mean,sd,interval:meanInterval(values)};
       }
     }
     const lock=runs[0].submission?.version_lock;

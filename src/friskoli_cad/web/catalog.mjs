@@ -1,5 +1,5 @@
 export function registerModules(payload) {
-  if (payload?.protocol_version !== '0.1.0' || !Array.isArray(payload.modules)) {
+  if (!['0.1.0','0.2.0'].includes(payload?.protocol_version) || !Array.isArray(payload.modules)) {
     throw new Error('Invalid module catalog');
   }
   const modules = new Map();
@@ -14,7 +14,7 @@ export function registerModules(payload) {
 }
 
 export function resolveGraph(graph, modules, {allowUnknown = false} = {}) {
-  if (graph?.protocol_version !== '0.1.0' || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
+  if (!['0.1.0','0.2.0'].includes(graph?.protocol_version) || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
     throw new Error('Invalid behavior graph');
   }
   const nodes = graph.nodes.map(node => {
@@ -36,7 +36,8 @@ export function registerCatalog(payload) {
   const known = (payload?.catalog_version === '0.1.0' && payload.execution_semantics === 'legacy-explicit-v1') ||
     (payload?.catalog_version === '0.2.0' && payload.execution_semantics === 'conservative-pts-bulk-v1') ||
     (payload?.catalog_version === '0.3.0' && payload.execution_semantics === 'spatial-unbiased-v1') ||
-    (payload?.catalog_version === '0.4.0' && payload.execution_semantics === 'chemotaxis-spatial-v1');
+    (payload?.catalog_version === '0.4.0' && payload.execution_semantics === 'chemotaxis-spatial-v1') ||
+    (payload?.catalog_version === '0.5.0' && payload.execution_semantics === 'modular-spatial-v1');
   if (!known ||
       !Array.isArray(payload.entries) || !Array.isArray(payload.objects)) throw new Error('Unsupported registry catalog');
   const modules = registerModules({protocol_version:'0.1.0', modules:payload.modules});

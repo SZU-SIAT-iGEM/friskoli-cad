@@ -266,7 +266,7 @@ export function objectForBlock(block, objects) {
 
 // Initialization and added readers belong to one undoable document transaction.
 // A binding prevents re-scatter from recreating readers deliberately deleted by the user.
-export function initializeObject(project, block, object, modules) {
+export function initializeObject(project, block, object, modules, options={}) {
   if (!object || object.initializer.adapter !== 'population.block@1') throw new Error('Unsupported object initializer');
   const keys = [object.initializer.module, ...object.initializer.data_modules];
   for (const key of keys) {
@@ -275,7 +275,7 @@ export function initializeObject(project, block, object, modules) {
         Object.keys(manifest.inputs).length) throw new Error('Unsupported initializer contract: ' + key);
   }
   const nextProject = structuredClone(project), nextBlock = structuredClone(block);
-  scatterBlock(nextProject, nextBlock, modules.get(object.initializer.module));
+  scatterBlock(nextProject, nextBlock, modules.get(object.initializer.module), options);
   if (!nextBlock.binding) {
     const data = [];
     for (const key of object.initializer.data_modules) {

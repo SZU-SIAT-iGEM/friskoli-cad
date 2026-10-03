@@ -2,7 +2,7 @@
 import { blocksFromProject } from './population.mjs';
 import { METRIC_KEYS, metricRows, radialMetricColumns, csvCell } from './metrics.mjs';
 
-export const WORKSPACE_VERSION = '0.6.0';
+export const WORKSPACE_VERSION = '0.7.0';
 export const RECOVERY_KEY = 'friskoli.workspace.v2';
 const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
   v.every(n => Number.isFinite(n) && (!positive || n > 0));
@@ -10,14 +10,14 @@ const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
 const nonempty = v => typeof v === 'string' && v.trim().length > 0;
 export function validateDesignBrief(brief) {
   const metrics=['mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s'];
-  if (!brief || !['0.1.0','0.2.0'].includes(brief.brief_version) || !nonempty(brief.id) || !nonempty(brief.name) ||
+  if (!brief || !['0.1.0','0.2.0','0.3.0'].includes(brief.brief_version) || !nonempty(brief.id) || !nonempty(brief.name) ||
     !metrics.includes(brief.goal?.metric) || !['maximize','minimize'].includes(brief.goal?.direction) || !nonempty(brief.goal?.group_id) ||
     !nonempty(brief.chassis?.name) || !nonempty(brief.chassis?.provenance) || !Array.isArray(brief.variables) || !brief.variables.length ||
     brief.variables.some(v=>!nonempty(v.node_id)||!nonempty(v.parameter)||!Array.isArray(v.values)||!v.values.length||v.values.some(x=>!Number.isFinite(x))) ||
     !Array.isArray(brief.constraints) || brief.constraints.some(c=>!nonempty(c.id)||!['hard','soft'].includes(c.kind)||!nonempty(c.node_id)||!nonempty(c.parameter)||!['<=','>='].includes(c.operator)||!Number.isFinite(c.value)||(c.weight!==undefined&&(!Number.isFinite(c.weight)||c.weight<0))) ||
     !Array.isArray(brief.seeds)||!brief.seeds.length||brief.seeds.length>8||brief.seeds.some(n=>!Number.isSafeInteger(n)||n<0)||new Set(brief.seeds).size!==brief.seeds.length||
     !Number.isSafeInteger(brief.max_runs)||brief.max_runs<1||brief.max_runs>32) throw new Error('Invalid design brief: check objective, chassis, parameter values, constraints and distinct seeds');
-  if (brief.brief_version==='0.2.0' && (!Array.isArray(brief.result_constraints) ||
+  if (['0.2.0','0.3.0'].includes(brief.brief_version) && (!Array.isArray(brief.result_constraints) ||
     brief.result_constraints.some(c=>!nonempty(c.id)||!['hard','soft'].includes(c.kind)||!metrics.includes(c.metric)||!nonempty(c.group_id)||!['<=','>='].includes(c.operator)||!Number.isFinite(c.value)) ||
     new Set(brief.result_constraints.map(c=>c.id)).size!==brief.result_constraints.length ||
     !Number.isSafeInteger(brief.selection_policy?.min_repeats)||brief.selection_policy.min_repeats<2||brief.selection_policy.min_repeats>8||
@@ -25,7 +25,7 @@ export function validateDesignBrief(brief) {
   return brief;
 }
 export function validateDesignDocument(design) {
-  if (!design || !['0.1.0','0.2.0'].includes(design.design_version) || !nonempty(design.id) || !Array.isArray(design.candidates) || !Array.isArray(design.excluded) ||
+  if (!design || !['0.1.0','0.2.0','0.3.0'].includes(design.design_version) || !nonempty(design.id) || !Array.isArray(design.candidates) || !Array.isArray(design.excluded) ||
     !design.settings || !Number.isFinite(design.settings.dt_s)||design.settings.dt_s<=0||!Number.isSafeInteger(design.settings.steps)||design.settings.steps<1 ||
     !design.budget || ['candidate_count','repeats','total_runs','total_steps'].some(k=>!Number.isSafeInteger(design.budget[k])||design.budget[k]<0)) throw new Error('Invalid design document structure');
   validateDesignBrief(design.brief);readWorkspace(design.baseline_project);
@@ -39,20 +39,21 @@ export function validateDesignDocument(design) {
 
 export function readWorkspace(document) {
   const version = document?.workspace_format_version;
-  if (version && !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
+  if (version && !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.6.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
   const project = structuredClone(version ? document.project : document);
-  if (!project || !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0'].includes(project.project_version) || typeof project.id !== 'string' ||
+  if (!project || !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.6.0'].includes(project.project_version) || typeof project.id !== 'string' ||
       (project.project_version === '0.3.0' && project.execution_profile !== 'conservative-pts-bulk-v1') ||
       (project.project_version === '0.4.0' && (project.execution_profile !== 'spatial-unbiased-v1' ||
         !Number.isSafeInteger(project.random_seed) || project.random_seed < 0)) ||
       (project.project_version === '0.5.0' && (project.execution_profile !== 'chemotaxis-spatial-v1' ||
         !Number.isSafeInteger(project.random_seed) || project.random_seed < 0)) ||
-      (!['0.3.0','0.4.0','0.5.0'].includes(project.project_version) && project.execution_profile !== undefined) ||
+      (project.project_version === '0.6.0' && project.execution_profile !== 'modular-spatial-v1') ||
+      (!['0.3.0','0.4.0','0.5.0','0.6.0'].includes(project.project_version) && project.execution_profile !== undefined) ||
       !vector(project.domain?.counts_xyz, true) || !project.domain.counts_xyz.every(Number.isInteger) ||
       !vector(project.domain.spacing_um_xyz, true) || !['thin_layer', 'volume'].includes(project.domain.geometry) ||
       !project.groups || !project.species || !project.controls || !Array.isArray(project.graph?.nodes) ||
       !Array.isArray(project.graph?.edges) || !Array.isArray(project.run?.groups) || !project.run.channels ||
-      project.graph.protocol_version !== '0.1.0' || project.run.protocol_version !== '0.1.0') throw new Error('Invalid project structure');
+      !['0.1.0','0.2.0'].includes(project.graph.protocol_version) || project.run.protocol_version !== '0.1.0') throw new Error('Invalid project structure');
   const nodeIds = new Set();
   for (const node of project.graph.nodes) {
     if (!node || typeof node.id !== 'string' || nodeIds.has(node.id) || typeof node.module_id !== 'string' ||
@@ -99,10 +100,10 @@ export function readWorkspace(document) {
   for (const point of Object.values(layout)) if (![point.x, point.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100000) ||
       (point.collapsed !== undefined && typeof point.collapsed !== 'boolean')) throw new Error('Invalid graph layout');
   const settings = structuredClone(document.run_settings ?? (project.project_version === '0.5.0' ? {dt_s:.05,steps:200} : { dt_s: .5, steps: 8 }));
-  if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isSafeInteger(settings.steps) || settings.steps < 1 || settings.steps > 10000) throw new Error('Invalid run settings');
+  if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isSafeInteger(settings.steps) || settings.steps < 1 || settings.steps > (version === WORKSPACE_VERSION ? 4320000 : 10000)) throw new Error('Invalid run settings');
   if (settings.seed !== undefined && (!Number.isSafeInteger(settings.seed) || settings.seed < 0)) throw new Error('Invalid execution seed');
   if (settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw new Error('Invalid field output setting');
-  if (settings.frame_every_steps !== undefined && (!Number.isSafeInteger(settings.frame_every_steps) || settings.frame_every_steps < 1 || settings.frame_every_steps > 10000)) throw new Error('Invalid frame interval');
+  if (settings.frame_every_steps !== undefined && (!Number.isSafeInteger(settings.frame_every_steps) || settings.frame_every_steps < 1 || settings.frame_every_steps > (version === WORKSPACE_VERSION ? 4320000 : 10000))) throw new Error('Invalid frame interval');
   if(settings.backend!==undefined&&!['numpy-cpu','numpy-cupy-cuda'].includes(settings.backend))throw Error('Invalid execution backend');
   if(settings.include_final_fields!==undefined&&typeof settings.include_final_fields!=='boolean')throw Error('Invalid final field setting');
   if(settings.field_stride_xyz!==undefined&&(!Array.isArray(settings.field_stride_xyz)||settings.field_stride_xyz.length!==3||settings.field_stride_xyz.some((s,i)=>!Number.isSafeInteger(s)||s<1||project.domain.counts_xyz[i]%s)))throw Error('Invalid field preview stride');
@@ -110,12 +111,16 @@ export function readWorkspace(document) {
   const designBrief = version ? structuredClone(document.design_brief ?? null) : null;
   if (design) validateDesignDocument(design);
   if (designBrief) validateDesignBrief(designBrief);
-  return { project, blocks, layout, settings, design, designBrief };
+  const managedTemplates=structuredClone(document.managed_templates??{}),draftLinks=structuredClone(document.draft_links??[]),viewState=structuredClone(document.view_state??null);
+  if(!managedTemplates||Array.isArray(managedTemplates)||!Array.isArray(draftLinks))throw Error('Invalid workspace metadata');
+  if(Object.values(managedTemplates).some(r=>!r||!['generated_by','owner_object_id','template_version'].every(k=>nonempty(r[k]))||!r.overrides||typeof r.overrides!=='object'||!Array.isArray(r.base_nodes))||draftLinks.some(e=>!nonempty(e.id)||!nonempty(e.from?.node)||!nonempty(e.from?.port)||!nonempty(e.to?.node)||!nonempty(e.to?.port)||!['same_step','previous_step'].includes(e.timing)))throw Error('Invalid managed template or connection draft');
+  if(viewState&&(viewState.version!==1||!['space','workflow','results','design'].includes(viewState.view)||viewState.camera&&(!vector(viewState.camera.position)||!vector(viewState.camera.target)||!Number.isFinite(viewState.camera.zoom)||viewState.camera.zoom<=0)||Object.values(viewState.scroll??{}).some(v=>!Number.isFinite(v)||v<0)))throw Error('Invalid ViewState');
+  return { project, blocks, layout, settings, design, designBrief, managedTemplates, draftLinks, viewState };
 }
 
-export function writeWorkspace({ project, blocks, layout, settings, design, designBrief }) {
+export function writeWorkspace({ project, blocks, layout, settings, design, designBrief, managedTemplates={}, draftLinks=[],viewState=null }) {
   return structuredClone({ workspace_format_version: WORKSPACE_VERSION, project,
-    population_blocks: blocks, graph_layout: layout, run_settings: settings, ...(design ? {design} : {}), ...(designBrief ? {design_brief:designBrief} : {}) });
+    managed_templates:managedTemplates,draft_links:draftLinks,...(viewState?{view_state:viewState}:{}),population_blocks: blocks, graph_layout: layout, run_settings: settings, ...(design ? {design} : {}), ...(designBrief ? {design_brief:designBrief} : {}) });
 }
 
 export function draftSnapshot(project) {

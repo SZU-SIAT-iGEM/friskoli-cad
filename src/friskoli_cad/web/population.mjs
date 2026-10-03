@@ -76,7 +76,7 @@ export function createBlock(project, center, existingIds = []) {
     hidden: false, locked: false };
 }
 
-export function scatterBlock(project, block, staticModule = null) {
+export function scatterBlock(project, block, staticModule = null, {allowShortfall=false}={}) {
   const domain = project.domain;
   const size = extent(domain);
   checkBlock(domain, block);
@@ -112,7 +112,7 @@ export function scatterBlock(project, block, staticModule = null) {
     .map(node => ({lower:[...'xyz'].map(a=>node.parameters[`lower_${a}_um`]?.value),upper:[...'xyz'].map(a=>node.parameters[`upper_${a}_um`]?.value)}));
   let attempts = 0;
   for (let index = 0; index < block.count; index += 1) {
-    if (++attempts > block.count*500) throw new Error('scatterPackingFailed');
+    if (++attempts > block.count*500) {if(allowShortfall&&positions.length){block.count=positions.length;ids.length=positions.length;break;}throw new Error('scatterPackingFailed');}
     const point = block.center.map((center, axis) => {
       if (axis === 2 && domain.geometry === 'thin_layer') return size[2] / 2;
       const usable = block.size[axis] - block.length;

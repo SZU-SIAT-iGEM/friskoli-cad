@@ -342,6 +342,18 @@ export class SpatialViewport {
     return geometry;
   }
 
+  setTrajectory(segments){
+    if(this.trajectory){for(const child of this.trajectory.children){child.geometry.dispose();child.material.dispose();}this.world.remove(this.trajectory);}
+    this.trajectory=new THREE.Group();for(const points of segments){const geometry=new THREE.BufferGeometry().setFromPoints(points.map(p=>new THREE.Vector3(...p)));this.trajectory.add(new THREE.Line(geometry,new THREE.LineBasicMaterial({color:0xffc481,transparent:true,opacity:.85})));}this.world.add(this.trajectory);this.request();
+  }
+  captureView(){return {view:this.view,position:this.camera.position.toArray(),target:this.orbit.target.toArray(),zoom:this.camera.zoom};}
+  restoreView(value){if(!value||!Array.isArray(value.position)||!Array.isArray(value.target))return;this.camera.position.fromArray(value.position);this.orbit.target.fromArray(value.target);this.camera.zoom=Number.isFinite(value.zoom)&&value.zoom>0?value.zoom:1;this.camera.updateProjectionMatrix();this.orbit.update();this.request();}
+  setPlacementPreview(block){
+    if(this.placementPreview){this.world.remove(this.placementPreview);this.placementPreview.geometry.dispose();this.placementPreview.material.dispose();this.placementPreview=null;}
+    if(block){const geometry=new THREE.EdgesGeometry(new THREE.BoxGeometry(...block.size));const mesh=new THREE.LineSegments(geometry,new THREE.LineBasicMaterial({color:0xffc481,transparent:true,opacity:.9}));mesh.position.fromArray(block.center);mesh.rotation.set(...(block.rotation??[0,0,0]).map(v=>v*Math.PI/180));this.world.add(mesh);this.placementPreview=mesh;}
+    this.request();
+  }
+
   setSnap(on) {
     const step = on && this.domain ? Math.min(...this.domain.spacing_um_xyz) : null;
     this.transform.setTranslationSnap(step);

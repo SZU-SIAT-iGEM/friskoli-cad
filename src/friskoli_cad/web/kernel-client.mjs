@@ -1,3 +1,9 @@
+export async function boundedResponseBytes(response,expected,maxBytes=16*1024*1024){
+  if(!Number.isSafeInteger(expected)||expected<0||expected>maxBytes)throw Error('Response exceeds decode budget');
+  if(!response.body?.getReader){const bytes=new Uint8Array(await response.arrayBuffer());if(bytes.length!==expected)throw Error('Response byte length mismatch');return bytes;}
+  const reader=response.body.getReader(),output=new Uint8Array(expected);let offset=0;
+  try{while(true){const {done,value}=await reader.read();if(done)break;if(offset+value.length>expected)throw Error('Response exceeds declared byte length');output.set(value,offset);offset+=value.length;}if(offset!==expected)throw Error('Response byte length mismatch');return output;}catch(error){await reader.cancel();throw error;}finally{reader.releaseLock();}
+}
 export const TASK_CONTRACT_VERSION = '0.1.0';
 
 export class KernelClient {
@@ -37,12 +43,14 @@ export class KernelClient {
   task(id) { return this.request(`/api/runs/${encodeURIComponent(id)}`); }
   taskEvents(id, after) { return this.request(`/api/runs/${encodeURIComponent(id)}/events?after=${after}`); }
   cancelTask(id) { return this.request(`/api/runs/${encodeURIComponent(id)}/cancel`, undefined, undefined, 'POST'); }
+  pauseTask(id){return this.request(`/api/runs/${encodeURIComponent(id)}/pause`,undefined,undefined,'POST');}
+  resumeTask(id,body,key){return this.request(`/api/runs/${encodeURIComponent(id)}/resume`,body,{'Idempotency-Key':key});}
   taskResult(id) { return this.request(`/api/runs/${encodeURIComponent(id)}/result`); }
   async taskChunk(id, chunk) {
     const path = `/api/runs/${encodeURIComponent(id)}/chunks/${encodeURIComponent(chunk.chunk_id)}`;
     if (chunk.href !== path || chunk.media_type !== 'application/json') throw new Error('Invalid published chunk path');
     const response = await this.response(path);
-    const bytes = new Uint8Array(await response.arrayBuffer());
+    const bytes = await boundedResponseBytes(response,chunk.bytes);
     if (bytes.byteLength !== chunk.bytes) throw new Error('Published chunk byte length mismatch');
     const hash = await globalThis.crypto.subtle.digest('SHA-256', bytes);
     const hex = Array.from(new Uint8Array(hash), n => n.toString(16).padStart(2, '0')).join('');
