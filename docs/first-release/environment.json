@@ -1,0 +1,10 @@
+{
+  "baseline": "9099d9e",
+  "investigation_baseline": "3a5d3be",
+  "branch": "chore/unify-profile",
+  "python": "3.11.9",
+  "platform": "Windows-10-10.0.22621-SP0",
+  "node": "v24.19.0",
+  "worktree": "D:\\Wu Shangru\\Documents\\工作区\\friskoli-cad-unify-profile",
+  "status": "P0; implementation and validation pending"
+}

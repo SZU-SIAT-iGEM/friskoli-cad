@@ -1,0 +1,640 @@
+{
+  "baseline": "9099d9e",
+  "modules": [
+    {
+      "id": "pts.capsule_area",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "pts.capacity_rebuilt",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "pts.capacity_simplified",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "uptake.pts_request",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "signal.pts_accepted",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "space.axis_aligned_obstacle",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "source.finite_local",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "material.degradable_box",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": [
+        "material.owner"
+      ]
+    },
+    {
+      "id": "reaction.contact_degradation",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": [
+        "material.degradation"
+      ]
+    },
+    {
+      "id": "surface.enzyme_activity",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": [
+        "enzyme.surface"
+      ]
+    },
+    {
+      "id": "field.diffusive_local",
+      "version": "2.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": [
+        "field.owner"
+      ]
+    },
+    {
+      "id": "field.sample_local",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "uptake.local_settlement",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "signal.constant_bias",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "signal.concentration_memory",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "signal.chey_memory",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "signal.mcp_adaptation",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "motion.hazard_run_tumble",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": [
+        "motion.owner"
+      ]
+    },
+    {
+      "id": "reaction.direct_bulk_hydrolysis",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": [
+        "material.degradation"
+      ]
+    },
+    {
+      "id": "signal.mcp_adaptation",
+      "version": "2.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "uptake.saturating_request",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "metabolism.reserve_balance",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": [
+        "inventory.owner"
+      ]
+    },
+    {
+      "id": "life.starvation_hazard",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "control.broadcast",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "control.scale",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "control.delay",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "control.lowpass",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "control.sustained_threshold",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "geometry.capsule_derived",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "source.spatial_schedule",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "field.initial_array",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "field.boundary_exchange",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "reaction.oxygen_exchange",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "reaction.oxygen_consumption",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "field.advection_upwind",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "medium.property_catalog",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "medium.viscosity_diffusion",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "control.seeded_distribution",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "metabolism.shared_inventory",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": [
+        "inventory.owner",
+        "growth.owner"
+      ]
+    },
+    {
+      "id": "division.volume_adder",
+      "version": "1.0.0",
+      "stage": "lifecycle",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "growth.linear_elongation",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": [
+        "growth.owner"
+      ]
+    },
+    {
+      "id": "medium.viscosity_motion",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "enzyme.secreted",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "enzyme.contact_provider",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "reaction.cellulose_hydrolysis",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": [
+        "reaction.enzyme_consumer"
+      ]
+    },
+    {
+      "id": "material.isotropic_erosion",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "geometry.triangle_mesh",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "surface.adhesion",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "contact.wall_penalty",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "life.residue_release",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "life.background_hazard",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "observer.conversion_lineage",
+      "version": "1.0.0",
+      "stage": "observation",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "mapping.surface_volume",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.concentration_um_to_mm_cells",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.concentration_um_to_mm",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.concentration_mm_to_um_cells",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.concentration_mm_to_um",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.length_um_to_m_cells",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.length_um_to_m",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.length_m_to_um_cells",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.length_m_to_um",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.time_s_to_h_cells",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.time_s_to_h",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.time_h_to_s_cells",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "units.time_h_to_s",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "mapping.scalar_by_id",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "aggregate.scalar",
+      "version": "1.0.0",
+      "stage": "observation",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "mapping.concentration_by_id",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "aggregate.concentration",
+      "version": "1.0.0",
+      "stage": "observation",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "mapping.amount_by_id",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "aggregate.amount",
+      "version": "1.0.0",
+      "stage": "observation",
+      "scope": "environment",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "field.sample_trilinear",
+      "version": "1.0.0",
+      "stage": "prepare",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    },
+    {
+      "id": "field.deposit_trilinear",
+      "version": "1.0.0",
+      "stage": "field",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
+    }
+  ],
+  "retired_wrappers": [
+    {
+      "id": "field.ideal_local_reservoir",
+      "disposition": "retired legacy wrapper"
+    },
+    {
+      "id": "growth.nutrient_monod",
+      "disposition": "retired legacy wrapper"
+    },
+    {
+      "id": "growth.nutrient_yield",
+      "disposition": "retired legacy wrapper"
+    },
+    {
+      "id": "expression.surface_copies",
+      "disposition": "retired legacy wrapper"
+    },
+    {
+      "id": "life.health_balance",
+      "disposition": "retired legacy wrapper"
+    },
+    {
+      "id": "division.area_adder",
+      "disposition": "retired legacy wrapper"
+    },
+    {
+      "id": "division.area_adder",
+      "disposition": "retired legacy wrapper"
+    }
+  ]
+}
