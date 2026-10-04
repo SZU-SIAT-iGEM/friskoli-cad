@@ -203,7 +203,7 @@ class TaskService:
         if not modern:
             limits["steps"] = min(limits["steps"], 10000)
         if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
-            from friskoli_cad.engine.spatial_runtime import MAX_CELLS, MAX_VOXELS
+            from friskoli_cad.engine.limits import MAX_CELLS, MAX_VOXELS
             limits.update(cells=self.limits.cells if profile == 'modular-spatial-v1' else min(MAX_CELLS, self.limits.cells), voxels=min(MAX_VOXELS, self.limits.voxels))
         return {"task_contract_version": "0.6.0" if modern else task_version(profile), "mode": "single-worker",
             "task_contract_versions": list(dict.fromkeys([task_version(profile), "0.5.0", "0.6.0"])),

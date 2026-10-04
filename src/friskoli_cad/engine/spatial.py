@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from .runtime import GridDomain, SimulationError
+from .core import GridDomain, SimulationError
 
 
 def _axis_overlap(

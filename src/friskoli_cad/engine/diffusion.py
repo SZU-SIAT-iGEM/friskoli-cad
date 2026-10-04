@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from .runtime import GridDomain, SimulationError
+from .core import GridDomain, SimulationError
 
 
 def explicit_no_flux_limit(grid: GridDomain, diffusivity_um2_s: float) -> float:

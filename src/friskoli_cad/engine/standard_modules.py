@@ -6,7 +6,7 @@ from friskoli_cad.science.processes import matched_trilinear_weights
 from .module_api import ModuleProposal
 from .port_semantics import entity_ids_for_port
 from .science_extensions import ScientificModule, array_parameter, RECORD_PORT, GRID_READS
-from .pts_modules import port, SPECIES
+from .declarations import port, SPECIES
 
 
 def _unit_scale(factor):

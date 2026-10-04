@@ -16,7 +16,7 @@ from friskoli_cad.engine.checkpoint_io import (
     CheckpointFileError, MAX_CHECKPOINT_BYTES, load_checkpoint, save_checkpoint,
 )
 from friskoli_cad.engine.profiles import SPATIAL_PROFILE, CHEMOTAXIS_PROFILE
-from friskoli_cad.engine.runtime import SimulationError
+from friskoli_cad.engine.core import SimulationError
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.protocol.task_validation import strict_json_loads, TaskValidationError

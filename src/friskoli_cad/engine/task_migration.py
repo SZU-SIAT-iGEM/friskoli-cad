@@ -5,7 +5,7 @@ import math
 import numpy as np
 from friskoli_cad.project import simulation_from_project
 from .task_checkpoint import adapters
-from .spatial_checkpoint import _hash
+from .checkpoint_tools import _hash
 
 
 MAPPING = {'fields':'conservative-volume', 'cells':'identity', 'module_state':'identity'}

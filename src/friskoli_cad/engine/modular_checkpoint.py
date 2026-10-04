@@ -5,11 +5,11 @@ import math
 import numpy as np
 
 from friskoli_cad.protocol import FrameSequenceValidator
-from .runtime import World, CellGroup, CapsuleGeometry, SimulationError
+from .core import World, CellGroup, CapsuleGeometry, SimulationError
 from .module_api import thaw, freeze, StepContext, execute_module
 from .local_fields import local_field_state_to_dict, local_field_state_from_dict
 from .random_streams import RandomStreams
-from .spatial_checkpoint import _hash, _implementation_lock, _validator_record
+from .checkpoint_tools import _hash, _implementation_lock, _validator_record
 
 VERSION = 'modular-checkpoint/v1'
 

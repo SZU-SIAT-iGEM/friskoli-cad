@@ -6,7 +6,7 @@ import math
 
 import numpy as np
 
-from .runtime import GridDomain, SimulationError
+from .core import GridDomain, SimulationError
 
 
 def _remap_axis(values: np.ndarray, source_length: float, target_count: int, axis: int) -> np.ndarray:

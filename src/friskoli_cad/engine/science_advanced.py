@@ -5,7 +5,7 @@ import numpy as np
 
 from friskoli_cad.science import processes as law, physiology
 from .module_api import Effect, ModuleProposal, thaw
-from .pts_modules import number, port, SPECIES
+from .declarations import number, port, SPECIES
 from .science_extensions import ScientificModule, array_parameter, RECORD, RECORD_PORT, AMOUNT, CELL, SCALAR, BOX, GRID_READS
 
 

@@ -12,7 +12,7 @@ import numpy as np
 from friskoli_cad.protocol import ProtocolError, FrameSequenceValidator
 from .compiler import compile_graph
 from .module_api import STAGES, StepContext, execute_module, execution_contract, validate_state_owners, freeze, thaw
-from .runtime import World, CellGroup, CapsuleGeometry, Snapshot, SimulationError
+from .core import World, CellGroup, CapsuleGeometry, Snapshot, SimulationError
 from .random_streams import RandomStreams
 from .motion import heading_from_orientation, orientation_after_heading
 from .local_fields import FieldSpecies, make_local_field_state, propose_local_field_step, _stored_values

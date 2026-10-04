@@ -8,7 +8,7 @@ import time
 import numpy as np
 
 from friskoli_cad.project import simulation_from_project
-from friskoli_cad.engine.runtime import SimulationError
+from friskoli_cad.engine.core import SimulationError
 from friskoli_cad.engine.profiles import PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE
 from friskoli_cad.protocol.task_validation import canonical_bytes, sha256
 from .metadata import source_hashes

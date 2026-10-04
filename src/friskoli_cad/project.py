@@ -93,7 +93,7 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
         path = "/" + "/".join(str(part) for part in error.absolute_path)
         _fail("project.schema", path, error.message)
     if version in ("0.4.0", "0.5.0", "0.6.0"):
-        from friskoli_cad.engine.spatial_runtime import MAX_CELLS, MAX_VOXELS, MAX_SPECIES
+        from friskoli_cad.engine.limits import MAX_CELLS, MAX_VOXELS, MAX_SPECIES
         cells = sum(len(group["ids"]) for group in document["groups"].values())
         voxels = math.prod(document["domain"]["counts_xyz"])
         if cells > MAX_CELLS or voxels > MAX_VOXELS or len(document["species"]) > MAX_SPECIES:
@@ -162,7 +162,7 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
 
 def simulation_from_project(document: Mapping[str, object], registry=None, *, seed=None, field_backend='numpy-cpu'):
     """Build a simulation from a complete snapshot; old graph-only callers remain valid."""
-    from friskoli_cad.engine import CapsuleGeometry, CellGroup, GridDomain, Simulation, SimulationError, World, default_registry
+    from friskoli_cad.engine.core import CapsuleGeometry, CellGroup, GridDomain, SimulationError, World
 
     from friskoli_cad.engine.profiles import registry_for_project
     registry = registry_for_project(document) if registry is None else registry
@@ -227,4 +227,5 @@ def simulation_from_project(document: Mapping[str, object], registry=None, *, se
         from friskoli_cad.engine.pts_runtime import PTSSimulation
         return PTSSimulation(world, document, registry)
     frame_version = "0.2.0" if document["project_version"] == "0.2.0" else "0.1.0"
+    from friskoli_cad.engine.runtime import Simulation
     return Simulation(world, document["graph"], document["run"], registry, frame_version)

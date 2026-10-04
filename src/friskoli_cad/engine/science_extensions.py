@@ -8,7 +8,7 @@ import numpy as np
 
 from friskoli_cad.science import processes as law
 from .module_api import Effect, ModuleProposal, thaw
-from .pts_modules import port, number, SPECIES
+from .declarations import port, number, SPECIES
 
 PROFILE = 'modular-spatial-v1'
 
@@ -283,7 +283,7 @@ def modular_registry():
     from .science_adapters import adapted_modules
     from .science_advanced import advanced_modules
     from .standard_modules import standard_modules
-    from .runtime import ModuleRegistry
+    from .module_registry import ModuleRegistry
     return ModuleRegistry([*adapted_modules(), *extension_modules(), *advanced_modules(), *standard_modules()], PROFILE)
 
 

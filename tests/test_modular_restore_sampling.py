@@ -6,7 +6,7 @@ import pytest
 from friskoli_cad.engine.science_adapters import sample_local
 from friskoli_cad.engine.module_api import StepContext
 from friskoli_cad.engine.modular_checkpoint import export_checkpoint, restore_checkpoint
-from friskoli_cad.engine.spatial_checkpoint import _hash
+from friskoli_cad.engine.checkpoint_tools import _hash
 from friskoli_cad.project import simulation_from_project
 from test_modular_science import project
 
@@ -28,7 +28,7 @@ def test_uniform_fluid_next_to_solid_has_no_false_gradient():
 
 def test_sample_gradient_units_and_reflective_boundary_match_shared_sampler():
     from friskoli_cad.engine.local_fields import make_local_field_state, FieldSpecies, sample_local_fields
-    from friskoli_cad.engine.runtime import GridDomain
+    from friskoli_cad.engine.core import GridDomain
     from dataclasses import replace
     grid = GridDomain(nx=4, ny=3, nz=1, dx_um=2., dy_um=3., dz_um=1., geometry='thin_layer')
     z,y,x = np.indices(grid.shape); field = 2.*x + 6.*y + 1.

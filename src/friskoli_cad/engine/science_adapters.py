@@ -234,8 +234,9 @@ def contact_degradation(source_b=False):
 
 
 def adapted_modules():
-    from .chemotaxis_modules import chemotaxis_registry
-    registry = chemotaxis_registry()
+    import json
+    from importlib.resources import files
+    declarations = json.loads(files("friskoli_cad.engine").joinpath("declarations", "science.json").read_text(encoding="utf-8"))
     specifications = {
         'field.diffusive_local': ('prepare', field_owner, ('fields', 'grid_shape_zyx', 'spacing_xyz', 'blocked'), ('field.diffusivity', 'field.initial')),
         'pts.capsule_area': ('prepare', capsule_area, ('length_um', 'diameter_um'), ()),
@@ -261,25 +262,25 @@ def adapted_modules():
         'reaction.direct_bulk_hydrolysis': ('field', contact_degradation(True), ('materials', 'all_cells', 'surface_enzymes'), ('material.release',)),
     }
     result = []
-    for old in registry._modules.values():
-        identifier = old.manifest['id']
+    for declaration in declarations:
+        identifier = declaration["manifest"]["id"]
         if identifier not in specifications: continue
         stage, function, reads, effects = specifications[identifier]
-        manifest = deepcopy(old.manifest)
+        manifest = deepcopy(declaration["manifest"])
         manifest['protocol_version'] = '0.2.0'
         if identifier == 'motion.hazard_run_tumble':
             manifest['state']['walks'] = {'shape': 'cell.record', 'unit': '1', 'on_division': 'copy'}
-        module = ScientificModule(identifier, old.declaration['label'], stage, manifest['scope'], manifest['inputs'],
+        module = ScientificModule(identifier, declaration['declaration']['label'], stage, manifest['scope'], manifest['inputs'],
             manifest['outputs'], manifest['parameters'], manifest['state'],
-            old.declaration['mathematics']['equations'][0]['latex'], manifest['description'], function,
+            declaration['declaration']['mathematics']['equations'][0]['latex'], manifest['description'], function,
             reads=reads, effects=effects)
         module.execution_contract['uses_rng'] = identifier in ('motion.hazard_run_tumble', 'life.starvation_hazard')
         module.execution_contract['rng_purposes'] = ['run_hazard', 'tumble_direction'] if identifier == 'motion.hazard_run_tumble' else ['death'] if identifier == 'life.starvation_hazard' else []
         module.manifest = manifest
         if identifier == 'pts.capsule_area': module.refresh_after_lifecycle = True
-        module.provides_roles = list(getattr(old, 'provides_roles', ()))
-        module.default_parameters = deepcopy(getattr(old, 'default_parameters', {}))
-        module.object_types = deepcopy(getattr(old, 'object_types', []))
+        module.provides_roles = list(declaration['roles'])
+        module.default_parameters = deepcopy(declaration['default_parameters'])
+        module.object_types = deepcopy(declaration['object_types'])
         if identifier == 'field.diffusive_local': module.provides_roles += ['field.owner']
         if identifier == 'motion.hazard_run_tumble': module.provides_roles += ['motion.owner']
         if identifier == 'metabolism.reserve_balance': module.provides_roles += ['inventory.owner']

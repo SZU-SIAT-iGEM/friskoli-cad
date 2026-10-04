@@ -15,7 +15,7 @@ from typing import Mapping, Sequence
 import numpy as np
 
 from .diffusion import explicit_no_flux_limit
-from .runtime import GridDomain, SimulationError
+from .core import GridDomain, SimulationError
 
 ARRAY_THRESHOLD = 10_000
 

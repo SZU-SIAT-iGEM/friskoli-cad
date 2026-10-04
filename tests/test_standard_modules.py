@@ -2,7 +2,7 @@ import unittest
 import numpy as np
 
 from friskoli_cad.engine.standard_modules import standard_modules
-from friskoli_cad.engine.runtime import ModuleRegistry
+from friskoli_cad.engine.module_registry import ModuleRegistry
 from friskoli_cad.engine.module_api import StepContext, execute_module
 
 

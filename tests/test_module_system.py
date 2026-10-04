@@ -9,7 +9,7 @@ from friskoli_cad.protocol import ProtocolError, validate_graph, validate_manife
 from friskoli_cad.engine.compiler import compile_graph
 from friskoli_cad.engine.module_api import StepContext, ModuleProposal, Effect, execute_module
 from friskoli_cad.engine.execution_planner import plan_execution
-from friskoli_cad.engine.runtime import ModuleRegistry
+from friskoli_cad.engine.module_registry import ModuleRegistry
 from friskoli_cad.diagnostics import diagnose_project
 
 

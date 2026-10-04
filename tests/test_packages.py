@@ -11,7 +11,7 @@ from zipfile import ZipFile
 from friskoli_cad.packages import PackageStore, inspect_package, digest
 from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.protocol.task_validation import canonical_bytes
-from friskoli_cad.engine.runtime import ModuleRegistry
+from friskoli_cad.engine.module_registry import ModuleRegistry
 from friskoli_cad.engine.module_api import StepContext, execute_module
 
 
