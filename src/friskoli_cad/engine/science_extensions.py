@@ -288,17 +288,10 @@ def modular_registry():
 
 
 def make_modular_example(example='modular-foundation'):
-    from importlib.resources import files
-    import json
-    names = {'modular-foundation': 'modular_foundation.project.json', 'modular-material': 'modular_material.project.json'}
-    if example not in names: raise ValueError('Unknown modular scientific template')
-    return json.loads(files('friskoli_cad').joinpath('examples', names[example]).read_text(encoding='utf-8'))
+    from .presets import make_example
+    return make_example(example)
 
 
 def modular_template_catalog():
-    return [{'id': name, 'version': '1.0.0', 'label': label,
-        'description': description, 'example_id': name, 'maturity': 'exploratory',
-        'source': 'docs/science/modular-processes.md; constructed numerical demonstration, not strain calibration',
-        'module_keys': sorted({n['module_id'] + '@' + n['module_version'] for n in make_modular_example(name)['graph']['nodes']})}
-        for name, label, description in [('modular-foundation', '模块化基础生存 / Modular foundation', 'Ordinary registered field, source, schedule, viscosity, uptake, reserve, death and motion nodes.'),
-            ('modular-material', '纤维化学与侵蚀 / Cellulose chemistry and erosion', 'Explicit AGU, water/product stoichiometry, interchangeable catalyst providers, erosion and lineage observation.')]]
+    from .presets import template_catalog
+    return template_catalog()

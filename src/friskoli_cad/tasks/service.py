@@ -16,7 +16,7 @@ import time
 import uuid
 import psutil
 from friskoli_cad.project import validate_project
-from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, profile_for_project, task_version
+from friskoli_cad.engine.profiles import MODULAR_PROFILE, profile_for_project, task_version
 from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.protocol.task_validation import (VERSION, TaskValidationError, canonical_bytes, canonical_loads, sha256, strict_json_loads, validate_submission)
 from .metadata import BACKEND, compiled_plan, estimate, provenance, registry_metadata
@@ -81,10 +81,7 @@ class TaskService:
         self._process = None
         self._corrupt = set()
         self._registry, self._version_lock, self._sources = registry_metadata()
-        self._profile_metadata = {LEGACY_PROFILE: (self._registry, self._version_lock, self._sources),
-                                  PTS_PROFILE: registry_metadata(PTS_PROFILE),
-                                  SPATIAL_PROFILE: registry_metadata(SPATIAL_PROFILE),
-                                  CHEMOTAXIS_PROFILE: registry_metadata(CHEMOTAXIS_PROFILE)}
+        self._profile_metadata = {MODULAR_PROFILE: (self._registry, self._version_lock, self._sources)}
         self._ctx = multiprocessing.get_context("spawn")
         self.directory.mkdir(parents=True, exist_ok=True)
         self._owner_file = (self.directory / "service.lock").open("a+b")
@@ -192,28 +189,21 @@ class TaskService:
             except (ProtocolError, ValueError, KeyError):
                 raise TaskError(422, 'task.execution_unsupported', 'Unsupported execution profile.') from None
 
-    def capabilities(self, profile=LEGACY_PROFILE, contract_version=None):
+    def capabilities(self, profile=MODULAR_PROFILE, contract_version=None):
         self._ensure_profile(profile)
-        modern = contract_version == '0.6.0' or profile == 'modular-spatial-v1'
-        self._ensure_profile(profile)
-        if profile not in self._profile_metadata:
-            raise TaskError(422, "task.execution_unsupported", "Unsupported execution profile.", "/execution/semantics", phase="resolve")
-        _, version_lock, _ = self._profile_metadata[profile]
+        if contract_version not in (None, '0.6.0'):
+            raise TaskError(422, 'task.version', 'Only Task 0.6.0 is supported.')
         limits = asdict(self.limits)
-        if not modern:
-            limits["steps"] = min(limits["steps"], 10000)
-        if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
-            from friskoli_cad.engine.limits import MAX_CELLS, MAX_VOXELS
-            limits.update(cells=self.limits.cells if profile == 'modular-spatial-v1' else min(MAX_CELLS, self.limits.cells), voxels=min(MAX_VOXELS, self.limits.voxels))
-        return {"task_contract_version": "0.6.0" if modern else task_version(profile), "mode": "single-worker",
-            "task_contract_versions": list(dict.fromkeys([task_version(profile), "0.5.0", "0.6.0"])),
-            "pause": modern, "resume": modern, "checkpoint": modern, "partial_results": True,
-            "hash_canonicalization": "RFC8785", "limits": limits,
-            "version_lock": canonical_loads(self._dump(version_lock)),
-            "execution": {"semantics": profile, "backend": BACKEND, "available_backends": available_backends() if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1') else [BACKEND], "default_seed": 0}}
+        from friskoli_cad.engine.limits import MAX_VOXELS
+        limits['voxels'] = min(MAX_VOXELS, limits['voxels'])
+        return {'task_contract_version': '0.6.0', 'task_contract_versions': ['0.6.0'], 'mode': 'single-worker',
+                'pause': True, 'resume': True, 'checkpoint': True, 'partial_results': True,
+                'hash_canonicalization': 'RFC8785', 'limits': limits,
+                'version_lock': canonical_loads(self._dump(self._version_lock)),
+                'execution': {'semantics': MODULAR_PROFILE, 'backend': BACKEND, 'available_backends': available_backends(), 'default_seed': 0}}
 
     def version_lock(self, project=None):
-        profile = LEGACY_PROFILE if project is None else profile_for_project(project)
+        profile = MODULAR_PROFILE if project is None else profile_for_project(project)
         self._ensure_profile(profile)
         if profile not in self._profile_metadata:
             raise TaskError(422, "task.execution_unsupported", "Unsupported execution profile.", "/execution/semantics", phase="resolve")
@@ -228,15 +218,8 @@ class TaskService:
         profile = profile_for_project(project)
         self._ensure_profile(profile)
         registry, full, _ = registry_metadata(profile, project) if project.get("dependency_lock") else self._profile_metadata[profile]
-        expected_version = task_version(profile)
-        if (execution["semantics"] != profile or execution["backend"] not in (available_backends() if profile in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1') else [BACKEND])
-                or submission["task_contract_version"] not in (expected_version, "0.5.0", "0.6.0")
-                or (submission["task_contract_version"] not in ("0.5.0", "0.6.0") and execution["backend"] != BACKEND)):
-            raise TaskError(422, "task.execution_unsupported", "Unsupported execution semantics or backend.", "/execution", phase="resolve")
-        if submission['task_contract_version'] == '0.6.0' and profile not in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
-            raise TaskError(422, 'task.checkpoint_unsupported', 'Task 0.6 requires a complete checkpoint profile.')
-        if submission['task_contract_version'] != '0.6.0' and (execution['steps'] > 10000 or submission['output_plan']['frame_every_steps'] > 10000):
-            raise TaskError(413, 'task.resource_limit', 'Historical task contracts retain the 10000 step/output interval bound.')
+        if execution["semantics"] != MODULAR_PROFILE or execution["backend"] not in available_backends() or submission["task_contract_version"] != "0.6.0":
+            raise TaskError(422, "task.execution_unsupported", "Only modular-spatial-v1 / Task 0.6.0 with an available backend is supported.", "/execution", phase="resolve")
         if not math.isfinite(execution["dt_s"] * execution["steps"]):
             raise TaskError(422, "task.time_overflow", "Simulation duration must be finite.", "/execution")
         provided, expected = submission["version_lock"], self.version_lock(project)
@@ -271,8 +254,6 @@ class TaskService:
         unknown = set(submission["output_plan"]["observables"]) - set(project["run"]["channels"])
         if unknown:
             raise TaskError(422, "task.observable_unknown", "Output plan includes an unknown frame channel.", "/output_plan/observables", phase="validate")
-        if profile not in (CHEMOTAXIS_PROFILE, 'modular-spatial-v1') and submission["output_plan"]["frame_every_steps"] != 1 and any("divide" in node["outputs"] for node in plan["nodes"]):
-            raise TaskError(422, "task.sampling_unsupported", "Division models require every complete frame to preserve lineage events.", "/output_plan/frame_every_steps", phase="validate")
         budget = estimate(submission, registry)
         frame_count = 1 + execution["steps"] // submission["output_plan"]["frame_every_steps"]
         frame_count += int(execution["steps"] % submission["output_plan"]["frame_every_steps"] != 0)
@@ -291,7 +272,7 @@ class TaskService:
             if budget[name] > getattr(self.limits, bound):
                 hint = ""
                 if name == "output_bytes":
-                    if profile in (CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
+                    if profile == MODULAR_PROFILE:
                         available_frames = (self.limits.output_bytes - final_field_estimate(submission)) // max(1,total_frame_bytes)
                         minimum = math.ceil(execution['steps'] / (available_frames - 1)) if available_frames >= 2 else None
                         if minimum is not None and minimum > min(execution['steps'],self.limits.steps):
@@ -461,7 +442,7 @@ class TaskService:
                 **({'migration_audit':task['migration_audit']} if 'migration_audit' in task else {}),
                 **({"artifacts": [canonical_loads(item[0]) for item in self._db.execute(
                     "SELECT metadata FROM artifacts WHERE run_id=? AND artifact_id IN ('checkpoint','final_fields') ORDER BY artifact_id", (run_id,)).fetchall()]}
-                   if task["task_contract_version"] in ("0.5.0", "0.6.0") else {}),
+                   if task["task_contract_version"] in ("0.6.0",) else {}),
                 **({"parent_run_id":task.get("parent_run_id"), "start_step":task.get("start_step",0), "chunk_offset":offset, "total_chunks":total, "next_chunk_offset":offset+len(records) if offset+len(records)<total else None} if modern else {})}
 
     def chunk(self, run_id, chunk_id):
@@ -701,7 +682,7 @@ class TaskService:
         artifact_bytes = 0
         if artifact is not None:
             submission = canonical_loads(row["input"])
-            if not message["final"] or contract_version not in ("0.5.0", "0.6.0") or not submission["output_plan"].get("include_final_fields", False):
+            if not message["final"] or contract_version not in ("0.6.0",) or not submission["output_plan"].get("include_final_fields", False):
                 raise TaskError(500, "task.output_corrupt", "Unexpected final field artifact.", phase="publish")
             pending = self.directory / "runs" / run_id / "final-fields.pending.npz"
             artifact_bytes, digest = file_digest(pending)

@@ -12,12 +12,12 @@ import pytest
 from friskoli_cad.design import generate_design
 from friskoli_cad.design_delivery import (DesignPackageError, export_design_package,
     import_design_package, design_report_csv, design_report_html)
-from friskoli_cad.engine.chemotaxis_templates import make_example
+from friskoli_cad.engine.presets import make_example
 
 
 @pytest.fixture(scope='module')
 def prototype():
-    project = make_example('chemotaxis-pts-a')
+    project = make_example('center-pts-a-small')
     brief = {'brief_version': '0.1.0', 'id': 'native', 'name': 'Native design',
         'goal': {'metric': 'mean_displacement_um', 'direction': 'maximize', 'group_id': 'cells'},
         'chassis': {'name': 'Example', 'provenance': 'Constructed; not calibrated'},
@@ -42,7 +42,7 @@ def run_for(payload, seed=0, value=3., lock_letter='a'):
     modules = {(n['module_id'], n['module_version']) for n in project['graph']['nodes']}
     lock = {'registry_sha256': lock_letter * 64,
         'implementations': [{'id': i, 'version': v, 'sha256': 'b' * 64} for i, v in sorted(modules)]}
-    execution = {'dt_s': .05, 'steps': 2, 'seed': seed, 'backend': 'numpy-cpu', 'semantics': 'chemotaxis-spatial-v1'}
+    execution = {'dt_s': .05, 'steps': 2, 'seed': seed, 'backend': 'numpy-cpu', 'semantics': 'modular-spatial-v1'}
     output = {'frame_every_steps': 1, 'include_fields': True, 'observables': list(project['run']['channels'])}
     return {'id': f'run-{seed}', 'localId': f'local-{seed}', 'status': 'completed', 'completeness': 'complete',
         'design_ref': {'design_id': payload['design']['id'], 'candidate_id': candidate['id'], 'candidate_name': candidate['name']},

@@ -4,7 +4,7 @@ export async function boundedResponseBytes(response,expected,maxBytes=16*1024*10
   const reader=response.body.getReader(),output=new Uint8Array(expected);let offset=0;
   try{while(true){const {done,value}=await reader.read();if(done)break;if(offset+value.length>expected)throw Error('Response exceeds declared byte length');output.set(value,offset);offset+=value.length;}if(offset!==expected)throw Error('Response byte length mismatch');return output;}catch(error){await reader.cancel();throw error;}finally{reader.releaseLock();}
 }
-export const TASK_CONTRACT_VERSION = '0.1.0';
+export const TASK_CONTRACT_VERSION = '0.6.0';
 
 export class KernelClient {
   constructor(fetcher = (...args) => fetch(...args)) { this.fetcher = fetcher; }

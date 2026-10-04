@@ -43,7 +43,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_pts_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -210,7 +211,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_pts_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -301,7 +303,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_pts_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -386,7 +389,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_pts_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -546,7 +550,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_pts_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -633,7 +638,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_spatial_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -794,7 +800,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_spatial_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -969,7 +976,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_spatial_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1126,7 +1134,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_spatial_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1194,7 +1203,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_spatial_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1281,7 +1291,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_spatial_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1368,7 +1379,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_spatial_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1468,7 +1480,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_spatial_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1531,8 +1544,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_n3_science.py",
-            "tests/test_chemotaxis_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1636,8 +1649,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_n3_science.py",
-            "tests/test_chemotaxis_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1755,8 +1768,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_n3_science.py",
-            "tests/test_chemotaxis_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -1951,8 +1964,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_n3_science.py",
-            "tests/test_chemotaxis_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -2110,8 +2123,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_n3_science.py",
-            "tests/test_chemotaxis_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -2188,8 +2201,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_n3_science.py",
-            "tests/test_chemotaxis_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -2362,8 +2375,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_n3_science.py",
-            "tests/test_chemotaxis_runtime.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -2459,7 +2472,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_foundation_survival.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -2488,7 +2502,7 @@
       "phase": 8,
       "scientific_role": "mechanism",
       "maturity": "exploratory",
-      "description": "Finite nutrient-equivalent reserve. Accepted uptake arrives at interval start; maintenance consumes actual available stock. When q=0, unmet duration is zero. Consumed equivalents enter a maintenance ledger, not an external recycling pool. One intracellular stock owner per population; cannot also use legacy nutrient growth. Constructed phenomenological model, not full metabolism.",
+      "description": "Finite nutrient-equivalent reserve. Accepted uptake arrives at interval start; maintenance consumes actual available stock. When q=0, unmet duration is zero. Consumed equivalents enter a maintenance ledger, not an external recycling pool. One intracellular stock owner per population; cannot also use another intracellular inventory owner. Constructed phenomenological model, not full metabolism.",
       "inputs": {
         "accepted_amount": {
           "shape": "cell.scalar",
@@ -2569,7 +2583,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_foundation_survival.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [
@@ -2674,7 +2689,8 @@
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_foundation_survival.py"
+            "tests/test_first_release_science.py",
+            "tests/test_modular_science.py"
           ]
         },
         "assumptions": [

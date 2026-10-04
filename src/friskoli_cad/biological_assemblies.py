@@ -113,9 +113,9 @@ def validate_assembly(assembly):
         _fail('geometry', 'Reference identities and initial geometry must have equal nonzero lengths')
     # Reuse the project geometry schema; geometric domain fitting is checked on application.
     from friskoli_cad.project import _project_validator
-    schema = _project_validator('0.5.0').schema['properties']['groups']['additionalProperties']['properties']['initial_geometry']
+    schema = _project_validator('0.6.0').schema['properties']['groups']['additionalProperties']['properties']['initial_geometry']
     from jsonschema import Draft202012Validator
-    geometry_schema = {**schema, '$defs': _project_validator('0.5.0').schema['$defs']}
+    geometry_schema = {**schema, '$defs': _project_validator('0.6.0').schema['$defs']}
     error = next(Draft202012Validator(geometry_schema).iter_errors(geometry), None)
     if error is not None:
         _fail('geometry', error.message)

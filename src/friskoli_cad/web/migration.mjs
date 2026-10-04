@@ -14,5 +14,5 @@ export function adaptWorkspace(document, modules) {
     severity:'error',path:'/graph/nodes/' + state.project.graph.nodes.indexOf(node),
     node_id:node.id,message:node.module_id + '@' + node.module_version + ': preserved for reading; run is disabled.'}));
   return {state, report:{adapter_version:'0.1.0',source_version:source,target_version:WORKSPACE_VERSION,
-    execution_semantics:state.project.execution_profile ?? 'legacy-explicit-v1',changes,issues}};
+    execution_semantics:state.project.execution_profile ?? 'modular-spatial-v1',changes,issues}};
 }

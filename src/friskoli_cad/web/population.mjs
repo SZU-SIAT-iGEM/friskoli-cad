@@ -103,7 +103,7 @@ export function scatterBlock(project, block, staticModule = null, {allowShortfal
   const ids = Array.from({ length: block.count }, (_, index) => previous?.ids[index] ?? `${block.id}:cell_${index}`);
   const positions = [];
   const orientations = [];
-  const spatial = ['spatial-unbiased-v1','chemotaxis-spatial-v1'].includes(project.execution_profile);
+  const spatial = project.execution_profile === 'modular-spatial-v1';
   // Conservative enclosing spheres keep scatter deterministic and collision-free.
   // Dense requests fail without mutating the project; no overlapping fallback is emitted.
   const occupied = spatial ? Object.entries(project.groups).flatMap(([id,group]) => id === block.id ? [] :

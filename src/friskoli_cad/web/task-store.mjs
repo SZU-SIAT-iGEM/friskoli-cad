@@ -23,25 +23,11 @@ const digestKeys = ['document_sha256', 'scientific_sha256', 'registry_sha256', '
 const sameInput = (a, b) => ['document_sha256', 'scientific_sha256', 'registry_sha256', 'plan_sha256', 'edit_revision']
   .every(key => a?.[key] === b?.[key]);
 
-const supportedVersions = new Set([TASK_CONTRACT_VERSION, '0.2.0', '0.3.0', '0.4.0', '0.5.0','0.6.0']);
+const supportedVersions = new Set([TASK_CONTRACT_VERSION]);
 export function taskCapability(capabilities, project) {
-  const longrun=capabilities?.task_longrun_profiles?.[project?.execution_profile];if(longrun?.task_contract_version==='0.6.0')return longrun;
-  const extended=capabilities?.task_profiles?.[project?.execution_profile];
-  if(((project?.execution_profile==='chemotaxis-spatial-v1'&&project.project_version==='0.5.0')||(project?.execution_profile==='spatial-unbiased-v1'&&project.project_version==='0.4.0'))&&extended?.task_contract_versions?.includes('0.5.0')&&extended.execution?.semantics===project.execution_profile)return {...extended,task_contract_version:'0.5.0'};
-  if (project?.execution_profile === 'chemotaxis-spatial-v1' && project.project_version === '0.5.0') {
-    const task = capabilities?.task_profiles?.[project.execution_profile];
-    return task?.task_contract_version === '0.4.0' && task.execution?.semantics === project.execution_profile ? task : null;
-  }
-  if (project?.execution_profile === 'spatial-unbiased-v1' && project.project_version === '0.4.0') {
-    const task = capabilities?.task_profiles?.[project.execution_profile];
-    return task?.task_contract_version === '0.3.0' && task.execution?.semantics === project.execution_profile ? task : null;
-  }
-  if (project?.execution_profile === 'conservative-pts-bulk-v1' && project.project_version === '0.3.0') {
-    const task = capabilities?.task_profiles?.[project.execution_profile];
-    return task?.task_contract_version === '0.2.0' && task.execution?.semantics === project.execution_profile ? task : null;
-  }
-  if (project?.execution_profile) return null;
-  return capabilities?.task?.task_contract_version === TASK_CONTRACT_VERSION ? capabilities.task : null;
+  if(project?.project_version!=='0.6.0'||project.execution_profile!=='modular-spatial-v1')return null;
+  const task=capabilities?.task_longrun_profiles?.[project.execution_profile]??capabilities?.task_profiles?.[project.execution_profile]??capabilities?.task;
+  return task?.task_contract_version==='0.6.0'&&task.execution?.semantics==='modular-spatial-v1'?task:null;
 }
 export function supportsTasks(capabilities, project) {
   return !!taskCapability(capabilities, project);
@@ -61,13 +47,13 @@ export function buildSubmission(capabilities, project, settings, editRevision, r
       !execution?.semantics || !execution.backend || !Number.isSafeInteger(execution.default_seed)) {
     throw failure('task.invalid_capabilities');
   }
-  const spatial = ['spatial-unbiased-v1','chemotaxis-spatial-v1','modular-spatial-v1'].includes(project.execution_profile);
+  const spatial = project.execution_profile==='modular-spatial-v1';
   const seed = settings.seed ?? (spatial ? project.random_seed : execution.default_seed);
   if (spatial && settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw failure('task.invalid_output_plan');
   if (!Number.isSafeInteger(seed) || seed < 0) throw failure('task.invalid_seed');
-  const stride = ['0.4.0','0.5.0','0.6.0'].includes(task.task_contract_version) ? (settings.frame_every_steps ?? 1) : 1;
+  const stride = task.task_contract_version==='0.6.0' ? (settings.frame_every_steps ?? 1) : 1;
   if (!Number.isSafeInteger(stride) || stride < 1 || stride > (task.task_contract_version==='0.6.0'?4320000:10000)) throw failure('task.invalid_output_plan');
-  const modern=['0.5.0','0.6.0'].includes(task.task_contract_version),backend=settings.backend??execution.backend;
+  const modern=task.task_contract_version==='0.6.0',backend=settings.backend??execution.backend;
   if(!(modern?execution.available_backends??[execution.backend]:[execution.backend]).includes(backend))throw failure('task.unsupported_backend');
   const fieldStride=settings.field_stride_xyz??[1,1,1];
   if(modern&&(!Array.isArray(fieldStride)||fieldStride.length!==3||fieldStride.some((s,i)=>!Number.isSafeInteger(s)||s<1||project.domain.counts_xyz[i]%s!==0)))throw failure('task.invalid_field_stride');
@@ -84,59 +70,6 @@ export async function preflightSubmission(client, capabilities, project, setting
   const result = await client.preflight(submission);
   if (result?.valid !== true) throw failure('task.invalid_preflight');
   return {submission, result};
-}
-
-// A field-enabled result must carry the complete active species set in every committed frame.
-function taskFields(item, submission) {
-  if (!submission.output_plan.include_fields) return {};
-  if (!['0.3.0','0.4.0','0.5.0'].includes(submission.task_contract_version)) throw failure('task.unsupported_fields');
-  const fields = item.concentrations;
-  const expected = new Set(submission.project.graph.nodes.filter(node => ['field.diffusive_local','field.ideal_local_reservoir'].includes(node.module_id))
-    .map(node => node.parameters.species.value));
-  if (!fields || Array.isArray(fields) || typeof fields !== 'object' || Object.keys(fields).length !== expected.size ||
-      [...expected].some(name => !Object.hasOwn(fields, name))) throw failure('task.fields_missing');
-  for (const field of Object.values(fields)) {
-    const [nx,ny,nz]=fieldDisplayDomain(field,submission.project.domain,{required:submission.task_contract_version==='0.5.0',stride:submission.output_plan.field_stride_xyz??[1,1,1]}).counts_xyz;
-    if (!field || field.unit !== 'uM' || !Array.isArray(field.values_zyx) || field.values_zyx.length !== nz ||
-        field.values_zyx.some(layer => !Array.isArray(layer) || layer.length !== ny ||
-          layer.some(row => !Array.isArray(row) || row.length !== nx ||
-            row.some(value => !Number.isFinite(value) || value < 0)))) throw failure('task.invalid_field');
-  }
-  return fields;
-}
-
-function taskObjects(item, submission) {
-  if (!['0.3.0','0.4.0','0.5.0'].includes(submission.task_contract_version)) return {};
-  const expected = new Map(submission.project.graph.nodes
-    .filter(node => ['material.degradable_box', 'source.finite_local'].includes(node.module_id))
-    .map(node => [node.id, node]));
-  const states = item.object_states;
-  if (!states || Array.isArray(states) || typeof states !== 'object' || Object.keys(states).length !== expected.size ||
-      [...expected.keys()].some(id => !Object.hasOwn(states, id))) throw failure('task.objects_missing');
-  for (const [id, value] of Object.entries(states)) {
-    const node = expected.get(id), type = node.module_id === 'material.degradable_box' ? 'material.degradable_box' : 'source.attractant';
-    if (!value || value.object_type !== type || Object.keys(value).length !== 2 ||
-        !Number.isFinite(value.remaining_molecules) || value.remaining_molecules < 0 ||
-        value.remaining_molecules > node.parameters.initial_molecules.value) throw failure('task.invalid_object_state');
-  }
-  return {object_states:states};
-}
-
-export function validateTaskLifecycle(item, submission) {
-  if(!['0.4.0','0.5.0'].includes(submission.task_contract_version)||(submission.task_contract_version==='0.5.0'&&submission.project.execution_profile!=='chemotaxis-spatial-v1'))return {};
-  const details=item.lifecycle_details;
-  if(details?.lifecycle_version!=='0.1.0'||!Array.isArray(details.deaths)||details.deaths.some(death=>
-    !['cell_id','group_id','node_id','module_id','policy'].every(key=>typeof death[key]==='string'&&death[key])||
-    !['time_s','health','death_hazard_per_min','probability','random_draw'].every(key=>Number.isFinite(death[key]))||
-    death.time_s<0||death.time_s>item.time_s||death.health<0||death.health>1||death.death_hazard_per_min<0||death.probability<0||death.probability>1||death.random_draw<=0||death.random_draw>=1||
-    !item.frame.events.some(event=>event.type==='death'&&event.cell_id===death.cell_id&&event.time_s===death.time_s)))throw failure('task.invalid_lifecycle_details');
-  const deaths=item.frame.events.filter(event=>event.type==='death');
-  if(details.deaths.length!==deaths.length||new Set(details.deaths.map(d=>JSON.stringify([d.cell_id,d.time_s]))).size!==deaths.length)throw failure('task.invalid_lifecycle_details');
-  for(const death of details.deaths){
-    const node=submission.project.graph.nodes.find(node=>node.id===death.node_id);
-    if(!node||!['life.health_balance','life.starvation_hazard'].includes(node.module_id)||death.module_id!==node.module_id||node.owner.kind!=='population'||node.owner.id!==death.group_id||node.parameters.policy?.value!==death.policy||(node.module_id==='life.starvation_hazard'&&death.policy!=='reserve_starvation')||death.random_draw>=death.probability)throw failure('task.invalid_lifecycle_details');
-  }
-  return {lifecycle_details:details};
 }
 
 export function matchesDraft(record, draft) {
@@ -345,49 +278,11 @@ export class TaskStore {
           manifest.completeness !== record.completeness) return;
     }
     if (record.manifest && JSON.stringify(record.manifest) === JSON.stringify(manifest)) return;
-    if(record.submission.task_contract_version==='0.6.0'){
-      const pager=await LinkedReplay.create(this.client,record,manifest),index=pager.frameCount-1,frame=await pager.frame(index);
-      const history=await pager.metricHistory(record.replay?.metric_snapshots??[]);pager.metricSnapshots=history;
-      this.releaseOtherPagers(id);this.pagers.set(id,pager);
-      this.replace(id,{manifest,replay:{...pager.replay({...frame,concentrations:{}},index),metric_snapshots:history}});return;
-    }
-    const cache = this.cache.get(id) ?? new Map(), seenChunks = new Set(), frames = [];
-    this.cache.set(id, cache);
-    let previousStep = -1;
-    for (const chunk of manifest.chunks) {
-      if (seenChunks.has(chunk.chunk_id) || !Number.isSafeInteger(chunk.first_step) || !Number.isSafeInteger(chunk.last_step) ||
-          chunk.first_step <= previousStep || chunk.last_step < chunk.first_step || chunk.last_step > manifest.progress.committed_step) throw failure('task.invalid_chunk_range');
-      seenChunks.add(chunk.chunk_id);
-      let cached = cache.get(chunk.chunk_id);
-      if (cached && ['chunk_id', 'href', 'sha256', 'bytes', 'media_type', 'first_step', 'last_step']
-        .some(key => cached.descriptor[key] !== chunk[key])) throw failure('task.chunk_changed');
-      if (!cached) { cached = {descriptor:structuredClone(chunk), body:await this.client.taskChunk(record.runId, chunk)}; cache.set(chunk.chunk_id, cached); }
-      const body = cached.body;
-      if (body?.task_contract_version !== record.submission.task_contract_version || body.run_id !== record.runId || body.chunk_id !== chunk.chunk_id ||
-          !Array.isArray(body.frames) || !body.frames.length || body.frames[0].step_index !== chunk.first_step ||
-          body.frames.at(-1).step_index !== chunk.last_step) throw failure('task.invalid_chunk');
-      for (const item of body.frames) {
-        const stride = record.submission.output_plan.frame_every_steps;
-        const expectedStep = frames.length === 0 ? 0 : Math.min(frames.at(-1).step_index + stride,record.settings.steps);
-        if (item.sequence !== frames.length || item.step_index !== expectedStep || item.frame?.frame_index !== item.step_index ||
-            item.time_s !== item.frame.time_s || item.frame.run_id !== record.project.run.run_id ||
-            typeof item.grid_revision !== 'string' || !item.grid_revision) throw failure('task.invalid_frame_sequence');
-        frames.push(item);
-      }
-      previousStep = chunk.last_step;
-    }
-    const committed = manifest.progress.committed_step;
-    const expectedPublished = committed === record.settings.steps ? committed : Math.floor(committed / record.submission.output_plan.frame_every_steps) * record.submission.output_plan.frame_every_steps;
-    if (previousStep !== expectedPublished || frames.at(-1).time_s > manifest.progress.simulation_time_s ||
-        (previousStep === committed && frames.at(-1).time_s !== manifest.progress.simulation_time_s) ||
-        (manifest.completeness === 'complete' && previousStep !== record.settings.steps)) throw failure('task.incomplete_manifest');
-    const replay = normalizeReplay({replay_format_version:'0.1.0', project_id:record.project.id,
-      run:record.project.run, domain:record.project.domain,
-      execution:{task_contract_version:record.submission.task_contract_version, task_run_id:record.runId, request_id:record.submission.request_id,
-        status:manifest.status, completeness:manifest.completeness, include_fields:record.submission.output_plan.include_fields, input_snapshot:manifest.input_snapshot},
-      snapshots:frames.map(item => ({frame:item.frame, concentrations:taskFields(item, record.submission), ...taskObjects(item, record.submission),...validateTaskLifecycle(item,record.submission),
-        ...(record.project.execution_profile==='modular-spatial-v1'&&record.submission.task_contract_version==='0.6.0' ? {metrics:validateMetrics(item.metrics,record.project)} : {})}))});
-    this.replace(id, {manifest, replay});
+    if(record.submission.task_contract_version!=='0.6.0')throw failure('task.unsupported_contract');
+    const pager=await LinkedReplay.create(this.client,record,manifest),index=pager.frameCount-1,frame=await pager.frame(index);
+    const history=await pager.metricHistory(record.replay?.metric_snapshots??[]);pager.metricSnapshots=history;
+    this.releaseOtherPagers(id);this.pagers.set(id,pager);
+    this.replace(id,{manifest,replay:{...pager.replay({...frame,concentrations:{}},index),metric_snapshots:history}});
   }
   async poll(id) {
     if (this.inflight.has(id)) return this.get(id);

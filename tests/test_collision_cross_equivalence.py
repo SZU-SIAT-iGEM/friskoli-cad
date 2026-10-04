@@ -26,10 +26,10 @@ def test_fixed_cross_preserves_distance_for_random_and_degenerate_segments(monke
 
 
 def test_complete_trajectory_matches_original_cross_product(monkeypatch):
-    from friskoli_cad.engine.chemotaxis_templates import make_example
+    from friskoli_cad.engine.presets import make_example
     from friskoli_cad.project import simulation_from_project
 
-    project = make_example('chemotaxis-pts-a')
+    project = make_example('center-pts-a-small')
     current, previous = simulation_from_project(project), simulation_from_project(project)
     for _ in range(12):
         current.step(.1)

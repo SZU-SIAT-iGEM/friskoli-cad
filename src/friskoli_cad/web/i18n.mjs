@@ -48,7 +48,7 @@ const messages = {
     welcomeScope:'These examples demonstrate the workspace. A validated chemotaxis model is not included yet.',
     workspaceTooLarge:'Workspace file exceeds 2 MB',
     importStale:'Import cancelled because the workspace changed while reading. Open the file again to import it.',
-    demoTitle:'Growth & division',demoHint:'3D · illustrative length-adder model',recover:'Recover local draft',
+    demoTitle:'Modular foundation',demoHint:'3D · illustrative length-adder model',recover:'Recover local draft',
     export:'Export',exportJSON:'Published result · JSON',exportCSV:'Frame statistics · CSV',
     exportHint:'Includes the frozen input, saved frames, metrics and declared complete or partial status. Concentration fields are included when requested by the run.',
     noResults:'Run a project to inspect its results.',earlierRevision:'Result from an earlier draft',completed:'Completed',failed:'Failed',runs:'Runs',

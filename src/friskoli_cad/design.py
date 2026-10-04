@@ -9,7 +9,7 @@ import math
 
 from jsonschema import Draft202012Validator
 
-from friskoli_cad.engine.profiles import CHEMOTAXIS_PROFILE, registry_for_project
+from friskoli_cad.engine.profiles import MODULAR_PROFILE, registry_for_project
 from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.engine.core import SimulationError
 from friskoli_cad.protocol.task_validation import canonical_bytes, TaskValidationError
@@ -281,8 +281,8 @@ def _control(baseline, brief):
 
 def generate_design(project, settings, brief, *, task_limits=None):
     """Enumerate and preflight candidates without advancing the numerical simulation."""
-    if type(project) is not dict or project.get('project_version') not in ('0.5.0','0.6.0') or project.get('execution_profile') not in (CHEMOTAXIS_PROFILE,'modular-spatial-v1'):
-        _fail('Design requires a scientific Project 0.5', '/project')
+    if type(project) is not dict or project.get('project_version') != '0.6.0' or project.get('execution_profile') != MODULAR_PROFILE:
+        _fail('Design requires modular Project 0.6', '/project')
     settings = _settings(settings, brief.get('brief_version') if isinstance(brief, dict) else None)
     baseline = deepcopy(project)
     try:

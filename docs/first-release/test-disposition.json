@@ -1,0 +1,307 @@
+[
+  {
+    "file": "tests/test_runtime.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_pts_runtime.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_pts_tasks.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_pts_http.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_spatial_runtime.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_spatial_tasks.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_spatial_contract.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_spatial_checkpoint.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_chemotaxis_runtime.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_chemotaxis_checkpoint.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_chemotaxis_delivery.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_chemotaxis_scientific_controls.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_n3_science.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_n4_science_semantics.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_n5_b_lifecycle.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_foundation_survival.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_checkpoint_io.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_project_schedule.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_environment_swap.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_motion.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_growth.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_division.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_registry.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_grid_refinement.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_fixed_support_refinement.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_box_support.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_task_contract.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_task_validation.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_task_http.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_replay_service.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_workspace_schema.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_task_field_preview.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_task_final_fields.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_task_performance.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_task_longrun_http.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/workspace.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/catalog.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/pts-profile.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/spatial-tasks.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/spatial-workspace.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/n3-ui.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/n4-ui.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/tasks.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/replay.test.mjs",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/verify_12h_task.py",
+    "action": "replaced",
+    "reason": "Historical executor/format fixtures no longer define supported behavior. Replaced by first-release protocol, science, service, UI and workflow checks."
+  },
+  {
+    "file": "tests/test_assembly_library.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_biological_assemblies.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_collision_broadphase.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_collision_cross_equivalence.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_dense_field_execution.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_design.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_design_delivery.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_design_evaluation.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_design_http.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_local_fields.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_m4_continuation.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_modular_science.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_task_domain_migration.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_task_longrun.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_task_service.py",
+    "action": "migrated",
+    "reason": "Same public behavior/scientific primitive tested on first-release implementation and formal fixtures."
+  },
+  {
+    "file": "tests/test_m4_continuation.py",
+    "action": "replaced",
+    "reason": "SpatialSimulation-specific private fields removed; modular full-state restoration, RNG-after-failure and real service continuation tested in first-release suite."
+  }
+]

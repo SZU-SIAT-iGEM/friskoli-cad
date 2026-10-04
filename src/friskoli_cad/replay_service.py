@@ -19,8 +19,8 @@ from typing import Mapping
 from urllib.parse import parse_qs, urlsplit
 
 from friskoli_cad.engine import SimulationError
-from friskoli_cad.engine.modules import default_registry
-from friskoli_cad.engine.profiles import LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, registry_for_profile, registry_for_project
+from friskoli_cad.engine.science_extensions import modular_registry
+from friskoli_cad.engine.profiles import MODULAR_PROFILE, registry_for_profile, registry_for_project
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.project import validate_project
 from friskoli_cad.protocol import ProtocolError, validate_frame_sequence
@@ -28,7 +28,7 @@ from friskoli_cad.protocol.task_validation import TaskValidationError, strict_js
 from friskoli_cad.tasks import TaskError, TaskLimits, TaskService
 
 
-EXAMPLE_PROJECT = files("friskoli_cad").joinpath("examples", "workspace_3d.project.json")
+EXAMPLE_PROJECT = files("friskoli_cad").joinpath("examples", "modular_foundation.project.json")
 MAX_REQUEST_BYTES = 1_000_000
 MAX_STEPS = 10_000
 MAX_REPLAY_VALUES = 1_000_000
@@ -129,7 +129,7 @@ def prepare_project(project: Mapping[str, object], *, dt_s: float, steps: int, v
         raise ReplayRequestError("replay.cell_count", "cell count exceeds the local viewer limit", 413)
     if cells * allocated_frames > MAX_REPLAY_CELL_FRAMES:
         raise ReplayRequestError("replay.cell_frames", "estimated cumulative cell frames exceed the synchronous replay limit", 413)
-    if project.get("execution_profile") in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE) and nx * ny * nz * max(1, len(project["species"])) * allocated_frames > MAX_REPLAY_VALUES:
+    if project.get("execution_profile") == MODULAR_PROFILE and nx * ny * nz * max(1, len(project["species"])) * allocated_frames > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "replay field data exceeds the local viewer limit", 413)
     simulation = simulation_from_project(project, registry)
     initial = simulation.current
@@ -141,7 +141,7 @@ def prepare_project(project: Mapping[str, object], *, dt_s: float, steps: int, v
     if initial.domain.voxel_count * field_count * allocated_frames > MAX_REPLAY_VALUES:
         raise ReplayRequestError("replay.size", "replay field data exceeds the local viewer limit", 413)
     if not validation_only:
-        spatial = project.get("execution_profile") in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)
+        spatial = project.get("execution_profile") == MODULAR_PROFILE
         # Admission estimate only: changing geometry, events and numeric values are
         # measured again for every emitted frame below.
         estimate = _json_size(_replay_envelope(project)) + 1024
@@ -166,7 +166,7 @@ def build_replay(project: Mapping[str, object], *, dt_s: float, steps: int) -> d
     project = deepcopy(project)
     simulation = prepare_project(project, dt_s=dt_s, steps=steps)
     initial = simulation.current
-    spatial = project.get("execution_profile") in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)
+    spatial = project.get("execution_profile") == MODULAR_PROFILE
     replay = _replay_envelope(project)
     snapshots = replay["snapshots"]
     # Reserve space for the HTTP execution metadata appended by ReplayHandler.
@@ -515,73 +515,44 @@ class ReplayHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/example-project":
             self._send(200, EXAMPLE_PROJECT.read_bytes(), "application/json; charset=utf-8")
-        elif path == "/api/examples/registry-readout":
-            self._send(200, files("friskoli_cad").joinpath("examples", "registry_readout.project.json").read_bytes(),
-                       "application/json; charset=utf-8")
-        elif path in ('/api/examples/modular-foundation', '/api/examples/modular-material'):
-            from friskoli_cad.engine.science_extensions import make_modular_example
-            self._json(200, make_modular_example(path.rsplit('/', 1)[-1]))
-        elif path.startswith(('/api/examples/chemotaxis-', '/api/examples/foundation-', '/api/examples/n5-')):
-            from friskoli_cad.engine.chemotaxis_templates import REGISTERED_EXAMPLES
-            key = path.rsplit('/', 1)[-1]
-            if key not in REGISTERED_EXAMPLES:
-                self._json(404, {'error': {'code': 'example.not_found', 'message': 'Unknown scientific example'}})
-            else:
-                self._send(200, files('friskoli_cad').joinpath('examples', key.replace('-', '_') + '.project.json').read_bytes(),
-                           'application/json; charset=utf-8')
-        elif path == "/api/examples/spatial-baseline":
-            self._send(200, files("friskoli_cad").joinpath("examples", "spatial_baseline.project.json").read_bytes(),
-                       "application/json; charset=utf-8")
-        elif path == "/api/examples/pts-bulk":
-            self._send(200, files("friskoli_cad").joinpath("examples", "pts_bulk.project.json").read_bytes(),
-                       "application/json; charset=utf-8")
-        elif path == "/api/modules":
-            self._json(200, {"protocol_version": "0.1.0", "modules": default_registry().manifests})
+        elif path.startswith('/api/examples/'):
+            from friskoli_cad.engine.presets import make_example
+            try:
+                self._json(200, make_example(path.rsplit('/', 1)[-1]))
+            except ValueError:
+                self._json(404, {'error': {'code': 'example.not_found', 'message': 'Unknown first-release example'}})
         elif path == "/api/catalog":
             try:
                 query = parse_qs(target.query, keep_blank_values=True, strict_parsing=True) if target.query else {}
             except ValueError:
                 query = {"invalid": []}
-            profile = query.get("execution_profile", [LEGACY_PROFILE])
-            if set(query) - {"execution_profile"} or len(profile) != 1 or profile[0] not in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
+            profile = query.get("execution_profile", [MODULAR_PROFILE])
+            if set(query) - {"execution_profile"} or len(profile) != 1 or profile[0] != MODULAR_PROFILE:
                 self._json(422, {"error": {"code": "catalog.profile", "path": "/execution_profile", "message": "Unsupported execution profile"}})
                 return
             self._json(200, registry_for_profile(profile[0]).catalog)
         elif path == "/api/capabilities":
             from friskoli_cad.standards_export import standards_capabilities
+            catalog = modular_registry().catalog
             capabilities = {
-                "api_version": "0.2.0", "workspace_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0", "0.7.0"],
-                "catalog_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0"], "execution_semantics": "legacy-explicit-v1",
-                "execution_profiles": [LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'],
-                "design": {"design_version": "0.3.0", "design_versions": ["0.1.0", "0.2.0", "0.3.0"],
-                           "evaluation_version": "0.1.0", "package_version": "0.1.0",
-                           "execution_profiles": [CHEMOTAXIS_PROFILE, "modular-spatial-v1"], "max_runs": 32,
-                           "request_bytes": MAX_DESIGN_REQUEST_BYTES, "standards": standards_capabilities()},
-                "biological_assemblies": {"assembly_versions": ["0.1.0"], "extract": True, "apply": True},
-                "project_versions": ["0.1.0", "0.2.0", "0.3.0", "0.4.0", "0.5.0", "0.6.0"], "replay_versions": ["0.1.0"],
-                "execution": {"mode": "synchronous", "pause": False, "resume": False, "partial_results": False},
-                "limits": {"request_bytes": MAX_REQUEST_BYTES, "cells": MAX_VIEW_CELLS,
-                           "xy_tiles": MAX_VIEW_TILES, "replay_values": MAX_REPLAY_VALUES, "steps": MAX_STEPS,
-                           "replay_cell_frames": MAX_REPLAY_CELL_FRAMES, "replay_bytes": MAX_REPLAY_BYTES},
-                "placeables": [{"kind": item["kind"], "module": item["initializer"]["module"]}
-                               for item in default_registry().catalog["objects"]],
-                "placeable_profiles": {profile: [item["initializer"]["module"]
-                    for item in registry_for_profile(profile).catalog["objects"]]
-                    for profile in (LEGACY_PROFILE, PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1')},
+                'api_version': '0.2.0', 'workspace_versions': ['0.7.0'],
+                'catalog_versions': ['0.5.0'], 'execution_semantics': MODULAR_PROFILE,
+                'execution_profiles': [MODULAR_PROFILE], 'project_versions': ['0.6.0'], 'replay_versions': ['0.1.0'],
+                'design': {'design_version': '0.3.0', 'design_versions': ['0.2.0', '0.3.0'],
+                    'evaluation_version': '0.1.0', 'package_version': '0.1.0', 'execution_profiles': [MODULAR_PROFILE],
+                    'max_runs': 32, 'request_bytes': MAX_DESIGN_REQUEST_BYTES, 'standards': standards_capabilities()},
+                'biological_assemblies': {'assembly_versions': ['0.1.0'], 'extract': True, 'apply': True},
+                'execution': {'mode': 'synchronous', 'pause': False, 'resume': False, 'partial_results': False},
+                'limits': {'request_bytes': MAX_REQUEST_BYTES, 'cells': MAX_VIEW_CELLS, 'xy_tiles': MAX_VIEW_TILES,
+                    'replay_values': MAX_REPLAY_VALUES, 'steps': MAX_STEPS, 'replay_cell_frames': MAX_REPLAY_CELL_FRAMES, 'replay_bytes': MAX_REPLAY_BYTES},
+                'placeables': [{'kind': item['kind'], 'module': item['initializer']['module']} for item in catalog['objects']],
+                'placeable_profiles': {MODULAR_PROFILE: [item['initializer']['module'] for item in catalog['objects']]},
             }
-            service = getattr(self.server, "task_service", None)
+            service = getattr(self.server, 'task_service', None)
             if service is not None:
-                capabilities["task_preflight"] = {"href": "/api/runs/preflight", "method": "POST"}
-                capabilities["task"] = service.capabilities()
-                capabilities['task_longrun_profiles'] = {profile:service.capabilities(profile, '0.6.0') for profile in
-                    (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE)}
-                try:
-                    capabilities['task_longrun_profiles']['modular-spatial-v1'] = service.capabilities('modular-spatial-v1', '0.6.0')
-                except (TaskError, ImportError):
-                    pass
-                capabilities["task_profiles"] = {PTS_PROFILE: service.capabilities(PTS_PROFILE),
-                                                  SPATIAL_PROFILE: service.capabilities(SPATIAL_PROFILE),
-                                                  CHEMOTAXIS_PROFILE: service.capabilities(CHEMOTAXIS_PROFILE)}
+                task_capabilities = service.capabilities()
+                capabilities.update(task_preflight={'href': '/api/runs/preflight', 'method': 'POST'}, task=task_capabilities,
+                    task_longrun_profiles={MODULAR_PROFILE: task_capabilities}, task_profiles={MODULAR_PROFILE: task_capabilities})
             self._json(200, capabilities)
         elif path == "/api/assemblies":
             from friskoli_cad.assembly_library import official_assemblies
@@ -699,7 +670,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--task-dir", type=Path, default=default_task_directory(),
                         help="persistent task database and result directory (outside the repository by default)")
-    parser.add_argument("--sync-only", action="store_true", help="serve only the legacy synchronous API")
+    parser.add_argument("--sync-only", action="store_true", help="serve only the bounded synchronous API")
     parser.add_argument("--task-wall-time-s", type=_positive_seconds, default=1800,
                         help="asynchronous task wall-time limit in seconds (default: 1800; ignored with --sync-only)")
     parser.add_argument("--task-voxels", type=_positive_seconds, default=262144,

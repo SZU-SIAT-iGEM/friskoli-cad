@@ -1,7 +1,7 @@
 from friskoli_cad.assembly_library import official_assemblies
 from friskoli_cad.biological_assemblies import validate_assembly
 from friskoli_cad.protocol.task_validation import sha256
-from friskoli_cad.engine.chemotaxis_templates import template_catalog
+from friskoli_cad.engine.presets import template_catalog
 
 
 def test_reviewed_templates_are_real_validated_assemblies_and_isolated():

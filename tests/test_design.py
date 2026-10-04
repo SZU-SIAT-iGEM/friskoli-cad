@@ -4,7 +4,7 @@ import json
 import pytest
 
 from friskoli_cad.design import DesignError, generate_design
-from friskoli_cad.engine.chemotaxis_templates import make_example
+from friskoli_cad.engine.presets import make_example
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.protocol.task_validation import canonical_bytes, canonical_loads
 
@@ -27,9 +27,9 @@ def node(project, nid):
     return next(n for n in project['graph']['nodes'] if n['id'] == nid)
 
 
-@pytest.mark.parametrize('example', ['pts-a', 'pts-b', 'mcp', 'control', 'materials', 'lifecycle'])
+@pytest.mark.parametrize('example', ['center-pts-a-small','center-pts-b-small','chip-mcp-gradient','modular-foundation'])
 def test_all_six_templates_have_real_candidates_and_fixed_control(example):
-    baseline = make_example('chemotaxis-' + example)
+    baseline = make_example(example)
     before = deepcopy(baseline)
     result = generate_design(baseline, settings(), brief())
     assert baseline == before == result['baseline_project']
@@ -60,7 +60,7 @@ def test_all_six_templates_have_real_candidates_and_fixed_control(example):
 
 
 def test_control_is_not_scanned_even_when_original_signal_bias_is_variable():
-    project = make_example('chemotaxis-control')
+    project = make_example('modular-foundation')
     b = brief(variables=[{'node_id': 'motor_signal', 'parameter': 'bias', 'values': [.1, .9]}])
     result = generate_design(project, settings(), b)
     assert [node(c['project'], 'motor_signal')['parameters']['bias']['value'] for c in result['candidates'][:2]] == [.1, .9]
@@ -75,7 +75,7 @@ def constraint(kind, value, **updates):
 
 
 def test_hard_constraints_soft_penalty_and_incomplete_design_are_explicit():
-    project = make_example('chemotaxis-pts-a')
+    project = make_example('center-pts-a-small')
     result = generate_design(project, settings(), brief(constraints=[constraint('hard', 6)]))
     assert result['budget']['feasible_candidate_count'] == 1
     assert not result['budget']['recommendable']
@@ -88,7 +88,7 @@ def test_hard_constraints_soft_penalty_and_incomplete_design_are_explicit():
 
 @pytest.mark.parametrize('cause', ['hard', 'range', 'coupled'])
 def test_no_feasible_candidates_returns_empty_and_reasons(cause):
-    project = make_example('chemotaxis-pts-a')
+    project = make_example('center-pts-a-small')
     b = brief()
     if cause == 'hard':
         b['constraints'] = [constraint('hard', -1)]
@@ -105,7 +105,7 @@ def test_no_feasible_candidates_returns_empty_and_reasons(cause):
 
 
 def test_generate_never_advances_simulation(monkeypatch):
-    from friskoli_cad.engine.chemotaxis_runtime import ChemotaxisSimulation
+    from friskoli_cad.engine.modular_runtime import ModularSimulation as ChemotaxisSimulation
     monkeypatch.setattr(ChemotaxisSimulation, 'step', lambda *args: pytest.fail('Design generation advanced simulation'))
     assert generate_design(make_example(), settings(), brief())['budget']['candidate_count'] == 3
 
@@ -162,7 +162,7 @@ def test_invalid_baseline_and_unreachable_parameter_bindings_are_rejected():
 
 
 def test_resource_estimate_matches_task_admission_and_excludes_oversize_output():
-    project = make_example('chemotaxis-lifecycle')
+    project = make_example('modular-material')
     normal = generate_design(project, settings(), brief())
     assert normal['budget']['max_memory_bytes'] >= 64 * 1024 * 1024
     assert normal['budget']['total_output_bytes'] == sum(e['output_bytes'] for e in normal['budget']['resource_estimates']) * 3
@@ -186,7 +186,7 @@ def test_returned_design_matches_registered_schemas_with_long_id():
 
 def test_task05_settings_preserved_and_full_field_budget_uses_configured_limits():
     from friskoli_cad.tasks import TaskLimits
-    project = make_example('chemotaxis-pts-a')
+    project = make_example('center-pts-a-small')
     project['domain'].update(geometry='volume', counts_xyz=[256]*3, spacing_um_xyz=[.5]*3)
     config = {'dt_s': .001, 'steps': 2, 'backend': 'numpy-cpu', 'field_stride_xyz': [8]*3,
               'include_fields': True, 'include_final_fields': True, 'frame_every_steps': 2}

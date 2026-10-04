@@ -17,10 +17,6 @@ def adapters(project):
     profile = project.get('execution_profile')
     if profile == 'modular-spatial-v1':
         from .modular_checkpoint import export_checkpoint, restore_checkpoint
-    elif profile == 'chemotaxis-spatial-v1':
-        from .chemotaxis_checkpoint import export_checkpoint, restore_checkpoint
-    elif profile == 'spatial-unbiased-v1':
-        from .spatial_checkpoint import export_checkpoint, restore_checkpoint
     else:
         raise ValueError('This profile does not declare complete checkpoint support')
     return export_checkpoint, restore_checkpoint

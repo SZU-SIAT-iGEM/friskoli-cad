@@ -9,12 +9,12 @@ from friskoli_cad.design import generate_design, DesignError
 from friskoli_cad.design_delivery import (export_design_package, import_design_package,
     design_report_csv, design_report_html, DesignPackageError)
 from friskoli_cad.design_evaluation import evaluate_design
-from friskoli_cad.engine.chemotaxis_templates import make_example
+from friskoli_cad.engine.presets import make_example
 
 
 @pytest.fixture(scope='module')
 def prototype():
-    project = make_example('chemotaxis-pts-a')
+    project = make_example('center-pts-a-small')
     brief = {'brief_version': '0.2.0', 'id': 'evaluated', 'name': 'Exploratory design',
              'goal': {'metric': 'mean_displacement_um', 'direction': 'maximize', 'group_id': 'cells'},
              'chassis': {'name': 'Example', 'provenance': 'Constructed; not calibrated'},
@@ -31,7 +31,7 @@ def prototype():
         for seed in brief['seeds']:
             frozen = deepcopy(candidate['project'])
             frozen['random_seed'] = seed
-            execution = {'dt_s': .05, 'steps': 2, 'seed': seed, 'backend': 'numpy-cpu', 'semantics': 'chemotaxis-spatial-v1'}
+            execution = {'dt_s': .05, 'steps': 2, 'seed': seed, 'backend': 'numpy-cpu', 'semantics': 'modular-spatial-v1'}
             output = {'frame_every_steps': 1, 'include_fields': True, 'observables': list(frozen['run']['channels'])}
             runs.append({'id': f'{index}-{seed}', 'status': 'completed', 'completeness': 'complete',
                          'design_ref': {'design_id': design['id'], 'candidate_id': candidate['id']},

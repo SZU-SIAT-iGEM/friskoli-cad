@@ -64,7 +64,7 @@ export function renderComparison(root,variants,t) {
   root.replaceChildren();root.append(el('p',t('comparisonStatistics'),'task-note'),el('p','95% t intervals assume independent approximately normal run-level replicates. Missing values suppress the interval. Cell counts and repeated frames are not replicates; n=1 has no interval.','task-note'));
   for(const variant of variants) {
     root.append(el('strong',`${variant.label} · seed ${variant.seeds.join(', ')}`));
-    const provenance=el('details','','metric-definitions');provenance.append(el('summary',variant.provenance),el('pre',JSON.stringify(variant.versionLock??{kind:'legacy-sync'},null,2),'parameter-record'));root.append(provenance);
+    const provenance=el('details','','metric-definitions');provenance.append(el('summary',variant.provenance),el('pre',JSON.stringify(variant.versionLock??{kind:'synchronous'},null,2),'parameter-record'));root.append(provenance);
     for(const [group,metrics] of Object.entries(variant.byGroup)) {
       root.append(el('p',group));
       table(root,[t('metric'), 'n', t('mean'), 'SD','95% t interval'],METRIC_KEYS.map(key=>[t(key),metrics[key].n,fmt(metrics[key].mean),fmt(metrics[key].sd),metrics[key].interval?`${fmt(metrics[key].interval.lower)} … ${fmt(metrics[key].interval.upper)}`:'—']));

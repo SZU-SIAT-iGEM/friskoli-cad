@@ -183,9 +183,7 @@ def diagnose_project(project, registry=None, *, backend='numpy-cpu', resource_ch
         _geometry(project, record)
     else:
         record('geometry', 'skipped', 'diagnostic.prerequisite', '/groups', 'Repair project structure before geometric checks')
-    if project.get('execution_profile') != 'modular-spatial-v1':
-        record('planner', 'not_applicable', 'planner.legacy', '/execution_profile', 'Historical profile keeps its declared scheduler')
-    elif graph_valid:
+    if graph_valid:
         from .engine.compiler import compile_graph
         from .engine.execution_planner import plan_execution
         try:
@@ -220,7 +218,7 @@ def _geometry(project, record):
     lengths = [n * d for n, d in zip(project['domain']['counts_xyz'], project['domain']['spacing_um_xyz'])]
     seen = set()
     capsules, cell_paths = [], {}
-    spatial = project.get('execution_profile') in ('spatial-unbiased-v1', 'chemotaxis-spatial-v1', 'modular-spatial-v1')
+    spatial = project.get('execution_profile') == 'modular-spatial-v1'
     for owner, group in project['groups'].items():
         path = '/groups/' + owner.replace('~', '~0').replace('/', '~1')
         count = len(group['ids'])

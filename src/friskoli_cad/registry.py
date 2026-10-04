@@ -25,7 +25,7 @@ def module_key(manifest):
     return f"{manifest['id']}@{manifest['version']}"
 
 
-def _port_contract(port, semantics="legacy-explicit-v1"):
+def _port_contract(port, semantics="modular-spatial-v1"):
     prefix = port["shape"].split(".")[0]
     result = {"shape": port["shape"], "quantity": port["quantity"], "unit": port["unit"],
             "entity": {"cell": "owner.cells", "field": "world.grid", "source": "owner.source",
@@ -39,7 +39,9 @@ def _port_contract(port, semantics="legacy-explicit-v1"):
 
 
 def validate_catalog(catalog):
-    _check_schema({"0.2.0": "catalog-v0.2", "0.3.0": "catalog-v0.3", "0.4.0": "catalog-v0.4", "0.5.0": "catalog-v0.5"}.get(catalog.get("catalog_version"), "catalog"), catalog)
+    if catalog.get('catalog_version') != '0.5.0' or catalog.get('execution_semantics') != 'modular-spatial-v1':
+        raise ProtocolError('catalog.version', '/catalog_version', 'Only modular Catalog 0.5.0 is supported.')
+    _check_schema('catalog-v0.5', catalog)
     manifests = {}
     for index, manifest in enumerate(catalog["modules"]):
         validate_manifest(manifest)
@@ -144,9 +146,10 @@ def validate_catalog(catalog):
     return catalog
 
 
-def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
-    catalog = {"catalog_version": {"legacy-explicit-v1": "0.1.0", "conservative-pts-bulk-v1": "0.2.0", "spatial-unbiased-v1": "0.3.0", "chemotaxis-spatial-v1": "0.4.0", "modular-spatial-v1": "0.5.0"}[execution_semantics], "module_protocol_versions": ["0.1.0", "0.2.0"] if execution_semantics == "modular-spatial-v1" else ["0.1.0"],
-               "execution_semantics": execution_semantics, "modules": [], "entries": [], "objects": []}
+def build_catalog(modules, execution_semantics="modular-spatial-v1"):
+    if execution_semantics != 'modular-spatial-v1':
+        raise ProtocolError('catalog.execution_semantics', '/', 'Only modular-spatial-v1 is supported.')
+    catalog = {'catalog_version': '0.5.0', 'module_protocol_versions': ['0.2.0'], 'execution_semantics': execution_semantics, 'modules': [], 'entries': [], 'objects': []}
     for module in modules:
         manifest = deepcopy(dict(module.manifest))
         declaration = deepcopy(getattr(module, "declaration", {}))
@@ -161,7 +164,7 @@ def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
                  "ports": {side: {name: _port_contract(port, execution_semantics) for name, port in manifest[side].items()}
                            for side in ("inputs", "outputs")}}
         entry.update(declaration)
-        if execution_semantics in ("spatial-unbiased-v1", "chemotaxis-spatial-v1", "modular-spatial-v1"):
+        if execution_semantics == "modular-spatial-v1":
             for field in ("provides_roles", "default_parameters"):
                 if hasattr(module, field):
                     entry[field] = deepcopy(getattr(module, field))
@@ -184,14 +187,9 @@ def build_catalog(modules, execution_semantics="legacy-explicit-v1"):
         catalog["modules"].append(manifest)
         catalog["entries"].append(entry)
         catalog["objects"].extend(deepcopy(getattr(module, "object_types", [])))
-    if execution_semantics in ('chemotaxis-spatial-v1', 'modular-spatial-v1'):
-        from .engine.observations import DEFINITIONS
-        from .engine.chemotaxis_templates import template_catalog
-        catalog['observations'] = deepcopy(DEFINITIONS)
-        if execution_semantics == 'chemotaxis-spatial-v1':
-            catalog['templates'] = template_catalog()
-        else:
-            from .engine.science_extensions import modular_template_catalog
-            available = {module_key(manifest) for manifest in catalog['modules']}
-            catalog['templates'] = [item for item in modular_template_catalog() if set(item['module_keys']) <= available]
+    from .engine.observations import DEFINITIONS
+    from .engine.science_extensions import modular_template_catalog
+    catalog['observations'] = deepcopy(DEFINITIONS)
+    available = {module_key(manifest) for manifest in catalog['modules']}
+    catalog['templates'] = [item for item in modular_template_catalog() if set(item['module_keys']) <= available]
     return validate_catalog(catalog)

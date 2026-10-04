@@ -14,7 +14,7 @@ export function registerModules(payload) {
 }
 
 export function resolveGraph(graph, modules, {allowUnknown = false} = {}) {
-  if (!['0.1.0','0.2.0'].includes(graph?.protocol_version) || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
+  if (graph?.protocol_version !== '0.2.0' || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges)) {
     throw new Error('Invalid behavior graph');
   }
   const nodes = graph.nodes.map(node => {
@@ -33,14 +33,10 @@ export function nextHit(ids, previousId) {
 
 // Registry versioning does not change the executable module manifest version.
 export function registerCatalog(payload) {
-  const known = (payload?.catalog_version === '0.1.0' && payload.execution_semantics === 'legacy-explicit-v1') ||
-    (payload?.catalog_version === '0.2.0' && payload.execution_semantics === 'conservative-pts-bulk-v1') ||
-    (payload?.catalog_version === '0.3.0' && payload.execution_semantics === 'spatial-unbiased-v1') ||
-    (payload?.catalog_version === '0.4.0' && payload.execution_semantics === 'chemotaxis-spatial-v1') ||
-    (payload?.catalog_version === '0.5.0' && payload.execution_semantics === 'modular-spatial-v1');
+  const known = payload?.catalog_version === '0.5.0' && payload.execution_semantics === 'modular-spatial-v1';
   if (!known ||
       !Array.isArray(payload.entries) || !Array.isArray(payload.objects)) throw new Error('Unsupported registry catalog');
-  const modules = registerModules({protocol_version:'0.1.0', modules:payload.modules});
+  const modules = registerModules({protocol_version:'0.2.0', modules:payload.modules});
   const seen = new Set();
   for (const entry of payload.entries) {
     if (!modules.has(entry.key) || seen.has(entry.key)) throw new Error('Invalid registry reference');

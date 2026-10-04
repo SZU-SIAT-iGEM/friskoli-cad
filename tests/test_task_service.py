@@ -22,13 +22,13 @@ from friskoli_cad.protocol.task_validation import _validator, sha256, canonical_
 
 
 def project():
-    return json.loads(files("friskoli_cad").joinpath("examples", "workspace_3d.project.json").read_text(encoding="utf-8"))
+    return json.loads(files("friskoli_cad").joinpath("examples", "modular_foundation.project.json").read_text(encoding="utf-8"))
 
 def submission(service, *, steps=3, dt=0.01):
     doc = project()
-    return {"task_contract_version": "0.1.0", "request_id": "request-1", "edit_revision": "edit-1",
+    return {"task_contract_version": "0.6.0", "request_id": "request-1", "edit_revision": "edit-1",
         "project": doc, "version_lock": service.version_lock(doc),
-        "execution": {"semantics": "legacy-explicit-v1", "backend": "numpy-cpu",
+        "execution": {"semantics": "modular-spatial-v1", "backend": "numpy-cpu",
                       "dt_s": dt, "steps": steps, "seed": 0},
         "output_plan": {"frame_every_steps": 1, "observables": list(doc["run"]["channels"]), "include_fields": False}}
 

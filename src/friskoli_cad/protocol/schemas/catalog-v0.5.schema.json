@@ -9,7 +9,6 @@
     },
     "module_protocol_versions": {
       "const": [
-        "0.1.0",
         "0.2.0"
       ]
     },
@@ -115,6 +114,9 @@
               "backend": {
                 "type": "string",
                 "minLength": 1
+              },
+              "include_fields": {
+                "type": "boolean"
               }
             }
           }

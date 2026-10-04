@@ -96,10 +96,10 @@ def test_empty_and_sphere_limit():
     compare(cells,[replace(c,position_um=(c.position_um[0]+.1,*c.position_um[1:])) for c in cells])
 
 
-@pytest.mark.parametrize('example',['foundation-pts-a','chemotaxis-lifecycle'])
+@pytest.mark.parametrize('example',['center-pts-a-small','modular-foundation'])
 def test_full_simulation_checkpoint_including_rng_matches_reference(example,monkeypatch):
-    from friskoli_cad.engine import spatial_runtime
-    from friskoli_cad.engine.chemotaxis_templates import make_example
+    from friskoli_cad.engine import modular_runtime as spatial_runtime
+    from friskoli_cad.engine.presets import make_example
     from friskoli_cad.replay_service import prepare_project
     project=make_example(example)
     monkeypatch.setattr(spatial_runtime,'guard_motion',lambda *args,**kwargs:guard_motion(*args,**kwargs,use_broad_phase=False))

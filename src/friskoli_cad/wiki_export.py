@@ -160,7 +160,7 @@ def build_wiki(native_bytes, output, *, download_url=None):
         viewer_catalog = {'purpose': 'Display adapters only, captured from export software; not historical scientific provenance.',
                           'profiles': {}, 'unavailable_profiles': []}
         for run in payload['runs']:
-            profile = run['project'].get('execution_profile', 'legacy-explicit-v1')
+            profile = run['project']['execution_profile']
             if profile in viewer_catalog['profiles'] or profile in viewer_catalog['unavailable_profiles']:
                 continue
             try:

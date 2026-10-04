@@ -330,7 +330,7 @@ class PackageStore:
 
     def extend_registry(self, registry, lock):
         from .engine.module_api import execution_contract
-        from .engine.runtime import ModuleRegistry
+        from .engine.module_registry import ModuleRegistry
         previews = self.verify_lock(lock)
         modules = [registry.get(m['id'], m['version']) for m in registry.manifests]
         known = {(m.manifest['id'], m.manifest['version']) for m in modules}

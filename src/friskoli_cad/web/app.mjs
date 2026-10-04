@@ -77,7 +77,7 @@ state.objects = new Map();
 state.registries = new Map();
 state.activeObject = null;
 state.comparison = new Set();
-const isSpatial = project => ['spatial-unbiased-v1','chemotaxis-spatial-v1','modular-spatial-v1'].includes(project?.execution_profile);
+const isSpatial = project => project?.execution_profile === 'modular-spatial-v1';
 const replayLength=()=>state.replay?.paged?.frame_count??state.replay?.snapshots.length??0;
 const replayIndex=()=>state.replay?.paged?.index??state.frameIndex;
 const stepLimit = () => executionStepLimit(state.capabilities, state.project);
@@ -271,7 +271,7 @@ function visibleProject() {
 function visibleEnvironment() {
   const project = visibleProject();
   if (!project) return [];
-  const registry = state.registries.get(project.execution_profile ?? 'legacy-explicit-v1');
+  const registry = state.registries.get(project.execution_profile ?? 'modular-spatial-v1');
   return environmentObjects(project,registry?.objects ?? state.objects,registry?.modules ?? state.modules,
     state.view === 'results' ? currentSnapshot()?.object_states ?? {} : null);
 }
@@ -465,7 +465,7 @@ function renderLeft() {
 }
 
 function renderTemplateSummary(container) {
-  const registry = state.registries.get(state.project.execution_profile ?? 'legacy-explicit-v1');
+  const registry = state.registries.get(state.project.execution_profile ?? 'modular-spatial-v1');
   if (!registry?.templates?.length) return;
   const details = el('details','template-overview'); details.open=true;
   details.append(el('summary','',t('templates')));
@@ -660,7 +660,7 @@ function renderExistingCells(root,block) {
 }
 
 function renderEnvironmentInspector(root,object) {
-  const project = visibleProject(), registry = state.registries.get(project.execution_profile ?? 'legacy-explicit-v1');
+  const project = visibleProject(), registry = state.registries.get(project.execution_profile ?? 'modular-spatial-v1');
   const manifest = (registry?.modules ?? state.modules).get(object.declaration.initializer.module);
   root.append(el('div','inspector-title',object.id),el('div','inspector-subtitle',t(object.declaration.label)));
   root.append(el('p','empty-message',t(object.kind === 'obstacle_box' ? 'obstacleScope' : object.kind === 'degradable_box' ? 'materialScope' : 'sourceScope')));
@@ -712,7 +712,7 @@ function renderCellInspector(root, cell) {
   }
   root.append(el('div', 'inspector-foot', t('history', { count: cellHistory(state.replay, cell.id).length })));
   const project=visibleProject();
-  if(project){const modules=state.registries.get(project.execution_profile??'legacy-explicit-v1')?.modules??state.modules;renderPopulationMechanisms(root,cell.group_id,{project,modules,readOnly:true});}
+  if(project){const modules=state.registries.get(project.execution_profile??'modular-spatial-v1')?.modules??state.modules;renderPopulationMechanisms(root,cell.group_id,{project,modules,readOnly:true});}
 }
 
 function renderDomainInspector(root) {
@@ -993,8 +993,8 @@ function renderComparisons() {
       exportButton.addEventListener('click',()=>{
         const rows=[['variant','version_lock','run_id','seed','group_id','statistic','n',...METRIC_KEYS]];
         for(const variant of variants){
-          for(const run of variant.runs)for(const [group,values] of Object.entries(run.replay.snapshots.at(-1).metrics.by_group))rows.push([variant.label,JSON.stringify(variant.versionLock??{kind:'legacy-sync'}),run.id,run.submission?.execution.seed??run.project.random_seed,group,'run',1,...METRIC_KEYS.map(key=>values[key]??'')]);
-          for(const [group,stats] of Object.entries(variant.byGroup))for(const kind of ['mean','sd'])rows.push([variant.label,JSON.stringify(variant.versionLock??{kind:'legacy-sync'}),'',variant.seeds.join(' '),group,kind,variant.runs.length,...METRIC_KEYS.map(key=>stats[key][kind]??'')]);
+          for(const run of variant.runs)for(const [group,values] of Object.entries(run.replay.snapshots.at(-1).metrics.by_group))rows.push([variant.label,JSON.stringify(variant.versionLock??{kind:'synchronous'}),run.id,run.submission?.execution.seed??run.project.random_seed,group,'run',1,...METRIC_KEYS.map(key=>values[key]??'')]);
+          for(const [group,stats] of Object.entries(variant.byGroup))for(const kind of ['mean','sd'])rows.push([variant.label,JSON.stringify(variant.versionLock??{kind:'synchronous'}),'',variant.seeds.join(' '),group,kind,variant.runs.length,...METRIC_KEYS.map(key=>stats[key][kind]??'')]);
         }
         download('comparison.csv',rows.map(row=>row.map(csvCell).join(',')).join('\n')+'\n','text/csv');
       });comparison.prepend(exportButton);
@@ -1225,16 +1225,8 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
   import(){
     const input=el('input');input.type='file';input.accept='.friskoli';input.addEventListener('change',async()=>{
       const file=input.files[0];if(!file)return;try{
-        if(file.size>100*1024*1024)throw new Error('Package exceeds 100 MiB');
-        const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
-        const payload=await designRequest('import',{archive_base64:btoa(binary)});
         if(state.project&&fingerprint()!==state.saved&&!confirm(t('replaceDraft')))return;
-        validateDesignDocument(payload.design);
-        if(!taskPersistence)throw new Error(taskPersistenceError??'Durable design archive is unavailable');
-        await taskPersistence.archive.savePackage(payload);
-        await loadProject(payload.workspace);state.designImported=true;state.design=payload.design;state.designBrief=structuredClone(payload.design.brief);
-        restoreDesignRuns(payload);
-        changed();setView('design');
+        await importNativeFile(file);
       }catch(error){state.designError=error.message;renderDesign();}
     });input.click();
   }
@@ -1450,7 +1442,7 @@ function renderManifest(root, manifest, node = null) {
   root.append(el('div', 'inspector-title', moduleName(manifest,currentLanguage())),
     el('div', 'inspector-subtitle', `${node?node.id+' · ':''}${manifest.id}@${manifest.version}`));
   const identity = section(root, t('module'));
-  kv(identity,currentLanguage()==='zh-CN'?'注册于执行规则':'Registered in profile',state.project.execution_profile??'legacy-explicit-v1');
+  kv(identity,currentLanguage()==='zh-CN'?'注册于执行规则':'Registered in profile',state.project.execution_profile??'modular-spatial-v1');
   kv(identity,currentLanguage()==='zh-CN'?'协议':'Protocol',manifest.protocol_version??'0.1.0');
   kv(identity, t('scope'), manifest.scope);
   kv(identity, t('phase'), String(manifest.phase));
@@ -1810,7 +1802,7 @@ function download(name, content, type = 'application/json') {
 async function loadProject(document,recommendedSettings=null) {
   if(recommendedSettings&&!document.workspace_format_version){const loaded=readWorkspace(document);loaded.settings={...loaded.settings,...structuredClone(recommendedSettings)};document=writeWorkspace(loaded);}
   const project = document.workspace_format_version ? document.project : document;
-  const profile = project?.execution_profile ?? 'legacy-explicit-v1';
+  const profile = project?.execution_profile ?? 'modular-spatial-v1';
   let registry = state.registries.get(profile);
   if(project.dependency_lock){const resolved=state.connected?await kernel.request('/api/catalog/project',{project}):workspaceSession.projectCatalog(project.dependency_lock);if(!resolved)throw Error('Project catalog unavailable offline');registry=registerCatalog(resolved.catalog);workspaceSession.cacheProjectCatalog(project.dependency_lock,resolved);state.capabilities=structuredClone(state.kernelCapabilities??state.capabilities);const capability=state.capabilities.task_longrun_profiles?.[profile];if(capability)capability.version_lock=resolved.version_lock;}else state.capabilities=structuredClone(state.kernelCapabilities??state.capabilities);
   if (!registry) throw new Error('Unsupported execution profile: ' + profile);
@@ -2050,7 +2042,7 @@ let fileReadGeneration = 0;
 const replaceAllowed = () => !state.project || fingerprint() === state.saved || confirm(t('replaceDraft'));
 function refreshWelcome() {
   let templates = $('welcome-templates');
-  if (!templates) { templates=el('div');templates.id='welcome-templates';$('welcome-spatial').after(templates); }
+  if (!templates) { templates=el('div');templates.id='welcome-templates';$('welcome-demo').after(templates); }
   templates.replaceChildren();
   for (const registry of state.registries.values()) for (const item of registry.templates ?? []) {
     const button=el('button','start-command'); button.type='button';
@@ -2062,8 +2054,6 @@ function refreshWelcome() {
   let recovery = false;
   try { recovery = Boolean(localStorage.getItem(RECOVERY_KEY)); } catch { /* storage unavailable */ }
   for (const button of $('welcome-dialog').querySelectorAll('.start-command')) button.disabled = welcomePending;
-  $('welcome-pts').disabled = welcomePending || !state.registries.has('conservative-pts-bulk-v1');
-  $('welcome-spatial').disabled = welcomePending || !state.registries.has('spatial-unbiased-v1');
   $('welcome-recover').disabled = welcomePending || !recovery;
   $('welcome-recovery-hint').dataset.i18n = recovery ? 'recoveryPresent' : 'recoveryAbsent';
   $('welcome-recovery-hint').textContent = t($('welcome-recovery-hint').dataset.i18n);
@@ -2118,9 +2108,6 @@ $('welcome-dialog').addEventListener('close', () => {
 $('welcome-open').addEventListener('click', () => chooseProjectFile(true));
 $('welcome-new').addEventListener('click', () => loadWelcome(() => blankProject(state.template)));
 $('welcome-demo').addEventListener('click', () => loadWelcome(() => state.template));
-$('welcome-registry').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/registry-readout')));
-$('welcome-pts').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/pts-bulk')));
-$('welcome-spatial').addEventListener('click', () => loadWelcome(() => kernel.request('/api/examples/spatial-baseline')));
 
 $('welcome-recover').addEventListener('click', () => loadWelcome(() => {
   const recovery = localStorage.getItem(RECOVERY_KEY);
@@ -2184,9 +2171,8 @@ for (const dialog of document.querySelectorAll('dialog')) {
 async function connectKernel({cold=false}={}) {
   const cache=workspaceSession.cachedCatalog();
   try{
-    const [legacy,template,capabilities]=await Promise.all([kernel.request('/api/catalog'),kernel.request('/api/example-project'),kernel.capabilities()]);
-    const registries={'legacy-explicit-v1':legacy};
-    for(const profile of capabilities.execution_profiles??[])if(profile!=='legacy-explicit-v1')registries[profile]=await kernel.request('/api/catalog?execution_profile='+encodeURIComponent(profile));
+    const [catalog,template,capabilities]=await Promise.all([kernel.request('/api/catalog'),kernel.request('/api/example-project'),kernel.capabilities()]);
+    const registries={'modular-spatial-v1':catalog};
     workspaceSession.cacheCatalog({registries,template,capabilities});
     installConnection({registries,template,capabilities},true,cold);
     if(state.project?.dependency_lock){const resolved=await kernel.request("/api/catalog/project",{project:state.project});workspaceSession.cacheProjectCatalog(state.project.dependency_lock,resolved);const registry=registerCatalog(resolved.catalog);state.modules=registry.modules;state.objects=registry.objects;const profile=state.capabilities.task_longrun_profiles?.[state.project.execution_profile];if(profile)profile.version_lock=resolved.version_lock;renderAll();}
@@ -2195,10 +2181,9 @@ async function connectKernel({cold=false}={}) {
 function installConnection(data,online,cold){
   state.registries=new Map(Object.entries(data.registries).map(([id,value])=>[id,registerCatalog(value)]));
   state.capabilities=structuredClone(data.capabilities);state.kernelCapabilities=structuredClone(data.capabilities);state.template=data.template;state.connected=online;
-  const registry=state.registries.get(state.project?.execution_profile??'legacy-explicit-v1');
+  const registry=state.registries.get(state.project?.execution_profile??'modular-spatial-v1');
   state.modules=registry.modules;state.objects=registry.objects;
   state.activeObject=availablePlaceables(state.modules,state.capabilities,state.objects,state.project).find(item=>item.status==='ready')?.id??null;
-  $('welcome-pts').disabled=!state.registries.has('conservative-pts-bulk-v1');
   if(cold){state.runs.push(...taskStore.restore());if(online)taskStore.start();showWelcome();}
   else {taskStore.start();if(state.project)renderAll();}
   updateRunButton();

@@ -2,9 +2,9 @@
   "openapi": "3.1.0",
   "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "info": {
-    "title": "Friskoli task API with explicit execution profiles",
+    "title": "Friskoli CAD first-release modular API",
     "version": "0.6.0",
-    "description": "Task 0.6 adds committed-boundary pause, immutable child resume, validated binary checkpoint import/export, explicit same-domain conservative migration, segmented binary arrays and paginated result indexes. It supports spatial, chemotaxis and modular profiles with a 4,320,000-step limit. Historical Task contracts 0.1\u20130.5 retain their original limits and behavior."
+    "description": "Only modular-spatial-v1, Project 0.6.0 and Task 0.6.0 execute. Historical projects/tasks/checkpoints are explicitly rejected."
   },
   "x-implementation-status": "implemented",
   "x-capabilities-extension": {
@@ -12,19 +12,19 @@
     "schema": {
       "anyOf": [
         {
-          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/TaskCapabilities"
+          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
         },
         {
-          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/TaskCapabilities"
+          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
         },
         {
-          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/TaskCapabilities"
+          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
         },
         {
-          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/TaskCapabilities"
+          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
         },
         {
-          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/TaskCapabilities"
+          "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
         },
         {
           "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
@@ -46,19 +46,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
@@ -75,19 +75,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
@@ -111,7 +111,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -121,7 +121,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -131,7 +131,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -141,7 +141,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -151,7 +151,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             },
@@ -170,7 +170,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -180,7 +180,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -204,19 +204,19 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
                     "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
@@ -252,19 +252,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
@@ -279,7 +279,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -289,7 +289,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -299,7 +299,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -309,7 +309,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -341,19 +341,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
@@ -370,19 +370,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Task"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
@@ -397,7 +397,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -407,7 +407,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -417,7 +417,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -427,7 +427,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -459,19 +459,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/EventPage"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/EventPage"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/EventPage"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/EventPage"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/EventPage"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
@@ -486,7 +486,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -496,7 +496,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -506,7 +506,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -516,7 +516,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -570,19 +570,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Submission"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Submission"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Submission"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Submission"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Submission"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
@@ -597,7 +597,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -607,7 +607,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -617,7 +617,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -627,7 +627,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -659,19 +659,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Manifest"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Manifest"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Manifest"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Manifest"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Manifest"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
@@ -686,7 +686,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -696,7 +696,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -706,7 +706,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -716,7 +716,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -726,7 +726,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -786,19 +786,19 @@
                 "schema": {
                   "anyOf": [
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/ChunkBody"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/ChunkBody"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/ChunkBody"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/ChunkBody"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
                     },
                     {
-                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/ChunkBody"
+                      "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
                     },
                     {
                       "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
@@ -813,7 +813,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -823,7 +823,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -833,7 +833,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -843,7 +843,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -863,19 +863,19 @@
               "schema": {
                 "anyOf": [
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
-                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Submission"
+                    "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
                   },
                   {
                     "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
@@ -968,7 +968,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -978,7 +978,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -988,7 +988,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -998,7 +998,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Error"
+                  "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
                 }
               }
             }
@@ -1316,6 +1316,102 @@
           }
         }
       }
+    },
+    "/api/capabilities": {
+      "get": {
+        "summary": "Read first-release capabilities",
+        "responses": {
+          "200": {
+            "description": "Modular data declarations"
+          }
+        }
+      }
+    },
+    "/api/catalog": {
+      "get": {
+        "summary": "Read first-release catalog",
+        "responses": {
+          "200": {
+            "description": "Modular data declarations"
+          }
+        }
+      }
+    },
+    "/api/example-project": {
+      "get": {
+        "summary": "Read first-release example-project",
+        "responses": {
+          "200": {
+            "description": "Modular data declarations"
+          }
+        }
+      }
+    },
+    "/api/examples/{example_id}": {
+      "get": {
+        "summary": "Read first-release {example_id}",
+        "responses": {
+          "200": {
+            "description": "Modular data declarations"
+          }
+        }
+      }
+    },
+    "/api/assemblies": {
+      "get": {
+        "summary": "Read first-release assemblies",
+        "responses": {
+          "200": {
+            "description": "Modular data declarations"
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/export": {
+      "get": {
+        "summary": "Export a completed Task 0.6 with its frozen input, metrics and arrays",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete portable research result"
+          },
+          "409": {
+            "description": "Task is not complete"
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/package": {
+      "get": {
+        "summary": "Export a completed Task 0.6 with its frozen input, metrics and arrays",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete portable research result"
+          },
+          "409": {
+            "description": "Task is not complete"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1323,19 +1419,19 @@
       "CompiledPlan": {
         "anyOf": [
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/CompiledPlan"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/CompiledPlan"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/CompiledPlan"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/CompiledPlan"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/CompiledPlan"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           },
           {
             "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
@@ -1345,16 +1441,16 @@
       "Provenance": {
         "anyOf": [
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/Provenance"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/Provenance"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/Provenance"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/Provenance"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
           },
           {
             "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
@@ -1364,19 +1460,19 @@
       "ExecutionSupport": {
         "anyOf": [
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.1.schema.json#/$defs/ExecutionSupport"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.2.schema.json#/$defs/ExecutionSupport"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.3.schema.json#/$defs/ExecutionSupport"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.4.schema.json#/$defs/ExecutionSupport"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
           },
           {
-            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.5.schema.json#/$defs/ExecutionSupport"
+            "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
           },
           {
             "$ref": "../../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"

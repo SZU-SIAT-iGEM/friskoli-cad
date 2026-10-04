@@ -2,7 +2,7 @@
 from functools import lru_cache
 from copy import deepcopy
 from .biological_assemblies import extract_assembly
-from .engine.chemotaxis_templates import make_example, template_catalog
+from .engine.presets import make_example, template_catalog
 from .protocol.task_validation import sha256
 
 

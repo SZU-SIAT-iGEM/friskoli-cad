@@ -1,0 +1,209 @@
+{
+  "title": "MCP–MeAsp chip benchmark with a linear initial field and finite boundary exchange",
+  "categories": {
+    "measured": "measured by the team",
+    "literature": "supported by literature, as relayed by the team's GPT-assisted check; the cited papers are not recorded here",
+    "fitted": "fitted to team data",
+    "assumed": "assumption, design choice or numerical setting"
+  },
+  "parameters": {
+    "length_um": {
+      "value": 400.0,
+      "unit": "um",
+      "category": "assumed",
+      "source": "The planned chip is 4000 um long; shortened 10x so a run finishes in minutes. The 800 x 200 um cross-section is kept because the wall-to-volume ratio sets how often cells meet a wall."
+    },
+    "width_um": {
+      "value": 800.0,
+      "unit": "um",
+      "category": "assumed",
+      "source": "Team chip design (0.8 mm). No measured cross-section yet."
+    },
+    "height_um": {
+      "value": 200.0,
+      "unit": "um",
+      "category": "assumed",
+      "source": "Team chip design (0.2 mm). No measured cross-section yet."
+    },
+    "grid_spacing_um": {
+      "value": 20.0,
+      "unit": "um",
+      "category": "assumed",
+      "source": "Numerical grid choice. Finite boundary relaxation and diffusion evolve the field; refinement is part of first-release checks."
+    },
+    "low_uM": {
+      "value": 0.0,
+      "unit": "uM",
+      "category": "assumed",
+      "source": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+    },
+    "high_uM": {
+      "value": 200.0,
+      "unit": "uM",
+      "category": "assumed",
+      "source": "Team plan: 200 uM MeAsp on the high side (200 uM/mm over 1 mm in the planned chip; here 0.25 uM/um over 800 um)."
+    },
+    "background_uM": {
+      "value": 100.0,
+      "unit": "uM",
+      "category": "assumed",
+      "source": "Zero-gradient control: the mean of the gradient condition, so receptors see the same average concentration."
+    },
+    "diffusivity_um2_s": {
+      "value": 800.0,
+      "unit": "um^2/s",
+      "category": "assumed",
+      "source": "Team estimate 8e-6 cm^2/s without a recorded primary source. Diffusion remains active; boundary exchange is finite."
+    },
+    "boundary_rate_s": {
+      "value": 5.0,
+      "unit": "1/s",
+      "category": "assumed",
+      "source": "Numerical device: first-order relaxation rate that holds the outermost grid layer at the side-channel concentration. No physical counterpart."
+    },
+    "n_cells": {
+      "value": 200,
+      "unit": "1",
+      "category": "assumed",
+      "source": "Simulation size. Cells do not interact chemically here, so density does not change the result except through collisions."
+    },
+    "cell_length_um": {
+      "value": 2.0,
+      "unit": "um",
+      "category": "assumed",
+      "source": "Typical E. coli size; constructed example value, not measured."
+    },
+    "cell_diameter_um": {
+      "value": 0.8,
+      "unit": "um",
+      "category": "assumed",
+      "source": "Typical E. coli size; constructed example value, not measured."
+    },
+    "speed_um_s": {
+      "value": 20.0,
+      "unit": "um/s",
+      "category": "literature",
+      "source": "GPT-assisted literature check (2026-10-03): swimming speed about 20-25 um/s. Citation not recorded."
+    },
+    "minimum_tumble_rate_s": {
+      "value": 0.1,
+      "unit": "1/s",
+      "category": "assumed",
+      "source": "Constructed bound. The literature check found no experimental basis for this bound; unstimulated tumble rate is about 1/s."
+    },
+    "maximum_tumble_rate_s": {
+      "value": 3.0,
+      "unit": "1/s",
+      "category": "assumed",
+      "source": "Constructed bound, same status as the minimum."
+    },
+    "tumble_mode": {
+      "value": "instant",
+      "unit": "",
+      "category": "assumed",
+      "source": "Tumble is an instantaneous reorientation; the dwell time is not modelled."
+    },
+    "turn_kernel": {
+      "value": "isotropic",
+      "unit": "",
+      "category": "assumed",
+      "source": "New heading uniform on the sphere. Model A's source uses a mean turn angle near 68 deg (docs/science/n3-mechanisms.md). Open question."
+    },
+    "tumble_duration_s": {
+      "value": 0.1,
+      "unit": "s",
+      "category": "assumed",
+      "source": "Unused while tumble_mode is instant."
+    },
+    "cluster_size": {
+      "value": 6.0,
+      "unit": "1",
+      "category": "literature",
+      "source": "GPT-assisted literature check (2026-10-03): fits near 6 reported; effective size depends on the model and receptor state. Citation not recorded."
+    },
+    "inactive_binding_um": {
+      "value": 18.0,
+      "unit": "uM",
+      "category": "literature",
+      "source": "GPT-assisted literature check (2026-10-03): about 18-20 uM for Tar-MeAsp, attributed to a 2013 quantitative chemotaxis modelling study. Do not mix with a 20/500 uM set from another study. Citation not recorded."
+    },
+    "active_binding_um": {
+      "value": 3000.0,
+      "unit": "uM",
+      "category": "literature",
+      "source": "GPT-assisted literature check (2026-10-03): 500-3000 uM depending on the model; paired here with Ki=18 uM, which the check attributed to the same study. Citation not recorded."
+    },
+    "methylation_energy": {
+      "value": 1.0,
+      "unit": "1",
+      "category": "assumed",
+      "source": "Reduced units: methylation m is dimensionless and adaptation_rate_s is defined in these units."
+    },
+    "methylation_reference": {
+      "value": 0.0,
+      "unit": "1",
+      "category": "assumed",
+      "source": "Gauge choice for the reduced methylation coordinate."
+    },
+    "baseline_activity": {
+      "value": 0.3333333333333333,
+      "unit": "1",
+      "category": "assumed",
+      "source": "Model baseline assumption (about 1/3), judged acceptable by the literature check."
+    },
+    "adaptation_rate_s": {
+      "value": 0.3,
+      "unit": "1/s",
+      "category": "assumed",
+      "source": "Not fitted. Chosen because the single-cell small-signal kernel (positive lobe peaks near 1.3 s, negative lobe decays over about 3 s) is closest to Segall et al. 1986 (about 1 s positive, 3 s negative, as relayed by the literature check). Scanned at 0.1, 0.3 and 1."
+    },
+    "chea_total_um": {
+      "value": 1.0,
+      "unit": "uM",
+      "category": "assumed",
+      "source": "Constructed (N3 example)."
+    },
+    "chey_total_um": {
+      "value": 10.0,
+      "unit": "uM",
+      "category": "assumed",
+      "source": "Constructed (N3 example)."
+    },
+    "chey_phos_per_um_s": {
+      "value": 1.0,
+      "unit": "1/(uM*s)",
+      "category": "assumed",
+      "source": "Constructed (N3 example)."
+    },
+    "chey_dephos_s": {
+      "value": 1.0,
+      "unit": "1/s",
+      "category": "assumed",
+      "source": "Constructed (N3 example)."
+    },
+    "motor_hill": {
+      "value": 4.0,
+      "unit": "1",
+      "category": "assumed",
+      "source": "Constructed. Models A and B use h about 10.3 and KM about 3.1 uM (Cluzel 2000). The difference is unresolved."
+    },
+    "motor_half_um": {
+      "value": 3.5,
+      "unit": "uM",
+      "category": "assumed",
+      "source": "Constructed, see motor_hill."
+    },
+    "dt_s": {
+      "value": 0.1,
+      "unit": "s",
+      "category": "assumed",
+      "source": "Numerical setting. Earlier 8-seed comparison was reported by the team; not treated as validation in this release."
+    },
+    "duration_s": {
+      "value": 300.0,
+      "unit": "s",
+      "category": "assumed",
+      "source": "Observation window."
+    }
+  }
+}

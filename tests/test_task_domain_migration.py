@@ -6,7 +6,7 @@ from test_modular_science import project, add
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.engine.task_migration import DOMAIN_MAPPING, MAPPING, migrate_simulation, map_field_value
 from friskoli_cad.engine.task_checkpoint import save_task_checkpoint, load_task_checkpoint
-from friskoli_cad.engine.runtime import GridDomain
+from friskoli_cad.engine.core import GridDomain
 
 
 def expanded(p):

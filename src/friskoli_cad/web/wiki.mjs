@@ -52,7 +52,7 @@ function selectCell(id){selectedCell=id||null;selectedObject=null;$('objects').v
 function selectObject(id){selectedObject=id||null;selectedCell=null;$('cells').value='';$('objects').value=id??'';draw();if(matchMedia('(max-width:960px)').matches)openPanel('inspector',true);}
 function selectRun(value,position=0){
   pause();run=data.runs[Number(value)];index=Math.max(0,Math.min(position,run.replay.snapshots.length-1));selectedCell=null;selectedObject=null;lastCellIds='';$('runs').value=String(value);
-  const profile=run.project.execution_profile??'legacy-explicit-v1';registry={modules:new Map(),objects:new Map()};try{if(catalog.profiles[profile])registry=registerCatalog(catalog.profiles[profile]);}catch{setStatus('显示适配器不可读；仍保留菌体与原始记录。');}
+  const profile=run.project.execution_profile??'modular-spatial-v1';registry={modules:new Map(),objects:new Map()};try{if(catalog.profiles[profile])registry=registerCatalog(catalog.profiles[profile]);}catch{setStatus('显示适配器不可读；仍保留菌体与原始记录。');}
   viewport.setDomain(run.project.domain);viewport.setMode('results');viewport.setTool('orbit');$('pan').setAttribute('aria-pressed','false');
   $('frame').max=run.replay.snapshots.length-1;for(const id of controls)$(id).disabled=false;
   $('field').replaceChildren(new Option('不显示场',''));for(const [id,field] of Object.entries(frame().concentrations))$('field').add(new Option(`${id} · ${field.unit??'单位未记录'}`,id));sliceOptions();

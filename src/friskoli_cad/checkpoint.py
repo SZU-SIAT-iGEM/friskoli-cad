@@ -1,7 +1,7 @@
-"""Run or continue the spatial profile and atomically save its complete state.
+"""Run or continue the modular profile and atomically save its complete state.
 
-Usage: python -m friskoli_cad.checkpoint --example --steps 20 --dt 0.1 --output state.json
-       python -m friskoli_cad.checkpoint --resume state.json --steps 30 --dt 0.1 --output next.json
+Usage: python -m friskoli_cad.checkpoint --example --steps 20 --dt 0.1 --output state.zip
+       python -m friskoli_cad.checkpoint --resume state.zip --steps 30 --dt 0.1 --output next.zip
 """
 from __future__ import annotations
 
@@ -12,10 +12,8 @@ import math
 from pathlib import Path
 import sys
 
-from friskoli_cad.engine.checkpoint_io import (
-    CheckpointFileError, MAX_CHECKPOINT_BYTES, load_checkpoint, save_checkpoint,
-)
-from friskoli_cad.engine.profiles import SPATIAL_PROFILE, CHEMOTAXIS_PROFILE
+from friskoli_cad.engine.task_checkpoint import load_task_checkpoint, save_task_checkpoint
+MAX_CHECKPOINT_BYTES = 128 * 1024 * 1024
 from friskoli_cad.engine.core import SimulationError
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.protocol import ProtocolError
@@ -43,10 +41,10 @@ def _dt(value):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Save/restore a committed spatial simulation; this does not resume a server task.")
+    parser = argparse.ArgumentParser(description="Save/restore a committed modular simulation; this does not resume a server task.")
     inputs = parser.add_mutually_exclusive_group(required=True)
-    inputs.add_argument("--example", action="store_true", help="Use the bundled spatial example")
-    inputs.add_argument("--project", type=Path, help="Start from a spatial Project 0.4 or scientific Project 0.5 JSON file")
+    inputs.add_argument("--example", action="store_true", help="Use the bundled modular foundation example")
+    inputs.add_argument("--project", type=Path, help="Start from a modular Project 0.6 JSON file")
     inputs.add_argument("--resume", type=Path, help="Continue a self-contained checkpoint file")
     parser.add_argument("--steps", required=True, type=_steps, help="Additional numerical steps (0..10000)")
     parser.add_argument("--dt", required=True, type=_dt, help="Numerical step in seconds; use the same dt sequence for exact comparison")
@@ -55,28 +53,27 @@ def main(argv=None):
     args = parser.parse_args(argv)
     try:
         if args.output.exists() and not args.overwrite:
-            raise CheckpointFileError("checkpoint.exists", "Output exists; choose a new path or use --overwrite", args.output)
+            raise ValueError("Output exists; choose a new path or use --overwrite")
         if args.resume:
-            sim = load_checkpoint(args.resume)
+            sim = load_task_checkpoint(args.resume, maximum=MAX_CHECKPOINT_BYTES)
         else:
             if args.example:
-                raw = files("friskoli_cad").joinpath("examples", "spatial_baseline.project.json").read_bytes()
+                raw = files("friskoli_cad").joinpath("examples", "modular_foundation.project.json").read_bytes()
             else:
                 with args.project.open("rb") as stream:
                     raw = stream.read(MAX_CHECKPOINT_BYTES + 1)
             if len(raw) > MAX_CHECKPOINT_BYTES:
-                raise CheckpointFileError("checkpoint.too_large", "Project exceeds the file byte limit", args.project)
+                raise ValueError("Project exceeds the file byte limit")
             project = strict_json_loads(raw)
-            if type(project) is not dict or project.get("execution_profile") not in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE):
-                raise CheckpointFileError("checkpoint.profile", "This checkpoint command supports spatial-unbiased-v1 and chemotaxis-spatial-v1")
             sim = simulation_from_project(project)
         start = {"frame_index": sim.frame_index, "time_s": sim.time_s}
         for _ in range(args.steps):
             sim.step(args.dt)
-        receipt = save_checkpoint(sim, args.output, overwrite=args.overwrite)
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        receipt = save_task_checkpoint(sim, args.output, maximum=MAX_CHECKPOINT_BYTES)
         print(json.dumps({"status": "saved", "resumed": bool(args.resume),
             "start": start, "additional_steps": args.steps, "checkpoint": receipt}, ensure_ascii=True))
-    except (CheckpointFileError, SimulationError, ProtocolError, TaskValidationError, OSError) as error:
+    except (ValueError, SimulationError, ProtocolError, TaskValidationError, OSError) as error:
         print(json.dumps({"status": "failed", "error": {"code": getattr(error, "code", "checkpoint.invalid"),
             "path": str(getattr(error, "path", "")), "message": str(error)}}, ensure_ascii=True), file=sys.stderr)
         return 1

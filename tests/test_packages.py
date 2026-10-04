@@ -137,7 +137,7 @@ class PackageTests(unittest.TestCase):
         code = CODE.replace("return ModuleProposal({'value': 17.}, {})",
                             "return ModuleProposal({'motor_bias': __import__('numpy').full(len(context.entity_ids), .234)}, {})")
         self.install(bundle(code=code, module_manifest=manifest))
-        project = json.loads((Path(__file__).parents[1] / 'src/friskoli_cad/examples/foundation_control.project.json').read_text(encoding='utf-8'))
+        project = json.loads((Path(__file__).parents[1] / 'src/friskoli_cad/examples/modular_foundation.project.json').read_text(encoding='utf-8'))
         project.update(project_version='0.6.0', execution_profile='modular-spatial-v1', dependency_lock=self.store.resolve({'demo': '1.0.0'}))
         project['graph']['protocol_version'] = '0.2.0'
         node = next(n for n in project['graph']['nodes'] if n['id'] == 'motor_signal')

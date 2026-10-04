@@ -1,7 +1,7 @@
 """Executable adapters: each registered mechanism owns its numerical proposal.
 
-The modular runner dispatches contracts, never module identifiers. Existing
-profile implementations and their numerical timing are left unchanged.
+The modular runner dispatches contracts, never module identifiers. Each
+mechanism explicitly declares its stage, effects, reads and state policies.
 """
 from copy import deepcopy
 from dataclasses import fields

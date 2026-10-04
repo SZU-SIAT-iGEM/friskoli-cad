@@ -10,10 +10,8 @@ from friskoli_cad.engine.modular_checkpoint import restore_checkpoint, export_ch
 
 
 def project():
-    p = json.loads(files('friskoli_cad').joinpath('examples/foundation_control.project.json').read_text(encoding='utf8'))
-    p.update(project_version='0.6.0', execution_profile='modular-spatial-v1')
-    p['graph']['protocol_version'] = '0.2.0'
-    return p
+    from pathlib import Path
+    return json.loads((Path(__file__).parent / 'fixtures/platform.project.json').read_text(encoding='utf-8'))
 
 
 def add(p, identifier, values, *, nid=None, population=False):
@@ -223,7 +221,7 @@ def test_modular_maintenance_zero_arrival_rounding_can_continue():
 def test_catalytic_output_cannot_be_spent_twice_but_observer_is_allowed():
     from friskoli_cad.engine.science_extensions import make_modular_example, ScientificModule
     from friskoli_cad.engine.modular_runtime import validate_modular_project
-    from friskoli_cad.engine.runtime import ModuleRegistry
+    from friskoli_cad.engine.module_registry import ModuleRegistry
     from friskoli_cad.engine.module_api import ModuleProposal
     p = make_modular_example('modular-material')
     reaction = next(n for n in p['graph']['nodes'] if n['module_id'] == 'reaction.cellulose_hydrolysis')

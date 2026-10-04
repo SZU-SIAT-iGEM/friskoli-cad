@@ -10,7 +10,7 @@ from friskoli_cad.engine.local_fields import (
     local_field_state_from_dict, local_field_state_to_dict,
     make_local_field_state, propose_local_field_step, sample_local_fields,
 )
-from friskoli_cad.engine.runtime import GridDomain, SimulationError
+from friskoli_cad.engine.core import GridDomain, SimulationError
 
 
 class LocalFieldsTests(unittest.TestCase):

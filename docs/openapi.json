@@ -1,21 +1,1070 @@
 {
   "openapi": "3.1.0",
+  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
   "info": {
-    "title": "Friskoli local workspace API",
-    "version": "0.2.0"
+    "title": "Friskoli CAD first-release modular API",
+    "version": "0.6.0",
+    "description": "Only modular-spatial-v1, Project 0.6.0 and Task 0.6.0 execute. Historical projects/tasks/checkpoints are explicitly rejected."
   },
-  "servers": [
-    {
-      "url": "http://127.0.0.1:8765"
+  "x-implementation-status": "implemented",
+  "x-capabilities-extension": {
+    "description": "Legacy capabilities remain in task; task_profiles explicitly describes all additional execution profiles with exact contract versions and immutable implementation locks.",
+    "schema": {
+      "anyOf": [
+        {
+          "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
+        },
+        {
+          "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
+        },
+        {
+          "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
+        },
+        {
+          "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
+        },
+        {
+          "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
+        },
+        {
+          "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/TaskCapabilities"
+        }
+      ]
     }
-  ],
+  },
   "paths": {
-    "/api/modules": {
-      "get": {
-        "summary": "Exact backend module manifests",
+    "/api/runs": {
+      "post": {
+        "operationId": "submitRun",
+        "description": "Validate and estimate before admission. Atomically persist immutable input, task and idempotency record before 202. Same key and canonical content returns the original task (200), including terminal tasks. request_id is tracing only.",
+        "x-implementation-status": "implemented",
         "responses": {
           "200": {
-            "description": "Exact backend module manifests",
+            "description": "Existing task reused without execution.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "New durable queued task.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    }
+                  ]
+                }
+              }
+            },
+            "headers": {
+              "Location": {
+                "description": "Run status resource.",
+                "schema": {
+                  "type": "string",
+                  "format": "uri-reference"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, duplicate members, missing headers or non-finite number.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Same retained idempotency key with different canonical content.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request, estimated memory or output exceeds published bounds; no task created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid project, unsupported contract/backend/semantics, unresolved lock or validation issues; no task created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Queue capacity reached; no task created. Retry-After gives seconds.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            },
+            "headers": {
+              "Retry-After": {
+                "description": "Minimum delay in seconds.",
+                "schema": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Durable admission unavailable; no runnable task acknowledged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request Content-Type is not application/json; no task created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{1,128}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getRun",
+        "description": "Read committed status after reconnect; this does not resume computation.",
+        "x-implementation-status": "implemented",
+        "responses": {
+          "200": {
+            "description": "Current durable task snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown run or unpublished chunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Retained resource or event cursor has expired; no automatic resubmission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Task service or durable storage is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/cancel": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "cancelRun",
+        "description": "Idempotent cancellation. Queued runs transition immediately; running runs set cancel_requested until a committed step boundary. First durable terminal transition wins. Repeat requests on a terminal task return that unchanged task.",
+        "x-implementation-status": "implemented",
+        "responses": {
+          "200": {
+            "description": "Terminal task, including immediate queued cancellation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "202": {
+            "description": "Running task with cancel_requested=true; poll for terminal outcome.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Task"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown run or unpublished chunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Retained resource or event cursor has expired; no automatic resubmission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Task service or durable storage is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/events": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getRunEvents",
+        "description": "Return durable ordered events strictly after after. Deduplicate by (run_id, seq). Expired cursor (including zero after pruning) is 410; future cursor is 400.",
+        "x-implementation-status": "implemented",
+        "responses": {
+          "200": {
+            "description": "Bounded page; next_after is last returned seq or unchanged input cursor for an empty page.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/EventPage"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown run or unpublished chunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Retained resource or event cursor has expired; no automatic resubmission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Task service or durable storage is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "Defaults to published event_page_size; larger values are rejected with 400."
+          }
+        ]
+      }
+    },
+    "/api/runs/{id}/input": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getRunInput",
+        "description": "Return immutable accepted submission including original request_id and edit_revision. Client edits never replace this snapshot.",
+        "x-implementation-status": "implemented",
+        "responses": {
+          "200": {
+            "description": "Accepted input snapshot.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown run or unpublished chunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Retained resource or event cursor has expired; no automatic resubmission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Task service or durable storage is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/result": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getRunResult",
+        "description": "Return only an atomically published manifest and chunks. No published chunks means 409; complete requires the completed terminal transaction. Published manifests also contain the exact compiled_plan and admission provenance; these do not create separate plan or provenance endpoints.",
+        "x-implementation-status": "implemented",
+        "responses": {
+          "200": {
+            "description": "Published partial or complete manifest.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Manifest"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown run or unpublished chunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "No published chunks yet, including queued or cancelled-before-start tasks.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Retained resource or event cursor has expired; no automatic resubmission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Task service or durable storage is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1024
+            }
+          }
+        ]
+      }
+    },
+    "/api/runs/{id}/chunks/{chunk}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        },
+        {
+          "name": "chunk",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "getRunChunk",
+        "description": "Fetch immutable published JSON frame chunk. Field/metric formats require a separately versioned extension. IDs never name filesystem paths.",
+        "x-implementation-status": "implemented",
+        "responses": {
+          "200": {
+            "description": "Published JSON chunk; checksum and byte length are declared by the manifest.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
+                    },
+                    {
+                      "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ChunkBody"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed request or cursor.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown run or unpublished chunk.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "410": {
+            "description": "Retained resource or event cursor has expired; no automatic resubmission.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Task service or durable storage is unavailable.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/preflight": {
+      "post": {
+        "summary": "Validate the exact submission without creating a task",
+        "description": "Uses the same static validation and output budget rules as POST /api/runs. Accepts the full Submission including output_plan. No task, idempotency key or queue slot is reserved. Does not guarantee storage availability or runtime completion. Task submission repeats validation. Numerical inputs and output choices are never changed.",
+        "x-implementation-status": "implemented",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  },
+                  {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Static checks passed. Output estimates include the complete requested sampling plan; growth models reserve up to their supported population limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "valid",
+                    "issues",
+                    "frames",
+                    "cells",
+                    "voxels",
+                    "estimate",
+                    "limits"
+                  ],
+                  "properties": {
+                    "valid": {
+                      "const": true
+                    },
+                    "issues": {
+                      "type": "array",
+                      "maxItems": 0
+                    },
+                    "frames": {
+                      "type": "integer",
+                      "minimum": 2
+                    },
+                    "cells": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "voxels": {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    "estimate": {
+                      "type": "object",
+                      "required": [
+                        "cells",
+                        "voxels",
+                        "steps",
+                        "memory_bytes",
+                        "output_bytes"
+                      ],
+                      "properties": {
+                        "cells": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "voxels": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "steps": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "memory_bytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "output_bytes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "limits": {
+                      "type": "object",
+                      "description": "Effective limits of the selected execution profile, as in TaskCapabilities.limits."
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Malformed JSON, duplicate members, missing headers or non-finite number.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request, estimated memory or output exceeds published bounds; no task created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid project, unsupported contract/backend/semantics, unresolved lock or validation issues; no task created.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Durable admission unavailable; no runnable task acknowledged.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/artifacts/{artifact_id}": {
+      "get": {
+        "summary": "Download a checksum-verified full-resolution final NPZ field artifact",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "artifact_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "const": "final_fields"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Uncompressed NPZ, float64 fields plus metadata_utf8; no pickle.",
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown or unpublished artifact"
+          },
+          "503": {
+            "description": "Published artifact failed integrity verification"
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/pause": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "pauseRun",
+        "responses": {
+          "200": {
+            "description": "Checked resource or accepted operation",
             "content": {
               "application/json": {
                 "schema": {
@@ -23,188 +1072,343 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation rejection; original task remains unchanged"
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/resume": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "resumeRun",
+        "responses": {
+          "200": {
+            "description": "Checked resource or accepted operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation rejection; original task remains unchanged"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "request_id",
+                  "edit_revision"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "request_id": {
+                    "type": "string"
+                  },
+                  "edit_revision": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/migration-preview": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "migration_previewRun",
+        "responses": {
+          "200": {
+            "description": "Checked resource or accepted operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation rejection; original task remains unchanged"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/MigrationPreviewRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/migrate": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "post": {
+        "operationId": "migrateRun",
+        "responses": {
+          "200": {
+            "description": "Checked resource or accepted operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation rejection; original task remains unchanged"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/MigrationRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/{id}/checkpoint": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_-]{1,128}$"
+          }
+        }
+      ],
+      "get": {
+        "operationId": "downloadCheckpoint",
+        "responses": {
+          "200": {
+            "description": "Bounded full checkpoint ZIP",
+            "content": {
+              "application/vnd.friskoli.checkpoint+zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runs/checkpoint-import": {
+      "post": {
+        "operationId": "stageCheckpoint",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.friskoli.checkpoint+zip": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checked resource or accepted operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation rejection; original task remains unchanged"
+          }
+        }
+      }
+    },
+    "/api/runs/from-checkpoint": {
+      "post": {
+        "operationId": "importCheckpointRun",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "checkpoint_id",
+                  "submission"
+                ],
+                "properties": {
+                  "checkpoint_id": {
+                    "type": "string"
+                  },
+                  "submission": {
+                    "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Submission"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Checked resource or accepted operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation rejection; original task remains unchanged"
           }
         }
       }
     },
     "/api/capabilities": {
       "get": {
-        "summary": "Supported formats, execution features and limits",
+        "summary": "Read first-release capabilities",
         "responses": {
           "200": {
-            "description": "Supported formats, execution features and limits",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/example-project": {
-      "get": {
-        "summary": "Illustrative 3D project",
-        "responses": {
-          "200": {
-            "description": "Illustrative 3D project",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/validate": {
-      "post": {
-        "summary": "Initialize and check; never advance simulation time",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RunRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Initialize and check; never advance simulation time",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Malformed request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Resource limit",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid project or numerical failure",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/replay": {
-      "post": {
-        "summary": "Run the submitted immutable project; returns only a complete replay",
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RunRequest"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "Run the submitted immutable project; returns only a complete replay",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Malformed request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "Resource limit",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Invalid project or numerical failure",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                }
-              }
-            }
+            "description": "Modular data declarations"
           }
         }
       }
     },
     "/api/catalog": {
       "get": {
-        "summary": "Validated registry declarations and exact runtime manifests",
+        "summary": "Read first-release catalog",
         "responses": {
           "200": {
-            "description": "Validated registry declarations and exact runtime manifests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../src/friskoli_cad/protocol/schemas/catalog.schema.json"
-                }
-              }
-            }
+            "description": "Modular data declarations"
           }
         }
       }
     },
-    "/api/examples/registry-readout": {
+    "/api/example-project": {
       "get": {
-        "summary": "Constructed geometry and concentration sampling example",
+        "summary": "Read first-release example-project",
         "responses": {
           "200": {
-            "description": "Constructed geometry and concentration sampling example",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "../src/friskoli_cad/protocol/schemas/project-v0.2.schema.json"
-                }
-              }
+            "description": "Modular data declarations"
+          }
+        }
+      }
+    },
+    "/api/examples/{example_id}": {
+      "get": {
+        "summary": "Read first-release {example_id}",
+        "responses": {
+          "200": {
+            "description": "Modular data declarations"
+          }
+        }
+      }
+    },
+    "/api/assemblies": {
+      "get": {
+        "summary": "Read first-release assemblies",
+        "responses": {
+          "200": {
+            "description": "Modular data declarations"
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/export": {
+      "get": {
+        "summary": "Export a completed Task 0.6 with its frozen input, metrics and arrays",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
             }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete portable research result"
+          },
+          "409": {
+            "description": "Task is not complete"
+          }
+        }
+      }
+    },
+    "/api/runs/{run_id}/package": {
+      "get": {
+        "summary": "Export a completed Task 0.6 with its frozen input, metrics and arrays",
+        "parameters": [
+          {
+            "name": "run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Complete portable research result"
+          },
+          "409": {
+            "description": "Task is not complete"
           }
         }
       }
@@ -212,62 +1416,78 @@
   },
   "components": {
     "schemas": {
-      "RunRequest": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": [
-          "project",
-          "dt_s",
-          "steps"
-        ],
-        "properties": {
-          "project": {
-            "type": "object"
+      "CompiledPlan": {
+        "anyOf": [
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           },
-          "dt_s": {
-            "type": "number",
-            "exclusiveMinimum": 0
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           },
-          "steps": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 10000,
-            "description": "Total numerical steps. Synchronous replay also enforces cumulative field, cell-frame and serialized-byte limits published in capabilities; async clients use the complete Submission with /api/runs/preflight."
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           },
-          "request_id": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 128
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/CompiledPlan"
           }
-        }
+        ]
       },
-      "Error": {
-        "type": "object",
-        "required": [
-          "error"
-        ],
-        "properties": {
-          "error": {
-            "type": "object",
-            "required": [
-              "code",
-              "path",
-              "message"
-            ],
-            "properties": {
-              "code": {
-                "type": "string"
-              },
-              "path": {
-                "type": "string"
-              },
-              "message": {
-                "type": "string"
-              }
-            }
+      "Provenance": {
+        "anyOf": [
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/Provenance"
           }
-        }
+        ]
+      },
+      "ExecutionSupport": {
+        "anyOf": [
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
+          },
+          {
+            "$ref": "../src/friskoli_cad/protocol/schemas/task-v0.6.schema.json#/$defs/ExecutionSupport"
+          }
+        ]
       }
     }
-  }
+  },
+  "x-preflight-capability": {
+    "location": "GET /api/capabilities top-level task_preflight",
+    "value": {
+      "href": "/api/runs/preflight",
+      "method": "POST"
+    },
+    "description": "Only present when asynchronous task service is enabled. Existing TaskCapabilities schemas and task contract versions remain unchanged."
+  },
+  "x-task-0.6-guide": "../task-contract-0.6.md"
 }

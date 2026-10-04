@@ -6,10 +6,10 @@ export function availablePlaceables(modules, capabilities = null, objects = new 
   return [...objects.values()].map(object => {
     const supported = (object.kind === 'population' && object.initializer.adapter === 'population.block@1') || isEnvironmentObject(object);
     const present = [object.initializer.module, ...object.initializer.data_modules].every(key => modules.has(key));
-    const profile = project?.execution_profile ?? 'legacy-explicit-v1';
+    const profile = project?.execution_profile ?? 'modular-spatial-v1';
     const enabled = !capabilities || (capabilities.placeable_profiles?.[profile] ?
       capabilities.placeable_profiles[profile].includes(object.initializer.module) :
-      profile === 'legacy-explicit-v1' && capabilities.placeables?.some(p => p.kind === object.kind && p.module === object.initializer.module));
+      profile === 'modular-spatial-v1' && capabilities.placeables?.some(p => p.kind === object.kind && p.module === object.initializer.module));
     const exhausted = ['local_source','degradable_box'].includes(object.kind) && project && !Object.keys(project.species).length;
     const required = (object.initializer.requirements ?? []).every(requirement => modules.has(requirement.default_module) ||
       project && roleProviders(project,modules,requirement).length);

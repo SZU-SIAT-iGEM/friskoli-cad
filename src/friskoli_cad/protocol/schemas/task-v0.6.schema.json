@@ -73,8 +73,28 @@
       }
     },
     "Error": {
-      "$ref": "task-v0.1.schema.json#/$defs/Error",
-      "description": "Shared transport errors retain 0.1.0, including errors before a project/profile can be identified."
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "task_contract_version",
+        "issues"
+      ],
+      "properties": {
+        "task_contract_version": {
+          "const": "0.6.0"
+        },
+        "request_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Issue"
+          },
+          "minItems": 1
+        }
+      }
     },
     "Lock": {
       "type": "object",
@@ -139,26 +159,7 @@
           "maxLength": 128
         },
         "project": {
-          "oneOf": [
-            {
-              "$ref": "project.schema.json"
-            },
-            {
-              "$ref": "project-v0.2.schema.json"
-            },
-            {
-              "$ref": "project-v0.3.schema.json"
-            },
-            {
-              "$ref": "project-v0.4.schema.json"
-            },
-            {
-              "$ref": "project-v0.5.schema.json"
-            },
-            {
-              "$ref": "project-v0.6.schema.json"
-            }
-          ]
+          "$ref": "project-v0.6.schema.json"
         },
         "version_lock": {
           "$ref": "#/$defs/Lock"
@@ -176,10 +177,6 @@
           "properties": {
             "semantics": {
               "enum": [
-                "legacy-explicit-v1",
-                "conservative-pts-bulk-v1",
-                "spatial-unbiased-v1",
-                "chemotaxis-spatial-v1",
                 "modular-spatial-v1"
               ]
             },
@@ -1331,10 +1328,6 @@
       "properties": {
         "semantics": {
           "enum": [
-            "legacy-explicit-v1",
-            "conservative-pts-bulk-v1",
-            "spatial-unbiased-v1",
-            "chemotaxis-spatial-v1",
             "modular-spatial-v1"
           ]
         },
@@ -1505,55 +1498,39 @@
       }
     },
     "CompiledPlan": {
-      "oneOf": [
-        {
-          "$ref": "task-v0.1.schema.json#/$defs/CompiledPlan"
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "plan_version",
+        "graph_id",
+        "execution_semantics",
+        "nodes",
+        "schedule",
+        "execution_plan"
+      ],
+      "properties": {
+        "plan_version": {
+          "const": "0.6.0"
         },
-        {
-          "$ref": "task-v0.2.schema.json#/$defs/CompiledPlan"
+        "graph_id": {
+          "type": "string"
         },
-        {
-          "$ref": "task-v0.3.schema.json#/$defs/CompiledPlan"
+        "execution_semantics": {
+          "const": "modular-spatial-v1"
         },
-        {
-          "$ref": "task-v0.4.schema.json#/$defs/CompiledPlan"
-        },
-        {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "plan_version",
-            "graph_id",
-            "execution_semantics",
-            "nodes",
-            "schedule",
-            "execution_plan"
-          ],
-          "properties": {
-            "plan_version": {
-              "const": "0.6.0"
-            },
-            "graph_id": {
-              "type": "string"
-            },
-            "execution_semantics": {
-              "const": "modular-spatial-v1"
-            },
-            "nodes": {
-              "type": "array",
-              "items": {
-                "$ref": "#/$defs/PlanNode"
-              }
-            },
-            "schedule": {
-              "type": "object"
-            },
-            "execution_plan": {
-              "type": "object"
-            }
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PlanNode"
           }
+        },
+        "schedule": {
+          "type": "object"
+        },
+        "execution_plan": {
+          "type": "object"
         }
-      ]
+      }
     },
     "Provenance": {
       "type": "object",
@@ -1691,14 +1668,7 @@
           "minLength": 1
         },
         "frame": {
-          "oneOf": [
-            {
-              "$ref": "frame.schema.json"
-            },
-            {
-              "$ref": "frame-v0.2.schema.json"
-            }
-          ]
+          "$ref": "frame-v0.2.schema.json"
         },
         "concentrations": {
           "type": "object",
@@ -1835,7 +1805,7 @@
       "description": "Field keys match active species; values_zyx matches field_domain, whose counts divide computation counts by field_stride_xyz and whose spacing multiplies by that stride. object_states is required for spatial profiles; metrics/lifecycle_details for chemotaxis."
     },
     "CommonError": {
-      "$ref": "task-v0.1.schema.json#/$defs/Error"
+      "$ref": "#/$defs/Error"
     },
     "Metrics": {
       "type": "object",

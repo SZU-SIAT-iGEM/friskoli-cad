@@ -9,7 +9,7 @@ const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
 
 const nonempty = v => typeof v === 'string' && v.trim().length > 0;
 export function validateDesignBrief(brief) {
-  const metrics=['mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s'];
+  const metrics=METRIC_KEYS.slice(2);
   if (!brief || !['0.1.0','0.2.0','0.3.0'].includes(brief.brief_version) || !nonempty(brief.id) || !nonempty(brief.name) ||
     !metrics.includes(brief.goal?.metric) || !['maximize','minimize'].includes(brief.goal?.direction) || !nonempty(brief.goal?.group_id) ||
     !nonempty(brief.chassis?.name) || !nonempty(brief.chassis?.provenance) || !Array.isArray(brief.variables) || !brief.variables.length ||
@@ -39,21 +39,15 @@ export function validateDesignDocument(design) {
 
 export function readWorkspace(document) {
   const version = document?.workspace_format_version;
-  if (version && !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.6.0', WORKSPACE_VERSION].includes(version)) throw new Error('Unsupported workspace version');
+  if (version && version !== WORKSPACE_VERSION) throw new Error('Unsupported workspace version');
   const project = structuredClone(version ? document.project : document);
-  if (!project || !['0.1.0', '0.2.0', '0.3.0', '0.4.0', '0.5.0', '0.6.0'].includes(project.project_version) || typeof project.id !== 'string' ||
-      (project.project_version === '0.3.0' && project.execution_profile !== 'conservative-pts-bulk-v1') ||
-      (project.project_version === '0.4.0' && (project.execution_profile !== 'spatial-unbiased-v1' ||
-        !Number.isSafeInteger(project.random_seed) || project.random_seed < 0)) ||
-      (project.project_version === '0.5.0' && (project.execution_profile !== 'chemotaxis-spatial-v1' ||
-        !Number.isSafeInteger(project.random_seed) || project.random_seed < 0)) ||
-      (project.project_version === '0.6.0' && project.execution_profile !== 'modular-spatial-v1') ||
-      (!['0.3.0','0.4.0','0.5.0','0.6.0'].includes(project.project_version) && project.execution_profile !== undefined) ||
+  if (!project || project.project_version !== '0.6.0' || project.execution_profile !== 'modular-spatial-v1' || typeof project.id !== 'string' ||
+      !Number.isSafeInteger(project.random_seed) || project.random_seed < 0 ||
       !vector(project.domain?.counts_xyz, true) || !project.domain.counts_xyz.every(Number.isInteger) ||
       !vector(project.domain.spacing_um_xyz, true) || !['thin_layer', 'volume'].includes(project.domain.geometry) ||
       !project.groups || !project.species || !project.controls || !Array.isArray(project.graph?.nodes) ||
       !Array.isArray(project.graph?.edges) || !Array.isArray(project.run?.groups) || !project.run.channels ||
-      !['0.1.0','0.2.0'].includes(project.graph.protocol_version) || project.run.protocol_version !== '0.1.0') throw new Error('Invalid project structure');
+      project.graph.protocol_version !== '0.2.0' || project.run.protocol_version !== '0.1.0') throw new Error('Only modular Project 0.6 / Workspace 0.7 is supported; check project structure');
   const nodeIds = new Set();
   for (const node of project.graph.nodes) {
     if (!node || typeof node.id !== 'string' || nodeIds.has(node.id) || typeof node.module_id !== 'string' ||
@@ -99,11 +93,11 @@ export function readWorkspace(document) {
   const layout = structuredClone(document.graph_layout ?? {});
   for (const point of Object.values(layout)) if (![point.x, point.y].every(n => Number.isFinite(n) && n >= 0 && n <= 100000) ||
       (point.collapsed !== undefined && typeof point.collapsed !== 'boolean')) throw new Error('Invalid graph layout');
-  const settings = structuredClone(document.run_settings ?? (project.project_version === '0.5.0' ? {dt_s:.05,steps:200} : { dt_s: .5, steps: 8 }));
-  if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isSafeInteger(settings.steps) || settings.steps < 1 || settings.steps > (version === WORKSPACE_VERSION ? 4320000 : 10000)) throw new Error('Invalid run settings');
+  const settings = structuredClone(document.run_settings ?? {dt_s:.1,steps:20,frame_every_steps:1,include_fields:true});
+  if (!Number.isFinite(settings.dt_s) || settings.dt_s <= 0 || !Number.isSafeInteger(settings.steps) || settings.steps < 1 || settings.steps > 4320000) throw new Error('Invalid run settings');
   if (settings.seed !== undefined && (!Number.isSafeInteger(settings.seed) || settings.seed < 0)) throw new Error('Invalid execution seed');
   if (settings.include_fields !== undefined && typeof settings.include_fields !== 'boolean') throw new Error('Invalid field output setting');
-  if (settings.frame_every_steps !== undefined && (!Number.isSafeInteger(settings.frame_every_steps) || settings.frame_every_steps < 1 || settings.frame_every_steps > (version === WORKSPACE_VERSION ? 4320000 : 10000))) throw new Error('Invalid frame interval');
+  if (settings.frame_every_steps !== undefined && (!Number.isSafeInteger(settings.frame_every_steps) || settings.frame_every_steps < 1 || settings.frame_every_steps > 4320000)) throw new Error('Invalid frame interval');
   if(settings.backend!==undefined&&!['numpy-cpu','numpy-cupy-cuda'].includes(settings.backend))throw Error('Invalid execution backend');
   if(settings.include_final_fields!==undefined&&typeof settings.include_final_fields!=='boolean')throw Error('Invalid final field setting');
   if(settings.field_stride_xyz!==undefined&&(!Array.isArray(settings.field_stride_xyz)||settings.field_stride_xyz.length!==3||settings.field_stride_xyz.some((s,i)=>!Number.isSafeInteger(s)||s<1||project.domain.counts_xyz[i]%s)))throw Error('Invalid field preview stride');

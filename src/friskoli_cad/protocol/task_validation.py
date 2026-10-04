@@ -19,9 +19,9 @@ from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 import rfc8785
 
-VERSION = "0.1.0"
+VERSION = "0.6.0"
 MAX_SAFE_INTEGER = (1 << 53) - 1
-_SCHEMA_NAME = "task-v0.1.schema.json"
+_SCHEMA_NAME = "task-v0.6.schema.json"
 _FORMATS = FormatChecker()
 
 
@@ -212,7 +212,7 @@ def sha256(obj: Any) -> str:
 @lru_cache(maxsize=16)
 def _validator(definition: str, version: str = VERSION) -> Draft202012Validator:
     folder = files("friskoli_cad.protocol").joinpath("schemas")
-    schema_name = {VERSION: _SCHEMA_NAME, "0.2.0": "task-v0.2.schema.json", "0.3.0": "task-v0.3.schema.json", "0.4.0": "task-v0.4.schema.json", "0.5.0": "task-v0.5.schema.json", "0.6.0": "task-v0.6.schema.json"}.get(version)
+    schema_name = _SCHEMA_NAME if version == VERSION else None
     if schema_name is None:
         _fail("task.version", "Unsupported task contract version.", "/task_contract_version")
     schema = json.loads(folder.joinpath(schema_name).read_text(encoding="utf-8"))

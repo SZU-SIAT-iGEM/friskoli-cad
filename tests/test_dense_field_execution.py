@@ -12,8 +12,8 @@ from friskoli_cad.engine.local_fields import (
     local_field_state_from_dict, local_field_state_to_dict,
     make_local_field_state, propose_local_field_step,
 )
-from friskoli_cad.engine.pts_runtime import _freeze
-from friskoli_cad.engine.runtime import GridDomain
+from friskoli_cad.engine.module_api import freeze as _freeze
+from friskoli_cad.engine.core import GridDomain
 
 
 def test_dense_fields_own_immutable_storage_and_survive_checkpoint():

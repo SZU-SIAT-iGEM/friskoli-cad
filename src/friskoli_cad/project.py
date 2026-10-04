@@ -64,15 +64,11 @@ class ControlSchedule:
         return self.changes[index][1], next_change
 
 
-@lru_cache(maxsize=6)
+@lru_cache(maxsize=1)
 def _project_validator(version: str) -> Draft202012Validator:
-    schema_file = {"0.1.0": "project.schema.json", "0.2.0": "project-v0.2.schema.json", "0.3.0": "project-v0.3.schema.json", "0.4.0": "project-v0.4.schema.json", "0.5.0": "project-v0.5.schema.json", "0.6.0": "project-v0.6.schema.json"}.get(version)
-    if schema_file is None:
-        _fail("project.version", "/project_version", f"unsupported project version {version}")
-    schema = json.loads(
-        files("friskoli_cad.protocol").joinpath("schemas", schema_file)
-        .read_text(encoding="utf-8")
-    )
+    if version != "0.6.0":
+        _fail("project.version", "/project_version", "Only Project 0.6.0 is supported; historical projects are not migrated.")
+    schema = json.loads(files("friskoli_cad.protocol").joinpath("schemas", "project-v0.6.schema.json").read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema)
 
@@ -92,7 +88,7 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     if error is not None:
         path = "/" + "/".join(str(part) for part in error.absolute_path)
         _fail("project.schema", path, error.message)
-    if version in ("0.4.0", "0.5.0", "0.6.0"):
+    if version == "0.6.0":
         from friskoli_cad.engine.limits import MAX_CELLS, MAX_VOXELS, MAX_SPECIES
         cells = sum(len(group["ids"]) for group in document["groups"].values())
         voxels = math.prod(document["domain"]["counts_xyz"])
@@ -101,18 +97,8 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     graph, run = document["graph"], document["run"]
     validate_graph(graph, manifests)
     validate_run_metadata(run, graph, manifests)
-    if version == "0.4.0":
-        from friskoli_cad.engine.spatial_runtime import validate_spatial_project
-        validate_spatial_project(document, manifests, registry=registry)
-    if version == "0.5.0":
-        from friskoli_cad.engine.chemotaxis_runtime import validate_chemotaxis_project
-        validate_chemotaxis_project(document, manifests, registry=registry)
-    if version == "0.6.0":
-        from friskoli_cad.engine.modular_runtime import validate_modular_project
-        validate_modular_project(document, manifests, registry=registry)
-    if version == "0.3.0":
-        from friskoli_cad.engine.pts_runtime import validate_pts_project
-        validate_pts_project(document, manifests)
+    from friskoli_cad.engine.modular_runtime import validate_modular_project
+    validate_modular_project(document, manifests, registry=registry)
     manifest_by_key = {(item["id"], item["version"]): item for item in manifests}
     providers: dict[str, int] = {}
     control_uses: dict[str, int] = {}
@@ -161,14 +147,12 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
 
 
 def simulation_from_project(document: Mapping[str, object], registry=None, *, seed=None, field_backend='numpy-cpu'):
-    """Build a simulation from a complete snapshot; old graph-only callers remain valid."""
+    """Build the sole supported simulation from a self-contained Project 0.6."""
     from friskoli_cad.engine.core import CapsuleGeometry, CellGroup, GridDomain, SimulationError, World
 
     from friskoli_cad.engine.profiles import registry_for_project
     registry = registry_for_project(document) if registry is None else registry
     validate_project(document, registry.manifests, registry=registry)
-    if document['project_version'] not in ('0.4.0', '0.5.0', '0.6.0') and field_backend != 'numpy-cpu':
-        _fail('project.backend', '/', 'This execution profile supports only numpy-cpu')
     domain = document["domain"]
     nx, ny, nz = domain["counts_xyz"]
     dx, dy, dz = domain["spacing_um_xyz"]
@@ -196,15 +180,7 @@ def simulation_from_project(document: Mapping[str, object], registry=None, *, se
         )
         for group_id, group in document["groups"].items()
     }
-    active_inventory_species = {
-        node["parameters"]["species"]["value"]
-        for node in document["graph"]["nodes"]
-        if (node["module_id"], node["module_version"]) == ("field.local_inventory", "3.0.0")
-    }
-    initial = {
-        species: document["species"][species]["initial_concentration"]["value"]
-        for species in active_inventory_species
-    }
+    initial = {species: entry["initial_concentration"]["value"] for species, entry in document["species"].items()}
     controls = {
         schedule_id: ControlSchedule(
             entry["species"],
@@ -214,18 +190,5 @@ def simulation_from_project(document: Mapping[str, object], registry=None, *, se
         for schedule_id, entry in document["controls"].items()
     }
     world = World(grid, groups, initial, controls)
-    if document["project_version"] == "0.6.0":
-        from friskoli_cad.engine.modular_runtime import ModularSimulation
-        return ModularSimulation(world, document, registry, seed=seed, field_backend=field_backend)
-    if document["project_version"] == "0.5.0":
-        from friskoli_cad.engine.chemotaxis_runtime import ChemotaxisSimulation
-        return ChemotaxisSimulation(world, document, registry, seed=seed, field_backend=field_backend)
-    if document["project_version"] == "0.4.0":
-        from friskoli_cad.engine.spatial_runtime import SpatialSimulation
-        return SpatialSimulation(world, document, registry, seed=seed, field_backend=field_backend)
-    if document["project_version"] == "0.3.0":
-        from friskoli_cad.engine.pts_runtime import PTSSimulation
-        return PTSSimulation(world, document, registry)
-    frame_version = "0.2.0" if document["project_version"] == "0.2.0" else "0.1.0"
-    from friskoli_cad.engine.runtime import Simulation
-    return Simulation(world, document["graph"], document["run"], registry, frame_version)
+    from friskoli_cad.engine.modular_runtime import ModularSimulation
+    return ModularSimulation(world, document, registry, seed=seed, field_backend=field_backend)

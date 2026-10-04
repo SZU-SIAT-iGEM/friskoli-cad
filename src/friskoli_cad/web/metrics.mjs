@@ -34,8 +34,8 @@ export function comparisonKey(record) {
 export function variantKey(record) {
   const project = structuredClone(record.project);
   delete project.random_seed; delete project.id; delete project.run.run_id;
-  return key({project,version_lock:record.submission?.version_lock ?? {kind:'legacy-sync',execution:record.replay?.execution??null},
-    backend:record.submission?.execution.backend??'legacy-sync',task_contract:record.submission?.task_contract_version??null});
+  return key({project,version_lock:record.submission?.version_lock ?? {kind:'synchronous',execution:record.replay?.execution??null},
+    backend:record.submission?.execution.backend??'synchronous',task_contract:record.submission?.task_contract_version??null});
 }
 export function compareRuns(records) {
   if (records.length < 2) throw new Error('comparisonNeedTwo');
@@ -61,7 +61,7 @@ export function compareRuns(records) {
       }
     }
     const lock=runs[0].submission?.version_lock;
-    const provenance=lock?`Task ${runs[0].submission.task_contract_version} · ${runs[0].submission.execution.backend} · registry ${lock.registry_sha256.slice(0,12)}`:'Legacy synchronous result';
+    const provenance=lock?`Task ${runs[0].submission.task_contract_version} · ${runs[0].submission.execution.backend} · registry ${lock.registry_sha256.slice(0,12)}`:'Synchronous result';
     return {label:runs[0].design_ref ? `${runs[0].design_ref.candidate_name} · ${runs[0].design_ref.candidate_id}` : runs[0].project.id,provenance,versionLock:lock??null,seeds,runs,byGroup};
   });
 }

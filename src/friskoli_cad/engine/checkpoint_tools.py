@@ -21,6 +21,8 @@ def _implementation_lock(registry, field_backend='numpy-cpu'):
     paths = [package / "project.py", package / "registry.py"]
     for directory in ("engine", "science", "protocol"):
         paths.extend((package / directory).rglob("*.py"))
+    for directory in ("engine/declarations", "science/data"):
+        paths.extend((package / directory).glob("*.json"))
     source_hashes = {path.relative_to(package).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
                      for path in sorted(set(paths))}
     from .field_backend import backend_environment

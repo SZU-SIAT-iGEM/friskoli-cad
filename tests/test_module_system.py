@@ -224,7 +224,7 @@ class ModuleSystemTests(unittest.TestCase):
 
     def test_independent_errors_are_collected_without_derivative_missing_edges(self):
         from friskoli_cad.engine.profiles import registry_for_project
-        project = json.loads((Path(__file__).parents[1] / 'src/friskoli_cad/examples/workspace_3d.project.json').read_text(encoding='utf-8'))
+        project = json.loads((Path(__file__).parents[1] / 'src/friskoli_cad/examples/modular_foundation.project.json').read_text(encoding='utf-8'))
         registry = registry_for_project(project)
         # Two independent wrong parameters survive one diagnostic request.
         targets = [(node, name) for node in project['graph']['nodes'] for name, p in node['parameters'].items() if isinstance(p['value'], (int, float))]

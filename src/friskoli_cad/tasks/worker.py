@@ -9,7 +9,6 @@ import numpy as np
 
 from friskoli_cad.project import simulation_from_project
 from friskoli_cad.engine.core import SimulationError
-from friskoli_cad.engine.profiles import PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE
 from friskoli_cad.protocol.task_validation import canonical_bytes, sha256
 from .metadata import source_hashes
 from .artifacts import write_final_fields, concentration_species, nonnegative_mean
@@ -96,7 +95,7 @@ def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, 
         for step in range(start_step, execution["steps"] + 1):
             phase = "execute"
             snapshot = simulation.current if step == start_step else simulation.step(execution["dt_s"])
-            if execution['semantics'] in (CHEMOTAXIS_PROFILE, 'modular-spatial-v1') and (step != start_step or not resume_path):
+            if execution['semantics'] == 'modular-spatial-v1' and (step != start_step or not resume_path):
                 pending_events.extend(snapshot.cell_frame['events'])
                 pending_deaths.extend(snapshot.lifecycle_details.get('deaths', []))
                 pending_event_bytes += len(canonical_bytes(snapshot.cell_frame['events'])) + len(canonical_bytes(snapshot.lifecycle_details.get('deaths', [])))
@@ -112,11 +111,11 @@ def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, 
             if not (step == start_step and start_already_stored) and (step == start_step or step % every == 0 or message["final"] or (modern and pending_event_bytes >= limits["chunk_bytes"] // 4)):
                 last_output_step = step
                 frame = dict(snapshot.cell_frame)
-                if execution['semantics'] in (CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
+                if execution['semantics'] == 'modular-spatial-v1':
                     frame['events'] = pending_events
                     last_output_events, last_output_deaths = pending_events, pending_deaths
                     pending_events = []
-                    message['lifecycle_details'] = ({'lifecycle_version': '1.0.0', 'events':frame['events']} if execution['semantics'] == 'modular-spatial-v1' else {'lifecycle_version': '0.1.0', 'deaths': pending_deaths})
+                    message['lifecycle_details'] = {'lifecycle_version': '1.0.0', 'events':frame['events']}
                     pending_deaths = []
                     pending_event_bytes = 0
                     message['metrics'] = dict(snapshot.metrics)
@@ -124,20 +123,17 @@ def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, 
                     in cell["channels"].items() if key in observations}}
                     for cell in frame["cells"]]
                 message["frame"] = frame
-                if execution["semantics"] in (SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1'):
-                    expected_objects = {node["id"]: node for node in submission["project"]["graph"]["nodes"]
-                        if node["module_id"] in ("material.degradable_box", "source.finite_local")}
-                    if execution['semantics'] == 'modular-spatial-v1':
-                        from friskoli_cad.engine.modular_runtime import snapshot_object_declarations
-                        declarations = snapshot_object_declarations(submission['project'],simulation.registry)
-                        nodes_by_id = {node['id']:node for node in submission['project']['graph']['nodes']}
-                        expected_objects = {owner:nodes_by_id[declaration['node_id']] for owner,declaration in declarations.items()}
+                if execution['semantics'] == 'modular-spatial-v1':
+                    from friskoli_cad.engine.modular_runtime import snapshot_object_declarations
+                    declarations = snapshot_object_declarations(submission['project'], simulation.registry)
+                    nodes_by_id = {node['id']: node for node in submission['project']['graph']['nodes']}
+                    expected_objects = {owner: nodes_by_id[d['node_id']] for owner, d in declarations.items()}
                     states = snapshot.object_states
                     if set(states) != set(expected_objects):
                         raise ValueError("Incomplete object inventory snapshot")
                     for node_id, inventory in states.items():
                         node = expected_objects[node_id]
-                        expected_type = declarations[node_id]['object_type'] if execution['semantics'] == 'modular-spatial-v1' else "material.degradable_box" if node["module_id"] == "material.degradable_box" else "source.attractant"
+                        expected_type = declarations[node_id]['object_type']
                         amount = inventory.get("remaining_molecules")
                         if (set(inventory) != {"object_type", "remaining_molecules"} or inventory["object_type"] != expected_type
                             or type(amount) not in (int, float) or not np.isfinite(amount)
@@ -145,10 +141,7 @@ def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, 
                             raise ValueError("Invalid object inventory snapshot")
                     message["object_states"] = {key: dict(value) for key, value in states.items()}
                 if submission["output_plan"]["include_fields"] or (message["final"] and submission["output_plan"].get("include_final_fields", False)):
-                    expected = {node["parameters"]["species"]["value"] for node in submission["project"]["graph"]["nodes"]
-                                if node["module_id"] in ("field.diffusive_local", "field.ideal_local_reservoir")}
-                    if submission["task_contract_version"] in ("0.5.0", "0.6.0"):
-                        expected = concentration_species(submission["project"])
+                    expected = concentration_species(submission["project"])
                     if set(snapshot.concentration_fields) != expected or any(
                         snapshot.concentration_units[species] != "uM" or values.shape != snapshot.domain.shape
                         or not np.isfinite(values).all() or (values < 0).any()
@@ -156,10 +149,8 @@ def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, 
                     ):
                         raise ValueError("Invalid complete spatial fields")
                 if submission["output_plan"]["include_fields"]:
-                    message["concentrations"] = {species: (
-                        concentration_preview(values, snapshot.domain, submission["output_plan"].get("field_stride_xyz", [1, 1, 1]), binary=modern)
-                        if submission["task_contract_version"] in ("0.5.0", "0.6.0") else
-                        {"unit": snapshot.concentration_units[species], "values_zyx": values.tolist()})
+                    message['concentrations'] = {species: concentration_preview(values, snapshot.domain,
+                        submission['output_plan'].get('field_stride_xyz', [1, 1, 1]), binary=True)
                         for species, values in snapshot.concentration_fields.items()}
                 if modern and 'concentrations' in message:
                     from .arrays import write_array
@@ -196,7 +187,7 @@ def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, 
         # peer left to consume another error message.
         pass
     except BaseException as error:
-        known = isinstance(error, SimulationError) and submission["execution"]["semantics"] in (PTS_PROFILE, SPATIAL_PROFILE, CHEMOTAXIS_PROFILE, 'modular-spatial-v1')
+        known = isinstance(error, SimulationError) and submission['execution']['semantics'] == 'modular-spatial-v1'
         if known and error.code == 'resource.cell_limit' and submission['task_contract_version'] == '0.6.0':
             # The runtime rejected the uncommitted transaction. Persist the
             # preceding state even when it lies between periodic checkpoints.

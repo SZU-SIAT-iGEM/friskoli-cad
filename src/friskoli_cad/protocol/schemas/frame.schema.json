@@ -4,74 +4,178 @@
   "title": "Friskoli cell frame 0.1.0",
   "type": "object",
   "additionalProperties": false,
-  "required": ["protocol_version", "run_id", "frame_index", "time_s", "cells", "events"],
+  "required": [
+    "protocol_version",
+    "run_id",
+    "frame_index",
+    "time_s",
+    "cells",
+    "events"
+  ],
   "properties": {
-    "protocol_version": {"const": "0.1.0"},
-    "run_id": {"type": "string", "minLength": 1},
-    "frame_index": {"type": "integer", "minimum": 0},
-    "time_s": {"type": "number", "minimum": 0},
-    "cells": {"type": "array", "items": {"$ref": "#/$defs/cell"}},
+    "protocol_version": {
+      "const": "0.1.0"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "frame_index": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "time_s": {
+      "type": "number",
+      "minimum": 0
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cell"
+      }
+    },
     "events": {
       "type": "array",
       "items": {
         "oneOf": [
-          {"$ref": "#/$defs/birth"},
-          {"$ref": "#/$defs/division"},
-          {"$ref": "#/$defs/death"}
+          {
+            "$ref": "#/$defs/birth"
+          },
+          {
+            "$ref": "#/$defs/division"
+          },
+          {
+            "$ref": "#/$defs/death"
+          }
         ]
       }
     }
   },
   "$defs": {
-    "id": {"type": "string", "minLength": 1},
-    "vector3": {"type": "array", "items": {"type": "number"}, "minItems": 3, "maxItems": 3},
-    "quaternion": {"type": "array", "items": {"type": "number"}, "minItems": 4, "maxItems": 4},
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "vector3": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "quaternion": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 4,
+      "maxItems": 4
+    },
     "cell": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "group_id", "position_um", "orientation_xyzw", "channels"],
+      "required": [
+        "id",
+        "group_id",
+        "position_um",
+        "orientation_xyzw",
+        "channels"
+      ],
       "properties": {
-        "id": {"$ref": "#/$defs/id"},
-        "group_id": {"$ref": "#/$defs/id"},
-        "position_um": {"$ref": "#/$defs/vector3"},
-        "orientation_xyzw": {"$ref": "#/$defs/quaternion"},
+        "id": {
+          "$ref": "#/$defs/id"
+        },
+        "group_id": {
+          "$ref": "#/$defs/id"
+        },
+        "position_um": {
+          "$ref": "#/$defs/vector3"
+        },
+        "orientation_xyzw": {
+          "$ref": "#/$defs/quaternion"
+        },
         "channels": {
           "type": "object",
-          "propertyNames": {"type": "string", "pattern": "^[a-z][a-z0-9_.]*$"},
-          "additionalProperties": {"type": "number"}
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_.]*$"
+          },
+          "additionalProperties": {
+            "type": "number"
+          }
         }
       }
     },
     "birth": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "time_s", "cell_id", "group_id"],
+      "required": [
+        "type",
+        "time_s",
+        "cell_id",
+        "group_id"
+      ],
       "properties": {
-        "type": {"const": "birth"},
-        "time_s": {"type": "number", "minimum": 0},
-        "cell_id": {"$ref": "#/$defs/id"},
-        "group_id": {"$ref": "#/$defs/id"}
+        "type": {
+          "const": "birth"
+        },
+        "time_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cell_id": {
+          "$ref": "#/$defs/id"
+        },
+        "group_id": {
+          "$ref": "#/$defs/id"
+        }
       }
     },
     "division": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "time_s", "parent_id", "child_id"],
+      "required": [
+        "type",
+        "time_s",
+        "parent_id",
+        "child_id"
+      ],
       "properties": {
-        "type": {"const": "division"},
-        "time_s": {"type": "number", "minimum": 0},
-        "parent_id": {"$ref": "#/$defs/id"},
-        "child_id": {"$ref": "#/$defs/id"}
+        "type": {
+          "const": "division"
+        },
+        "time_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "parent_id": {
+          "$ref": "#/$defs/id"
+        },
+        "child_id": {
+          "$ref": "#/$defs/id"
+        }
       }
     },
     "death": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "time_s", "cell_id"],
+      "required": [
+        "type",
+        "time_s",
+        "cell_id"
+      ],
       "properties": {
-        "type": {"const": "death"},
-        "time_s": {"type": "number", "minimum": 0},
-        "cell_id": {"$ref": "#/$defs/id"}
+        "type": {
+          "const": "death"
+        },
+        "time_s": {
+          "type": "number",
+          "minimum": 0
+        },
+        "cell_id": {
+          "$ref": "#/$defs/id"
+        }
       }
     }
   }

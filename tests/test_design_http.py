@@ -12,7 +12,7 @@ import pytest
 from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
-from friskoli_cad.engine.chemotaxis_templates import make_example
+from friskoli_cad.engine.presets import make_example
 from friskoli_cad.engine.profiles import registry_for_project
 from friskoli_cad.replay_service import ReplayHandler
 
@@ -34,7 +34,7 @@ def request(root, path, value):
 
 
 def design_input():
-    project = make_example('chemotaxis-pts-a')
+    project = make_example('center-pts-a-small')
     return {'project': project, 'settings': {'dt_s': .05, 'steps': 2, 'include_fields': True},
         'brief': {'brief_version': '0.1.0', 'id': 'http-design', 'name': 'Transport capacity study',
             'goal': {'metric': 'mean_displacement_um', 'direction': 'maximize', 'group_id': 'cells'},
