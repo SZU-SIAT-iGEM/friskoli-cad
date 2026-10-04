@@ -11,6 +11,8 @@ import math
 DEFINITIONS = [
     {"id": "initial_count", "label": "Initial cohort", "unit": "cell", "description": "Number of cells at initialization; descendants do not enter this denominator."},
     {"id": "live_count", "label": "Live cells", "unit": "cell", "description": "All living cells in the group at this committed boundary, including descendants."},
+    {"id": "mean_position_um", "label": "Mean axial position", "unit": "um", "description": "Mean center position along the observation axis over all living cells. Null for an empty group."},
+    {"id": "drift_um_s", "label": "10–120 s drift", "unit": "um/s", "description": "Least-squares slope of mean axial position at every committed numerical boundary in [10,120] s. Null until 120 s or with fewer than two valid boundaries."},
     {"id": "mean_displacement_um", "label": "Directional displacement", "unit": "um", "description": "Mean signed displacement along the declared axis among surviving initial cell IDs. Null when none remain."},
     {"id": "region_fraction", "label": "Region occupancy", "unit": "1", "description": "Fraction of all currently living cells whose centers are in the closed observation box. Null for an empty living group."},
     {"id": "ever_arrived_fraction", "label": "Cohort arrival fraction", "unit": "1", "description": "Fraction of initial cell IDs observed in the region at any committed step boundary, including t=0. Null for an initially empty group."},
@@ -65,14 +67,14 @@ def _inside(position, definition):
 
 def initial_observation(project, frame):
     definition = observation_definition(project)
-    result = {'observation_state_version': '0.1.0', 'definition': definition,
+    result = {'observation_state_version': '1.0.0', 'definition': definition,
         'time_s': frame['time_s'], 'groups': sorted(project['groups']),
+        'regression': {gid: {'n': 0, 'sum_t': 0., 'sum_y': 0., 'sum_tt': 0., 'sum_ty': 0.} for gid in project['groups']},
         'cohort': {cell['id']: {'group_id': cell['group_id'], 'initial_position_um': list(cell['position_um']),
             'last_position_um': list(cell['position_um']), 'alive': True,
             'arrived': _inside(cell['position_um'], definition), 'residence_s': 0.}
             for cell in frame['cells']}}
     if 'radial_center_um' in definition:
-        result['observation_state_version'] = '0.2.0'
         result['radial_domain_volume_um3'] = math.prod(a * b for a, b in zip(project['domain']['counts_xyz'], project['domain']['spacing_um_xyz']))
         for item in result['cohort'].values():
             radius = math.dist(item['initial_position_um'], definition['radial_center_um'])
@@ -107,6 +109,15 @@ def advance_observation(state, frame):
             item['arrived'] = item['arrived'] or _inside(cell['position_um'], state['definition'])
         item['alive'] = cell is not None
     next_state['time_s'] = frame['time_s']
+    if 10. - 1e-10 <= frame['time_s'] <= 120. + 1e-10:
+        for gid in state['groups']:
+            positions = [c['position_um'][state['definition']['axis']] for c in frame['cells'] if c['group_id'] == gid]
+            if not positions:
+                continue
+            t, y = frame['time_s'], math.fsum(positions) / len(positions)
+            r = next_state['regression'][gid]
+            r['n'] += 1; r['sum_t'] += t; r['sum_y'] += y
+            r['sum_tt'] += t * t; r['sum_ty'] += t * y
     return next_state
 
 
@@ -116,7 +127,12 @@ def observation_metrics(state, frame):
         cohort = [v for v in state['cohort'].values() if v['group_id'] == gid]
         alive_cohort = [v for v in cohort if v['alive']]
         live = [cell for cell in frame['cells'] if cell['group_id'] == gid]
+        r = state['regression'][gid]
+        denominator = r['sum_tt'] - r['sum_t'] ** 2 / r['n'] if r['n'] else 0.
+        drift = (r['sum_ty'] - r['sum_t'] * r['sum_y'] / r['n']) / denominator if state['time_s'] >= 120. - 1e-10 and r['n'] >= 2 and denominator > 0 else None
         by_group[gid] = {'initial_count': len(cohort), 'live_count': len(live),
+            'mean_position_um': math.fsum(c['position_um'][axis] for c in live) / len(live) if live else None,
+            'drift_um_s': drift,
             'mean_displacement_um': math.fsum(v['last_position_um'][axis] - v['initial_position_um'][axis]
                 for v in alive_cohort) / len(alive_cohort) if alive_cohort else None,
             'region_fraction': sum(_inside(cell['position_um'], state['definition']) for cell in live) / len(live) if live else None,
@@ -146,16 +162,24 @@ def validate_observation_state(state, project, frame):
     """Strict checkpoint state validation; no history is invented during restore."""
     radial = 'radial_center_um' in project.get('observation', {})
     extra = {'radial_domain_volume_um3'} if radial else set()
-    if type(state) is not dict or set(state) != {'observation_state_version', 'definition', 'time_s', 'groups', 'cohort'} | extra:
+    if type(state) is not dict or set(state) != {'observation_state_version', 'definition', 'time_s', 'groups', 'cohort', 'regression'} | extra:
         raise ValueError('Malformed observation state')
     expected = {cid: (gid, list(pos)) for gid, group in project['groups'].items()
                 for cid, pos in zip(group['ids'], group['positions_um'])}
-    if (state['observation_state_version'] != ('0.2.0' if radial else '0.1.0') or state['definition'] != observation_definition(project)
+    if (state['observation_state_version'] != '1.0.0' or state['definition'] != observation_definition(project)
         or type(state['time_s']) not in (int, float) or not math.isfinite(state['time_s'])
         or state['time_s'] != frame['time_s'] or state['time_s'] < 0
         or state['groups'] != sorted(project['groups']) or type(state['cohort']) is not dict
         or set(state['cohort']) != set(expected)):
         raise ValueError('Observation state differs from frozen project or frame')
+    if type(state['regression']) is not dict or set(state['regression']) != set(project['groups']):
+        raise ValueError('Regression population history differs')
+    for r in state['regression'].values():
+        if (type(r) is not dict or set(r) != {'n', 'sum_t', 'sum_y', 'sum_tt', 'sum_ty'}
+            or type(r['n']) is not int or not 0 <= r['n'] <= frame['frame_index']
+            or any(type(v) not in (int, float) or not math.isfinite(v) or v < 0 for v in r.values())
+            or r['n'] == 0 and any(r[k] != 0 for k in r if k != 'n')):
+            raise ValueError('Invalid axial regression history')
     if radial and state['radial_domain_volume_um3'] != math.prod(a * b for a, b in zip(project['domain']['counts_xyz'], project['domain']['spacing_um_xyz'])):
         raise ValueError('Radial observation volume differs from domain')
     current = {c['id']: c for c in frame['cells']}

@@ -1,4 +1,5 @@
 import {boundedResponseBytes} from './kernel-client.mjs';
+import {validateMetrics} from './metrics.mjs';
 import {metricsCSV} from './workspace.mjs';
 const sha=async bytes=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),n=>n.toString(16).padStart(2,'0')).join('');
 export class PagedReplay {
@@ -42,6 +43,7 @@ export class PagedReplay {
   const body=await this.client.taskChunk(this.record.runId,chunk);
   if(body.run_id!==this.record.runId||body.frames?.length!==1||body.frames[0].step_index!==chunk.first_step)throw Error('Invalid indexed frame');
   const item=body.frames[0];if(item.frame?.frame_index!==item.step_index||item.time_s!==undefined&&item.frame.time_s!==item.time_s||!Number.isFinite(item.frame.time_s)||!Array.isArray(item.frame.cells)||!Array.isArray(item.frame.events)||item.frame.cells.some(c=>!c.id||!Array.isArray(c.position_um)||c.position_um.length!==3||c.position_um.some(v=>!Number.isFinite(v))))throw Error('Invalid frame payload');
+  validateMetrics(item.metrics,this.record.project);
   const arrayBytes=Object.values(item.concentrations??{}).reduce((n,f)=>n+(f.array?.bytes??0),0),bytes=chunk.bytes*4+arrayBytes;
   if(bytes>this.maxBytes)throw Error('Frame exceeds browser cache budget');
   while(this.cache.size&&this.bytes+bytes>this.maxBytes){const key=this.cache.keys().next().value;this.bytes-=this.cache.get(key).bytes;this.cache.delete(key);}
@@ -49,7 +51,7 @@ export class PagedReplay {
   const value={frame:item.frame,concentrations,...(item.metrics?{metrics:item.metrics}:{}),object_states:item.object_states??{},lifecycle_details:item.lifecycle_details};
   this.cache.set(index,{bytes,value});this.bytes+=bytes;return value;
  }
- replay(snapshot,index){return {replay_format_version:'0.1.0',project_id:this.record.project.id,run:this.record.project.run,domain:this.record.project.domain,execution:{task_contract_version:'0.6.0',task_run_id:this.record.runId,status:this.manifest.status,completeness:this.manifest.completeness},snapshots:[snapshot],paged:{frame_count:this.frameCount,index,cache_bytes:this.bytes,max_bytes:this.maxBytes}};}
+ replay(snapshot,index){return {replay_format_version:'0.1.0',project_id:this.record.project.id,run:this.record.project.run,domain:this.record.project.domain,execution:{task_contract_version:'0.6.0',task_run_id:this.record.runId,status:this.manifest.status,completeness:this.manifest.completeness,input_snapshot:this.manifest.input_snapshot},snapshots:[snapshot],paged:{frame_count:this.frameCount,index,cache_bytes:this.bytes,max_bytes:this.maxBytes}};}
 }
 
 export class LinkedReplay {
@@ -75,8 +77,22 @@ export class LinkedReplay {
   let snapshot=await segment.reader.frame(index-segment.offset);if(index===segment.offset&&segment.boundaryParent&&!snapshot.frame.events.length){const parent=segment.boundaryParent,descriptor=await parent.reader.descriptor(parent.count),body=await parent.reader.client.taskChunk(parent.reader.record.runId,descriptor),old=body.frames?.[0];if(old?.frame?.events?.length)snapshot={...snapshot,frame:{...snapshot.frame,events:old.frame.events},lifecycle_details:old.lifecycle_details};}
   return {...snapshot,display_domain:segment.reader.record.project.domain,segment_run_id:segment.reader.record.runId};
  }
- replay(snapshot,index){const replay=this.leaf.replay(snapshot,index);replay.domain=snapshot?.display_domain??this.record.project.domain;replay.paged={...replay.paged,frame_count:this.frameCount,index,cache_bytes:this.bytes,segments:this.segments.map(s=>({run_id:s.reader.record.runId,start:s.offset,count:s.count}))};return replay;}
+ replay(snapshot,index){const replay=this.leaf.replay(snapshot,index);replay.domain=snapshot?.display_domain??this.record.project.domain;replay.metric_snapshots=this.metricSnapshots??[];replay.paged={...replay.paged,frame_count:this.frameCount,index,cache_bytes:this.bytes,segments:this.segments.map(s=>({run_id:s.reader.record.runId,start:s.offset,count:s.count}))};return replay;}
  async *frames(){for(let i=0;i<this.frameCount;i++)yield await this.frame(i);}
+ async metricHistory(previous=[]){
+  const known=new Map(previous.map(s=>[`${s.segment_run_id}:${s.frame.frame_index}`,s])),result=[];
+  const stride=Math.max(1,Math.ceil(this.frameCount/2000));
+  for(const {reader,count}of this.segments)for(let i=0;i<count;i++){
+   if(i%stride&&i!==count-1)continue;
+   const descriptor=await reader.descriptor(i),key=`${reader.record.runId}:${descriptor.first_step}`;
+   if(known.has(key)){result.push(known.get(key));continue;}
+   const body=await reader.client.taskChunk(reader.record.runId,descriptor),item=body.frames?.[0];
+   if(!item||item.step_index!==descriptor.first_step)throw Error('Invalid metric history frame');
+   validateMetrics(item.metrics,reader.record.project);
+   result.push({frame:{frame_index:item.step_index,time_s:item.frame.time_s,cells:[],events:[]},metrics:item.metrics,object_states:item.object_states??{},segment_run_id:reader.record.runId});
+  }
+  return result;
+ }
  async scan(filter,id,onProgress=()=>{},cancelled=()=>false){const result={events:[],eventCount:0,points:[],segments:[],pointCount:0,pointStride:1};for(const s of this.segments){const value=await s.reader.scan({...filter,frameLimit:s.count},id,(n)=>onProgress(s.offset+n,this.frameCount),cancelled);result.eventCount+=value.eventCount;result.events.push(...value.events.slice(0,500-result.events.length).map(e=>({...e,index:e.index+s.offset})));result.pointCount+=value.pointCount;result.points.push(...value.points);result.segments.push(...value.segments);while(result.points.length>2000){result.points=result.points.filter((_,i)=>i%2===0);result.segments=result.segments.map(segment=>segment.filter((_,i)=>i%2===0)).filter(segment=>segment.length>1);result.pointStride*=2;}result.pointStride=Math.max(result.pointStride,value.pointStride);}return result;}
 }
 
@@ -85,7 +101,7 @@ export async function exportPagedResult(pager,{csv=false,writer=null,onProgress=
  const pieces=[];let total=0;const maxFallback=16*1024*1024;
  const write=async text=>{if(writer){await writer.write(text);return;}total+=new TextEncoder().encode(text).length;if(total>maxFallback)throw Error('Export exceeds 16 MiB download buffer. Use the native file-save picker to stream it.');pieces.push(text);};
  try{
-  if(!csv) {const base=pager.replay(null,0);delete base.paged;delete base.snapshots;await write('{"task_contract_version":"0.6.0","task_run_id":'+json(pager.record.runId)+',"submission":'+json(pager.record.submission)+',"manifest":'+json(pager.manifest)+',"replay":'+json(base).slice(0,-1)+',"snapshots":[');}
+  if(!csv) {const base=pager.replay(null,0);delete base.paged;delete base.snapshots;await write('{"task_contract_version":"0.6.0","task_run_id":'+json(pager.record.runId)+',"submission":'+json(pager.record.submission)+',"status":'+json(pager.manifest.status)+',"completeness":'+json(pager.manifest.completeness)+',"task":'+json(pager.record.task)+',"manifest":'+json(pager.manifest)+',"replay":'+json(base).slice(0,-1)+',"snapshots":[');}
   let index=0;for await(const snapshot of pager.frames()){
    if(csv){const text=metricsCSV({...pager.replay(snapshot,index),snapshots:[snapshot]});await write(index?text.slice(text.indexOf('\n')+1):text);}
    else await write((index?',':'')+json(snapshot));index++;onProgress(index,pager.frameCount);

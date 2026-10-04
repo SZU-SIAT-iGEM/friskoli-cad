@@ -11,7 +11,7 @@ from .local_fields import local_field_state_to_dict, local_field_state_from_dict
 from .random_streams import RandomStreams
 from .checkpoint_tools import _hash, _implementation_lock, _validator_record
 
-VERSION = 'modular-checkpoint/v1'
+VERSION = 'modular-checkpoint/v2'
 
 
 def _json(value):
@@ -30,6 +30,7 @@ def export_checkpoint(sim, binary=False):
                        'geometry': [asdict(v) for v in g.geometry]} for gid, g in sim.world.groups.items()},
         'local_fields': fields, 'outputs': thaw(sim.outputs), 'state': thaw(sim.state), 'random_streams': sim.streams.to_dict(),
         'ledger': deepcopy(sim.ledger), 'initial_amounts': dict(sim.initial_amounts), 'metrics': deepcopy(sim.metrics),
+        'observation_state': deepcopy(sim.observation_state),
         'dead_material': deepcopy(sim.dead_material), 'geometry_state': deepcopy(sim.geometry_state),
         'events': deepcopy(sim.events), 'frame_validator': _validator_record(sim.frame_validator), 'current_frame': deepcopy(sim.current.cell_frame)}
     if hasattr(sim,'migration_origin_project'):
@@ -40,6 +41,8 @@ def export_checkpoint(sim, binary=False):
 
 
 def restore_checkpoint(project, payload, registry=None):
+    if payload.get('version') != VERSION or payload.get('execution_profile') != 'modular-spatial-v1':
+        raise SimulationError('modular.checkpoint_version', 'Only this release’s modular checkpoint/v2 is supported; older checkpoints are not migrated')
     from friskoli_cad.project import simulation_from_project
     sim = simulation_from_project(project, registry, seed=payload.get('seed'), field_backend=payload.get('local_fields', {}).get('backend', 'numpy-cpu'))
     raw = deepcopy(payload)
@@ -174,6 +177,16 @@ def restore_checkpoint(project, payload, registry=None):
     sim.initial_amounts, sim.next_cell_index, sim.frame_validator = raw['initial_amounts'], raw['next_cell_index'], validator
     sim.current = sim._snapshot(world, fields, outputs, time, index, sim.events, sim.metrics)
     if _hash(sim.current.cell_frame) != _hash(raw['current_frame']): raise SimulationError('modular.checkpoint_frame', 'Frame differs from owners')
+    from .observations import validate_observation_state, observation_metrics
+    try:
+        sim.observation_state = validate_observation_state(raw['observation_state'], project, sim.current.cell_frame)
+    except ValueError as error:
+        raise SimulationError('modular.checkpoint_observation', str(error)) from error
+    observed = observation_metrics(sim.observation_state, sim.current.cell_frame)
+    if observed['observation_id'] != sim.metrics.get('observation_id') or any(
+        any(sim.metrics.get('by_group', {}).get(gid, {}).get(key) != value for key, value in values.items())
+        for gid, values in observed['by_group'].items()):
+        raise SimulationError('modular.checkpoint_observation', 'Recorded metrics disagree with observation history')
     for species, initial in sim.initial_amounts.items():
         ledger = sim.ledger.get(species, {})
         actual = float(np.sum(fields.concentrations_uM[species])) * world.grid.molecules_per_uM_voxel + ledger.get('consumed', 0.)

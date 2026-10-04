@@ -227,7 +227,12 @@ def contact_degradation(source_b=False):
                 amount = min(record['inventory'], copies * rate * c.dt_s)
                 if amount:
                     positions = [cells[cid]['position_um'] for cid in contacts[mid]]
-                    transfers.append({'material_node': mid, 'species': record['species'], 'amount': amount, 'positions_um': positions})
+                    group_copies = {}
+                    for cid in contacts[mid]:
+                        gid = cells[cid]['group_id']
+                        group_copies[gid] = group_copies.get(gid, 0.) + enzymes.get(cid, 0.) / memberships[cid]
+                    transfers.append({'material_node': mid, 'species': record['species'], 'amount': amount, 'positions_um': positions,
+                        'contributions_by_group': {gid: amount * value / copies for gid, value in group_copies.items()} if copies else {}})
         return ModuleProposal({'released_amount': sum(t['amount'] for t in transfers)}, {},
                               (Effect('material.release', c.owner_id, transfers),) if transfers else ())
     return evaluate

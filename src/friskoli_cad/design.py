@@ -11,10 +11,10 @@ from jsonschema import Draft202012Validator
 
 from friskoli_cad.engine.profiles import CHEMOTAXIS_PROFILE, registry_for_project
 from friskoli_cad.protocol import ProtocolError
-from friskoli_cad.engine.runtime import SimulationError
+from friskoli_cad.engine.core import SimulationError
 from friskoli_cad.protocol.task_validation import canonical_bytes, TaskValidationError
 
-METRICS = frozenset(('mean_displacement_um', 'region_fraction', 'ever_arrived_fraction', 'mean_residence_s'))
+METRICS = frozenset(('mean_position_um', 'drift_um_s', 'mean_displacement_um', 'region_fraction', 'ever_arrived_fraction', 'mean_residence_s', 'cumulative_degradation_molecules', 'degradation_per_initial_cell_molecules'))
 MAX_CANDIDATES = 16
 MAX_RUNS = 32
 

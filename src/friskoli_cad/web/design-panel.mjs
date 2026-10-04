@@ -93,7 +93,7 @@ export function renderDesignPanel(root,state,actions){
   const heading=el('header','', 'design-heading');heading.append(el('h2',text('Design & compare','设计与比较')),el('p',text('Define a parameter scan from the current project. Generated candidates preserve the actual mechanism graph.','基于当前项目定义参数扫描。候选保留实际机制图。')));root.append(heading);
   const toolbar=el('div','','design-actions');const button=(parent,en,zh,fn,disabled=false)=>{const b=el('button',text(en,zh),'inspector-action');b.type='button';b.disabled=disabled;b.addEventListener('click',()=>Promise.resolve().then(fn).catch(actions.error));parent.append(b);return b;};
   button(toolbar,'Import .friskoli','导入 .friskoli',actions.import);root.append(toolbar);
-  if(state.project?.execution_profile!=='chemotaxis-spatial-v1'){root.append(el('p',text('Open an N3 chemotaxis template to start a design.','先打开 N3 趋化模板再建立设计。')));return;}
+  if(state.project?.execution_profile!=='modular-spatial-v1'){root.append(el('p',text('Open a first-release modular project to start a design.','打开第一版模块化项目后即可建立设计。')));return;}
   const groupIds=Object.keys(state.project.groups??{});
   if(groupIds.length){
     const fallback=defaultAssemblyMetadata(state.project,groupIds[0]);
@@ -131,7 +131,7 @@ export function renderDesignPanel(root,state,actions){
   const select=(parent,label,options,value,change)=>{const row=el('label','','design-field');row.append(el('span',label));const s=el('select');for(const [key,name] of options)s.append(new Option(name,key));s.value=value;s.addEventListener('change',()=>{change(s.value);markEdited();});row.append(s);parent.append(row);return s;};
   input(form,text('Design name','设计名称'),brief.name,v=>brief.name=v);input(form,text('Design ID','设计 ID'),brief.id,v=>brief.id=v);
   input(form,text('Chassis / strain','底盘 / 菌株说明'),brief.chassis.name,v=>brief.chassis.name=v);input(form,text('Chassis source / rationale','底盘来源 / 依据'),typeof brief.chassis.provenance==='string'?brief.chassis.provenance:JSON.stringify(brief.chassis.provenance),v=>brief.chassis.provenance=v);
-  select(form,text('Objective metric','目标指标'),['mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s'].map(k=>[k,t(k)]),brief.goal.metric,v=>brief.goal.metric=v);
+  select(form,text('Objective metric','目标指标'),['mean_position_um','drift_um_s','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s','cumulative_degradation_molecules','degradation_per_initial_cell_molecules'].map(k=>[k,t(k)]),brief.goal.metric,v=>brief.goal.metric=v);
   select(form,text('Direction','优化方向'),[['maximize',text('Maximize','最大化')],['minimize',text('Minimize','最小化')]],brief.goal.direction,v=>brief.goal.direction=v);
   select(form,text('Population','菌群'),Object.keys(state.project.groups).map(k=>[k,k]),brief.goal.group_id,v=>brief.goal.group_id=v);
   input(form,text('Execution seeds (comma-separated)','执行 seed（逗号分隔）'),brief.seeds.join(', '),v=>brief.seeds=v.split(/[,，\s]+/).filter(Boolean).map(Number));
@@ -156,7 +156,7 @@ export function renderDesignPanel(root,state,actions){
     brief.result_constraints.forEach((constraint,index)=>{const row=el('div','','design-row');
       input(row,text('Threshold ID','阈值 ID'),constraint.id,v=>constraint.id=v);
       select(row,text('Kind','类型'),[['hard',text('Hard','硬约束')],['soft',text('Soft','软约束')]],constraint.kind,v=>constraint.kind=v);
-      select(row,text('Metric','指标'),['mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s'].map(k=>[k,t(k)]),constraint.metric,v=>constraint.metric=v);
+      select(row,text('Metric','指标'),['mean_position_um','drift_um_s','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s','cumulative_degradation_molecules','degradation_per_initial_cell_molecules'].map(k=>[k,t(k)]),constraint.metric,v=>constraint.metric=v);
       select(row,text('Population','菌群'),Object.keys(state.project.groups).map(k=>[k,k]),constraint.group_id,v=>constraint.group_id=v);
       select(row,text('Operator','关系'),[['<=','≤'],['>=','≥']],constraint.operator,v=>constraint.operator=v);
       input(row,text('Limit','界限'),constraint.value,v=>constraint.value=Number(v),'number');

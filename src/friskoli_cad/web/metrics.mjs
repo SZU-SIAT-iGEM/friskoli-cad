@@ -1,6 +1,6 @@
 import {meanInterval} from './result-analysis.mjs';
 // These are recorded solver observables. The viewer never estimates arrivals from saved frames.
-export const METRIC_KEYS = ['initial_count','live_count','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s'];
+export const METRIC_KEYS = ['initial_count','live_count','mean_position_um','drift_um_s','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s','cumulative_degradation_molecules','degradation_per_initial_cell_molecules'];
 export function validateMetrics(metrics, project) {
   if (metrics?.metric_version !== '0.1.0' || metrics.observation_id !== (project.observation?.id ?? 'whole_domain') ||
       !metrics.by_group || Array.isArray(metrics.by_group) ||

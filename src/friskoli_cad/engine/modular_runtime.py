@@ -173,6 +173,7 @@ class ModularSimulation:
         self.streams = RandomStreams(self.seed)
         self.time_s = self.last_dt_s = 0.; self.frame_index = self.next_cell_index = 0
         self.outputs, self.state, self.ledger, self.metrics, self.dead_material = {}, {}, {}, {}, {}
+        self.observation_state = None
         self.obstacles, self.events, self.geometry_state = (), [], {}
         self.field_owners = {n.parameters['species'].value: n.id for n in self.plan.nodes
             if 'field.owner' in getattr(registry.get(n.module_id, n.module_version), 'provides_roles', ())}
@@ -194,15 +195,16 @@ class ModularSimulation:
     def _resources(self, world, fields, node, events, dead, metrics, outputs=None, state=None):
         group = world.groups.get(node.owner_id)
         outputs = self.outputs if outputs is None else outputs; state = self.state if state is None else state
+        reads = set(execution_contract(self.registry.get(node.module_id, node.module_version))['reads'])
         materials, enzymes = {}, {}
-        for owner in self.plan.nodes:
+        for owner in self.plan.nodes if reads & {'materials', 'surface_enzymes'} else ():
             roles = getattr(self.registry.get(owner.module_id, owner.module_version), 'provides_roles', ())
-            if 'material.owner' in roles:
+            if 'materials' in reads and 'material.owner' in roles:
                 p = {k: v.value for k, v in owner.parameters.items()}
                 materials[owner.id] = {'species': p['species'], 'initial_molecules': p['initial_molecules'],
                     'inventory': state.get(owner.id, {}).get('inventory', p['initial_molecules']),
                     'lower_um': [p['lower_' + a + '_um'] for a in 'xyz'], 'upper_um': [p['upper_' + a + '_um'] for a in 'xyz']}
-            if 'enzyme.surface' in roles and owner.id in outputs:
+            if 'surface_enzymes' in reads and 'enzyme.surface' in roles and owner.id in outputs:
                 enzymes.update(zip(world.groups[owner.owner_id].ids, outputs[owner.id]['enzyme_copies'], strict=True))
         return {'grid_shape_zyx': world.grid.shape, 'spacing_xyz': (world.grid.dx_um, world.grid.dy_um, world.grid.dz_um),
             'molecules_per_uM_voxel': world.grid.molecules_per_uM_voxel, 'blocked': fields.blocked,
@@ -213,8 +215,9 @@ class ModularSimulation:
             'diameter_um': np.asarray([] if group is None else [g.diameter_um for g in group.geometry]),
             'events': events, 'dead_material': dead, 'metrics': metrics, 'materials': materials, 'surface_enzymes': enzymes,
             'all_cells': {cid: {'group_id': gid, 'position_um': group.positions_um[i], 'length_um': group.geometry[i].length_um,
-                'diameter_um': group.geometry[i].diameter_um, 'heading': heading_from_orientation(group.orientation_xyzw)[i]}
-                for gid, group in world.groups.items() for i, cid in enumerate(group.ids)}}
+                'diameter_um': group.geometry[i].diameter_um, 'heading': headings[i]}
+                for gid, group in world.groups.items() for headings in [heading_from_orientation(group.orientation_xyzw)]
+                for i, cid in enumerate(group.ids)} if 'all_cells' in reads else {}}
 
     def _seed_outputs(self, world, fields):
         result = thaw(self.outputs)
@@ -309,9 +312,18 @@ class ModularSimulation:
             caps = self._capsules(world)
             guard_motion(caps, caps, extent_um=world.grid.extent_um, obstacles=obstacles, geometry=world.grid.geometry)
         snapshot = self._snapshot(world, fields, outputs, self.time_s + dt, self.frame_index + (not initialize), events, metrics)
+        from .observations import initial_observation, advance_observation, observation_metrics
+        observation = initial_observation(self.project, snapshot.cell_frame) if initialize else advance_observation(self.observation_state, snapshot.cell_frame)
+        metrics.update(observation_metrics(observation, snapshot.cell_frame))
+        for gid, values in metrics['by_group'].items():
+            converted = math.fsum(item.get('degradation_by_group', {}).get(gid, 0.) for item in ledger.values())
+            values['cumulative_degradation_molecules'] = converted
+            values['degradation_per_initial_cell_molecules'] = converted / values['initial_count'] if values['initial_count'] else None
+        snapshot = replace(snapshot, metrics=deepcopy(metrics))
         validator = deepcopy(self.frame_validator); validator.accept(snapshot.cell_frame, validate_schema=initialize)
         self.world, self.fields, self.outputs, self.state = world, fields, freeze(outputs), freeze(state)
         self.streams, self.ledger, self.metrics, self.dead_material = streams, ledger, metrics, dead
+        self.observation_state = observation
         self.obstacles, self.geometry_state = obstacles, obstacle_specs
         self.next_cell_index = next_cell_index
         self.current, self.frame_validator, self.events = snapshot, validator, events
@@ -334,6 +346,13 @@ class ModularSimulation:
                     raise SimulationError('modular.material_owner', 'Unknown material inventory owner')
                 if amount < 0 or amount > state[mid]['inventory']: raise SimulationError('modular.material_budget', 'Material proposal exceeds shared stock')
                 state[mid]['inventory'] -= amount; outputs[mid]['inventory'] = state[mid]['inventory']
+                item = ledger.setdefault(transfer['species'], {'external_net': 0., 'consumed': 0., 'maintenance': 0., 'growth': 0.})
+                contributions = transfer.get('contributions_by_group', {})
+                if contributions:
+                    if not set(contributions) <= set(self.world.groups) or any(v < 0 for v in contributions.values()) or not math.isclose(math.fsum(contributions.values()), amount, rel_tol=1e-12, abs_tol=0.):
+                        raise SimulationError('modular.material_attribution', 'Catalytic contributions must sum to the released amount')
+                    attributed = item.setdefault('degradation_by_group', {})
+                    for gid, value in contributions.items(): attributed[gid] = attributed.get(gid, 0.) + value
                 positions = np.asarray(transfer['positions_um']).reshape(-1, 3)
                 delta = np.zeros(fields.grid.shape)
                 np.add.at(delta.reshape(-1), fields.grid.flat_indices(positions), amount / len(positions))

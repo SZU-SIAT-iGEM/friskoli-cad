@@ -43,7 +43,11 @@
             "mean_displacement_um",
             "region_fraction",
             "ever_arrived_fraction",
-            "mean_residence_s"
+            "mean_residence_s",
+            "mean_position_um",
+            "drift_um_s",
+            "cumulative_degradation_molecules",
+            "degradation_per_initial_cell_molecules"
           ]
         },
         "direction": {

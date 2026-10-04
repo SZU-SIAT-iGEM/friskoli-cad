@@ -1069,6 +1069,20 @@ async function assemblyRequest(path,body) {
   return response.json();
 }
 function downloadBlob(name,blob){const url=URL.createObjectURL(blob),a=el('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+async function importNativeFile(file){
+  if(file.size>48*1024*1024)throw new Error('Native package exceeds the 48 MiB browser import budget; use the offline Wiki command for larger records.');
+  const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=32768)binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+  const payload=await designRequest('import',{archive_base64:btoa(binary)});
+  if(payload.record_kind==='standalone-task'){
+    const run=payload.runs[0];await loadProject(run.project,run.settings);
+    restoreDesignRuns(payload);await selectRun(state.runs.find(r=>r.id===run.id));return;
+  }
+  validateDesignDocument(payload.design);
+  if(!taskPersistence)throw new Error(taskPersistenceError??'Durable design archive is unavailable');
+  await taskPersistence.archive.savePackage(payload);
+  await loadProject(payload.workspace);state.designImported=true;state.design=payload.design;state.designBrief=structuredClone(payload.design.brief);
+  restoreDesignRuns(payload);changed();setView('design');
+}
 function restoreDesignRuns(payload) {
   for(const record of payload.runs) {
     const index=state.runs.findIndex(run=>run.id===record.id),existing=state.runs[index];
@@ -1189,6 +1203,10 @@ function renderDesign(){renderDesignPanel($('design-view'),state,{
     state.designExporting=true;
     try{
     const registry=await fetch('/api/catalog?execution_profile='+encodeURIComponent(design.baseline_project.execution_profile)).then(r=>{if(!r.ok)throw new Error('Catalog unavailable');return r.json();});
+    for(const run of runs)if(run.replay?.paged&&run.status==='completed'){
+      const exported=await kernel.request(`/api/runs/${encodeURIComponent(run.runId)}/export`);
+      run.replay=exported.replay;run.manifest=exported.manifest;run.task=exported.task;
+    }
     const payload={package_version:'0.1.0',design,workspace,runs,registry};
     if(format==='package'){downloadBlob(id+'.friskoli',await designRequest('export',payload,'blob'));state.exportedDesigns??=new Set();state.exportedDesigns.add(id);renderDesign();}
     else if(format==='omex')downloadBlob(id+'.omex',await designRequest('standards',{payload,format},'blob'));
@@ -1900,6 +1918,9 @@ $('project-file').addEventListener('change', async event => {
   const revision = state.revision;
   const startupEpoch = welcomeEpoch;
   event.target.value = '';
+  if(file.name.toLowerCase().endsWith('.friskoli')){
+    try{await importNativeFile(file);}catch(error){status('loadFailed',{message:error.message},true);}return;
+  }
   const read = async () => {
     if (file.size > 2_000_000) throw new Error(t('workspaceTooLarge'));
     return JSON.parse(await file.text());
@@ -2115,6 +2136,14 @@ $('data-apply').addEventListener('click', () => {
 });
 $('export-button').addEventListener('click', () => { if (state.activeRun?.replay) $('export-dialog').showModal(); });
 $('export-close').addEventListener('click', () => $('export-dialog').close());
+const nativeRunButton=el('button','inspector-action',currentLanguage()==='zh-CN'?'可携带研究包 · .friskoli':'Portable research package · .friskoli');
+nativeRunButton.id='export-native-run';
+nativeRunButton.addEventListener('click',async()=>{
+  const run=state.activeRun;if(!run?.runId||run.status!=='completed')return;
+  try{const response=await fetch(`/api/runs/${encodeURIComponent(run.runId)}/package`);if(!response.ok)throw new Error('Research package export failed');downloadBlob(`${run.id}.friskoli`,await response.blob());}
+  catch(error){status('runFailed',{message:error.message},true);}
+});
+$('export-json').before(nativeRunButton);
 async function exportPaged(run,csv){
   try{let writer=null;const name=`${run.id}.${csv?'csv':'result.json'}`;if(window.showSaveFilePicker){const handle=await window.showSaveFilePicker({suggestedName:name});writer=await handle.createWritable();}
     const blob=await exportPagedResult(taskStore.pagers.get(run.localId),{csv,writer,onProgress:(n,total)=>status('updated',{message:`${n}/${total}`})});

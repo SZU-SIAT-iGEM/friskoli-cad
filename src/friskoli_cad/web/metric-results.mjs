@@ -39,7 +39,7 @@ export function renderRadialMetrics(root,snapshots){
   table(root,[text('Population','菌群'),'R ≤ [µm]',text('Live count','存活菌数'),text('Live fraction','存活菌比例'),text('Volume enrichment','体积富集倍数'),text('Founder arrival fraction','初始菌曾到达比例'),text('Founder residence [s]','初始菌平均停留 [s]'),text('First arrival · arrived founders [s]','首次到达 · 已到达初始菌 [s]')],groups.flatMap(([group,{radial:r}])=>r.shells.map(s=>[group,...['radius_um','live_count','live_fraction','volume_enrichment','founder_ever_arrived_fraction','founder_mean_residence_s','founder_mean_first_arrival_s'].map(k=>fmt(s[k]))])));
 }
 export function renderMetrics(root,replay,selectedId,t,project,definitions=[]) {
-  const snapshots=replay.snapshots,metrics=snapshots.at(-1).metrics;
+  const snapshots=replay.metric_snapshots?.length?replay.metric_snapshots:replay.snapshots,metrics=snapshots.at(-1).metrics;
   if(metrics?.by_group) {
     root.append(el('strong',t('recordedMetrics')));
     const details=el('details','','metric-definitions');details.append(el('summary',t('metricDefinitions')));
@@ -52,7 +52,7 @@ export function renderMetrics(root,replay,selectedId,t,project,definitions=[]) {
     table(root,[t('population'),...METRIC_KEYS.map(t)],Object.entries(metrics.by_group).map(([group,values])=>[group,...METRIC_KEYS.map(k=>fmt(values[k]))]));
     root.append(el('p',`${t('lastPublishedTime')}: ${fmt(snapshots.at(-1).frame.time_s)} s`,'task-note'));
   }
-  const series=snapshots.map(({frame})=>({frame,cell:frame.cells.find(c=>c.id===selectedId)}));
+  const series=replay.snapshots.map(({frame})=>({frame,cell:frame.cells.find(c=>c.id===selectedId)}));
   const channels=selectedId?Object.keys(replay.run.channels).filter(id=>replay.run.channels[id].group_id===series.find(s=>s.cell)?.cell.group_id):[];
   for(const id of channels)metricChart(root,`${id} [${replay.run.channels[id].unit}]`,[{label:selectedId,points:series.map(({frame,cell})=>[frame.time_s,cell?.channels?.[id]??null])}]);
   const inventories=Object.keys(snapshots.at(-1).object_states??{});
@@ -71,5 +71,5 @@ export function renderComparison(root,variants,t) {
     }
     table(root,['Run','seed',t('population'),...METRIC_KEYS.map(t)],variant.runs.flatMap(run=>Object.entries(run.replay.snapshots.at(-1).metrics.by_group).map(([group,values])=>[run.id,run.submission?.execution.seed??run.project.random_seed,group,...METRIC_KEYS.map(key=>fmt(values[key]))])));
   }
-  for(const metric of METRIC_KEYS.slice(2)) metricChart(root,t(metric),variants.flatMap(variant=>variant.runs.flatMap(run=>Object.keys(run.project.groups).map(group=>({label:`${variant.label} · ${group} · seed ${run.submission?.execution.seed??run.project.random_seed}`,points:run.replay.snapshots.map(s=>[s.frame.time_s,s.metrics?.by_group?.[group]?.[metric]??null])})))));
+  for(const metric of METRIC_KEYS.slice(2)) metricChart(root,t(metric),variants.flatMap(variant=>variant.runs.flatMap(run=>Object.keys(run.project.groups).map(group=>({label:`${variant.label} · ${group} · seed ${run.submission?.execution.seed??run.project.random_seed}`,points:(run.replay.metric_snapshots??run.replay.snapshots).map(s=>[s.frame.time_s,s.metrics?.by_group?.[group]?.[metric]??null])})))));
 }

@@ -133,14 +133,14 @@ def run_case(job):
     condition, seed, overrides, duration, dt = job
     width = overrides.get("width_um", TABLE["width_um"]["value"])
     sim = simulation_from_project(build_project(condition, seed, overrides), seed=seed)
-    series, every, start = [], int(round(SAMPLE_EVERY_S / dt)), time.perf_counter()
+    series, every, start = [], max(1, int(round(SAMPLE_EVERY_S / dt))), time.perf_counter()
     for i in range(1, int(round(duration / dt)) + 1):
         sim.step(dt)
         if i % every == 0:
-            y = np.array([c["position_um"][1] for c in sim.current.cell_frame["cells"]])
-            series.append((round(i * dt, 6), float(np.mean(y > width / 2)), float(np.mean(y) / width)))
+            metrics = sim.current.metrics['by_group']['cells']
+            series.append((round(i * dt, 6), metrics['region_fraction'], metrics['mean_position_um'] / width if metrics['mean_position_um'] is not None else None))
     y = [c["position_um"][1] for c in sim.current.cell_frame["cells"]]
-    return {"condition": condition, "seed": seed, "series": series, "final_y_um": y, "wall_s": time.perf_counter() - start}
+    return {"condition": condition, "seed": seed, "series": series, "final_y_um": y, "wall_s": time.perf_counter() - start, "metrics": sim.current.metrics["by_group"]["cells"]}
 
 
 def drift(series, width, t0=10.0, t1=120.0):
@@ -177,7 +177,7 @@ def report(results, out, width, duration):
         runs = [r for r in results if r["condition"] == condition]
         if not runs:
             continue
-        frac, my, vd = (mean_se(x) for x in ([r["series"][-1][1] for r in runs], [r["series"][-1][2] for r in runs], [drift(r["series"], width) for r in runs]))
+        frac, my, vd = (mean_se(x) for x in ([r["series"][-1][1] for r in runs], [r["series"][-1][2] for r in runs], [r["metrics"]["drift_um_s"] if r["metrics"]["drift_um_s"] is not None else float("nan") for r in runs]))
         summary.append([condition, len(runs), *frac, *my, *vd])
     with open(out / "summary.csv", "w", newline="") as f:
         w = csv.writer(f)

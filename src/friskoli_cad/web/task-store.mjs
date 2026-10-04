@@ -345,7 +345,12 @@ export class TaskStore {
           manifest.completeness !== record.completeness) return;
     }
     if (record.manifest && JSON.stringify(record.manifest) === JSON.stringify(manifest)) return;
-    if(record.submission.task_contract_version==='0.6.0'){const pager=await LinkedReplay.create(this.client,record,manifest),index=pager.frameCount-1;const frame=await pager.frame(index);this.releaseOtherPagers(id);this.pagers.set(id,pager);this.replace(id,{manifest,replay:pager.replay({...frame,concentrations:{}},index)});return;}
+    if(record.submission.task_contract_version==='0.6.0'){
+      const pager=await LinkedReplay.create(this.client,record,manifest),index=pager.frameCount-1,frame=await pager.frame(index);
+      const history=await pager.metricHistory(record.replay?.metric_snapshots??[]);pager.metricSnapshots=history;
+      this.releaseOtherPagers(id);this.pagers.set(id,pager);
+      this.replace(id,{manifest,replay:{...pager.replay({...frame,concentrations:{}},index),metric_snapshots:history}});return;
+    }
     const cache = this.cache.get(id) ?? new Map(), seenChunks = new Set(), frames = [];
     this.cache.set(id, cache);
     let previousStep = -1;
@@ -381,7 +386,7 @@ export class TaskStore {
       execution:{task_contract_version:record.submission.task_contract_version, task_run_id:record.runId, request_id:record.submission.request_id,
         status:manifest.status, completeness:manifest.completeness, include_fields:record.submission.output_plan.include_fields, input_snapshot:manifest.input_snapshot},
       snapshots:frames.map(item => ({frame:item.frame, concentrations:taskFields(item, record.submission), ...taskObjects(item, record.submission),...validateTaskLifecycle(item,record.submission),
-        ...(record.project.execution_profile==='chemotaxis-spatial-v1'&&['0.4.0','0.5.0'].includes(record.submission.task_contract_version) ? {metrics:validateMetrics(item.metrics,record.project)} : {})}))});
+        ...(record.project.execution_profile==='modular-spatial-v1'&&record.submission.task_contract_version==='0.6.0' ? {metrics:validateMetrics(item.metrics,record.project)} : {})}))});
     this.replace(id, {manifest, replay});
   }
   async poll(id) {

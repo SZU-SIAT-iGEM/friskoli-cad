@@ -12,7 +12,7 @@ class ObservationTests(unittest.TestCase):
             'observation': {'id': 'right', 'label': 'Right', 'axis': 0,
                 'region_lower_um': [5, 0, 0], 'region_upper_um': [10, 10, 2]}}
     def frame(self, t, positions):
-        return {'time_s': t, 'cells': [{'id': cid, 'group_id': 'a', 'position_um': pos} for cid, pos in positions.items()]}
+        return {'time_s': t, 'frame_index': int(t), 'cells': [{'id': cid, 'group_id': 'a', 'position_um': pos} for cid, pos in positions.items()]}
 
     def test_arrival_residence_descendants_and_death(self):
         state = initial_observation(self.project, self.frame(0, {'p': [1, 2, 1]}))
@@ -21,7 +21,7 @@ class ObservationTests(unittest.TestCase):
         frame = self.frame(3, {'p': [6, 2, 1], 'child': [2, 2, 1]})
         state = advance_observation(state, frame)
         metric = observation_metrics(state, frame)['by_group']
-        self.assertEqual(metric['a'], {'initial_count': 1, 'live_count': 2, 'mean_displacement_um': 5,
+        self.assertEqual(metric['a'], {'initial_count': 1, 'live_count': 2, 'mean_position_um': 4., 'drift_um_s': None, 'mean_displacement_um': 5,
             'region_fraction': .5, 'ever_arrived_fraction': 1, 'mean_residence_s': 2})
         self.assertIsNone(metric['empty']['ever_arrived_fraction'])
         state = advance_observation(state, self.frame(4, {'child': [2, 2, 1]}))

@@ -248,7 +248,8 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 if set(body) != {"archive_base64"} or not isinstance(body["archive_base64"], str):
                     raise ValueError("Import requires archive_base64")
                 archive = base64.b64decode(body["archive_base64"], validate=True)
-                self._json(200, import_design_package(archive))
+                from friskoli_cad.run_delivery import is_task_package, read_task_package
+                self._json(200, read_task_package(archive) if is_task_package(archive) else import_design_package(archive))
             else:
                 from friskoli_cad.design_delivery import design_report_csv, design_report_html
                 if set(body) != {"payload", "format"} or body["format"] not in ("html", "csv"):
@@ -324,7 +325,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
     def _get_task(self, path: str, query: str) -> None:
         try:
             service = self._task_service()
-            match = re.fullmatch(r"/api/runs/([A-Za-z0-9_-]{1,128})(?:/(input|events|result|chunks/([A-Za-z0-9_-]{1,128})|artifacts/([A-Za-z0-9_-]{1,128})|checkpoint))?", path)
+            match = re.fullmatch(r"/api/runs/([A-Za-z0-9_-]{1,128})(?:/(input|events|result|export|package|chunks/([A-Za-z0-9_-]{1,128})|artifacts/([A-Za-z0-9_-]{1,128})|checkpoint))?", path)
             if match is None:
                 raise TaskError(404, "task.not_found", "unknown task resource")
             run_id, resource, chunk_id, artifact_id = match.groups()
@@ -353,6 +354,14 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 result = service.input(run_id)
             elif resource == "result":
                 result = service.manifest(run_id)
+            elif resource == 'export':
+                from friskoli_cad.run_delivery import collect_task_export
+                result = collect_task_export(service, run_id, inline_arrays=True)
+            elif resource == 'package':
+                from friskoli_cad.run_delivery import export_task_package
+                self._send(200, export_task_package(service, run_id), 'application/zip',
+                    {'Content-Disposition': f'attachment; filename="{run_id}.friskoli"'})
+                return
             elif artifact_id is not None or resource == "checkpoint":
                 artifact_id = "checkpoint" if resource == "checkpoint" else artifact_id
                 artifact_path, metadata = service.artifact(run_id, artifact_id)

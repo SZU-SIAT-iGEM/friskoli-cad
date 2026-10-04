@@ -1,5 +1,6 @@
 const messages = {
   en: {
+    mean_position_um:'Mean axial position [µm]',drift_um_s:'Drift 10–120 s [µm/s]',cumulative_degradation_molecules:'Cumulative substrate conversion [molecule]',degradation_per_initial_cell_molecules:'Conversion per initial cell [molecule/cell]',
     parameterMissing:'Not provided · required before running',parameterSource:'Value and source',range:'Range',
     spatialDemoTitle:'Motion, obstacles & local sources',spatialDemoHint:'Unbiased motion · finite sources · local diffusion',
     randomSeed:'Execution random seed',includeFields:'Include concentration fields',objectPlaced:'Object added to the graph.',
@@ -111,6 +112,7 @@ const messages = {
     selectBlockFirst:'Select a population volume first.',
   },
   'zh-CN': {
+    mean_position_um:'沿轴平均位置 [µm]',drift_um_s:'10–120 s 漂移 [µm/s]',cumulative_degradation_molecules:'累计底物转化量 [molecule]',degradation_per_initial_cell_molecules:'按初始菌数归一化转化量 [molecule/cell]',
     parameterMissing:'尚未提供 · 运行前须填写',parameterSource:'数值与来源',range:'范围',
     queued:'排队中',cancelled:'已取消',interrupted:'已中断',submitting:'提交中',submission_unknown:'提交结果未知',rejected:'未接受',unavailable:'记录已不可查询',
     none:'尚无已发布输出',partial:'部分输出',complete:'完整输出',

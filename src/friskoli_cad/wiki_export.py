@@ -24,8 +24,8 @@ from .engine.profiles import registry_for_project
 def read_run_export(raw):
     """Validate the frontend's asynchronous Export run JSON without a design."""
     original = _loads(raw)
-    if original.get('task_contract_version') not in ('0.3.0', '0.4.0', '0.5.0'):
-        raise ValueError('Only spatial task run exports 0.3/0.4/0.5 are supported')
+    if original.get('task_contract_version') != '0.6.0':
+        raise ValueError('First-release Wiki requires a Task 0.6 run export')
     submission, task, manifest = (original.get(k) for k in ('submission', 'task', 'manifest'))
     if not all(isinstance(v, dict) for v in (submission, task, manifest)):
         raise ValueError('Run export requires submission, task and manifest')
@@ -87,6 +87,8 @@ def validate_wiki_record(payload):
         every = settings.get('frame_every_steps', 1)
         expected = list(range(0, steps + 1, every))
         if expected[-1] != steps: expected.append(steps)
+        if replay.get('lineage'):
+            expected = sorted(set(expected) | {segment['manifest'].get('start_step', 0) for segment in replay['lineage']})
         if [s['frame']['frame_index'] for s in snapshots] != expected:
             raise ValueError('Replay has missing or unordered committed frames')
         frames = []
@@ -100,12 +102,13 @@ def validate_wiki_record(payload):
             concentrations = snapshot.get('concentrations')
             if not isinstance(concentrations, dict): raise ValueError('Missing concentrations mapping')
             for field in concentrations.values():
-                display_domain = field.get('field_domain', project['domain'])
+                physical_domain = snapshot.get('display_domain', project['domain'])
+                display_domain = field.get('field_domain', physical_domain)
                 stride = settings.get('field_stride_xyz', [1, 1, 1])
-                if (display_domain.get('geometry') != project['domain']['geometry']
-                        or display_domain.get('counts_xyz') != [n // s for n, s in zip(project['domain']['counts_xyz'], stride)]
-                        or any(n % s for n, s in zip(project['domain']['counts_xyz'], stride))
-                        or display_domain.get('spacing_um_xyz') != [d * s for d, s in zip(project['domain']['spacing_um_xyz'], stride)]):
+                if (display_domain.get('geometry') != physical_domain['geometry']
+                        or display_domain.get('counts_xyz') != [n // s for n, s in zip(physical_domain['counts_xyz'], stride)]
+                        or any(n % s for n, s in zip(physical_domain['counts_xyz'], stride))
+                        or display_domain.get('spacing_um_xyz') != [d * s for d, s in zip(physical_domain['spacing_um_xyz'], stride)]):
                     raise ValueError('Preview grid differs from declared volume aggregation')
                 if 'field_domain' in field and field.get('aggregation') != 'volume_mean':
                     raise ValueError('Unsupported field aggregation')
@@ -127,8 +130,10 @@ def build_wiki(native_bytes, output, *, download_url=None):
     if download_url is not None and (url.scheme != 'https' or not url.netloc):
         raise ValueError('Full-version download URL must be an explicit HTTPS URL')
     if len(native_bytes) > MAX_ARCHIVE_BYTES: raise ValueError('Input exceeds size budget')
-    standalone = not native_bytes.startswith(b'PK')
-    payload = read_run_export(native_bytes) if standalone else import_design_package(native_bytes)
+    from .run_delivery import is_task_package, read_task_package
+    task_package = is_task_package(native_bytes)
+    standalone = not native_bytes.startswith(b'PK') or task_package
+    payload = read_task_package(native_bytes) if task_package else read_run_export(native_bytes) if standalone else import_design_package(native_bytes)
     validate_wiki_record(payload)
     destination.parent.mkdir(parents=True, exist_ok=True)
     stage = Path(tempfile.mkdtemp(prefix='.wiki-build-', dir=destination.parent))
@@ -164,7 +169,7 @@ def build_wiki(native_bytes, output, *, download_url=None):
                 viewer_catalog['unavailable_profiles'].append(profile)
         (stage / 'viewer-catalog.json').write_text(json.dumps(viewer_catalog, ensure_ascii=False, allow_nan=False), encoding='utf-8')
         (stage / 'record.json').write_text(json.dumps(payload, ensure_ascii=False, allow_nan=False), encoding='utf-8')
-        original_name = 'run.result.json' if standalone else 'design.friskoli'
+        original_name = 'run.friskoli' if task_package else 'run.result.json' if standalone else 'design.friskoli'
         (stage / original_name).write_bytes(native_bytes)
         if standalone:
             buffer = io.StringIO(); writer = csv.writer(buffer)
