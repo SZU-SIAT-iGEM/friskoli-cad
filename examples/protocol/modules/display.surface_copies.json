@@ -1,5 +1,5 @@
 {
-  "protocol_version": "0.1.0",
+  "protocol_version": "0.2.0",
   "id": "display.surface_copies",
   "version": "1.0.0",
   "scope": "population",
@@ -9,16 +9,40 @@
   "description": "Track copies of a named surface-displayed protein without fixing the protein identity in the module contract.",
   "inputs": {},
   "outputs": {
-    "copies": {"shape": "cell.scalar", "quantity": "protein_copies", "unit": "molecule"}
+    "copies": {
+      "shape": "cell.scalar",
+      "quantity": "protein_copies",
+      "unit": "molecule"
+    }
   },
   "parameters": {
-    "protein_id": {"type": "string"},
-    "initial_copies": {"type": "integer", "unit": "molecule", "minimum": 0},
-    "synthesis_rate": {"type": "number", "unit": "molecule/s", "minimum": 0},
-    "turnover_rate": {"type": "number", "unit": "1/s", "minimum": 0}
+    "protein_id": {
+      "type": "string"
+    },
+    "initial_copies": {
+      "type": "integer",
+      "unit": "molecule",
+      "minimum": 0
+    },
+    "synthesis_rate": {
+      "type": "number",
+      "unit": "molecule/s",
+      "minimum": 0
+    },
+    "turnover_rate": {
+      "type": "number",
+      "unit": "1/s",
+      "minimum": 0
+    }
   },
   "state": {
-    "copies": {"shape": "cell.scalar", "unit": "molecule", "on_division": "split"}
+    "copies": {
+      "shape": "cell.scalar",
+      "unit": "molecule",
+      "on_division": "split"
+    }
   },
-  "initial_outputs": ["copies"]
+  "initial_outputs": [
+    "copies"
+  ]
 }

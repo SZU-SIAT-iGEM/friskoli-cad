@@ -459,7 +459,11 @@ def _csv(data):
         rows.append(['run', data['design']['id'], row['candidate_id'], candidate.get('name', ''), candidate.get('kind', ''),
             goal['metric'], goal['group_id'], row['series'], row['run_id'], row['seed'], '', '', '', row['value'],
             row['reason'] or 'included', _json(row['version_lock']).decode('utf-8'), candidate.get('soft_penalty'),
-            _json({'project': original.get('project'), 'settings': original.get('settings'), 'submission': original.get('submission')}).decode('utf-8')])
+            _json({'project_sha256': _hash(_json(original.get('project'))),
+                   'settings': original.get('settings'),
+                   'submission': {k: v for k, v in (original.get('submission') or {}).items() if k != 'project'},
+                   'submission_sha256': _hash(_json(original.get('submission'))),
+                   'full_inputs': 'evidence/runs.json in the accompanying .friskoli package'}).decode('utf-8')])
     if data['design']['brief']['brief_version'] in ('0.2.0', '0.3.0'):
         from friskoli_cad.design_evaluation import _evaluate
         evaluation = _evaluate(data)

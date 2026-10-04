@@ -188,6 +188,9 @@ def run_worker(submission: dict, channel, limits: dict, expected_sources: dict, 
         pass
     except BaseException as error:
         known = isinstance(error, SimulationError) and submission['execution']['semantics'] == 'modular-spatial-v1'
+        if not known and not isinstance(error, WorkerLimit):
+            # Details stay in the local operator log, never in public task errors.
+            __import__('logging').getLogger(__name__).exception('Numerical worker failed during %s', phase)
         if known and error.code == 'resource.cell_limit' and submission['task_contract_version'] == '0.6.0':
             # The runtime rejected the uncommitted transaction. Persist the
             # preceding state even when it lies between periodic checkpoints.

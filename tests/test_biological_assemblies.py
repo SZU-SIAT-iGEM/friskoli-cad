@@ -109,24 +109,24 @@ def test_application_preserves_other_population_and_allows_provider_id_binding()
     # Rename the shared field provider while preserving its registered module,
     # proving that a compatible provider can be bound by explicit node ID.
     rebound = deepcopy(project)
-    provider = next(node for node in rebound["graph"]["nodes"] if node["id"] == "nutrient_field")
-    provider["id"] = "nutrient_field_rebound"
+    provider = next(node for node in rebound["graph"]["nodes"] if node["id"] == "sugar_field")
+    provider["id"] = "sugar_field_rebound"
     for edge in rebound["graph"]["edges"]:
-        if edge["from"]["node"] == "nutrient_field":
-            edge["from"]["node"] = "nutrient_field_rebound"
+        if edge["from"]["node"] == "sugar_field":
+            edge["from"]["node"] = "sugar_field_rebound"
     valid_project(rebound)
     requirement = next(req for req in assembly["input_requirements"]
-                       if req["source"]["node"] == "nutrient_field")
+                       if req["source"]["node"] == "sugar_field")
     applied = apply_assembly(
         rebound,
         "reference",
         assembly,
-        bindings={requirement["id"]: {"node": "nutrient_field_rebound", "port": requirement["source"]["port"]}},
+        bindings={requirement["id"]: {"node": "sugar_field_rebound", "port": requirement["source"]["port"]}},
     )
     valid_project(applied)
     assert applied["groups"]["cells"] == rebound["groups"]["cells"]
     assert applied["groups"]["reference"] == rebound["groups"]["reference"]
-    assert any(node["id"] == "nutrient_field_rebound" for node in applied["graph"]["nodes"])
+    assert any(node["id"] == "sugar_field_rebound" for node in applied["graph"]["nodes"])
     assert any(node["owner"] == {"kind": "population", "id": "cells"}
                for node in applied["graph"]["nodes"])
 

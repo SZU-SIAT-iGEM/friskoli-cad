@@ -1,46 +1,120 @@
 {
-  "protocol_version": "0.1.0",
+  "protocol_version": "0.2.0",
   "id": "contract-example-diffusion",
   "nodes": [
     {
       "id": "field",
       "module_id": "field.diffusion",
       "module_version": "1.0.0",
-      "owner": {"kind": "environment", "id": "domain"},
+      "owner": {
+        "kind": "environment",
+        "id": "domain"
+      },
       "parameters": {
-        "species": {"value": "cellobiose", "provenance": {"kind": "example", "reference": "protocol-example"}},
-        "initial_concentration": {"value": 10, "unit": "uM", "provenance": {"kind": "example", "reference": "protocol-example"}},
-        "diffusivity": {"value": 50, "unit": "um2/s", "provenance": {"kind": "example", "reference": "protocol-example"}},
-        "boundary": {"value": "no_flux", "provenance": {"kind": "example", "reference": "protocol-example"}}
+        "species": {
+          "value": "cellobiose",
+          "provenance": {
+            "kind": "example",
+            "reference": "protocol-example"
+          }
+        },
+        "initial_concentration": {
+          "value": 10,
+          "unit": "uM",
+          "provenance": {
+            "kind": "example",
+            "reference": "protocol-example"
+          }
+        },
+        "diffusivity": {
+          "value": 50,
+          "unit": "um2/s",
+          "provenance": {
+            "kind": "example",
+            "reference": "protocol-example"
+          }
+        },
+        "boundary": {
+          "value": "no_flux",
+          "provenance": {
+            "kind": "example",
+            "reference": "protocol-example"
+          }
+        }
       }
     },
     {
       "id": "sampler",
       "module_id": "field.sample_at_cells",
       "module_version": "1.0.0",
-      "owner": {"kind": "population", "id": "group_1"},
+      "owner": {
+        "kind": "population",
+        "id": "group_1"
+      },
       "parameters": {
-        "species": {"value": "cellobiose", "provenance": {"kind": "example", "reference": "protocol-example"}}
+        "species": {
+          "value": "cellobiose",
+          "provenance": {
+            "kind": "example",
+            "reference": "protocol-example"
+          }
+        }
       }
     },
     {
       "id": "display",
       "module_id": "display.surface_copies",
       "module_version": "1.0.0",
-      "owner": {"kind": "population", "id": "group_1"},
+      "owner": {
+        "kind": "population",
+        "id": "group_1"
+      },
       "parameters": {
-        "protein_id": {"value": "INP", "provenance": {"kind": "example", "reference": "named preset in protocol example"}},
-        "initial_copies": {"value": 100, "unit": "molecule", "provenance": {"kind": "example", "reference": "protocol-example"}},
-        "synthesis_rate": {"value": 2, "unit": "molecule/s", "provenance": {"kind": "example", "reference": "protocol-example"}},
-        "turnover_rate": {"value": 0.01, "unit": "1/s", "provenance": {"kind": "example", "reference": "protocol-example"}}
+        "protein_id": {
+          "value": "INP",
+          "provenance": {
+            "kind": "example",
+            "reference": "named preset in protocol example"
+          }
+        },
+        "initial_copies": {
+          "value": 100,
+          "unit": "molecule",
+          "provenance": {
+            "kind": "example",
+            "reference": "protocol-example"
+          }
+        },
+        "synthesis_rate": {
+          "value": 2,
+          "unit": "molecule/s",
+          "provenance": {
+            "kind": "example",
+            "reference": "protocol-example"
+          }
+        },
+        "turnover_rate": {
+          "value": 0.01,
+          "unit": "1/s",
+          "provenance": {
+            "kind": "example",
+            "reference": "protocol-example"
+          }
+        }
       }
     }
   ],
   "edges": [
     {
       "id": "field_to_sampler",
-      "from": {"node": "field", "port": "concentration"},
-      "to": {"node": "sampler", "port": "concentration"},
+      "from": {
+        "node": "field",
+        "port": "concentration"
+      },
+      "to": {
+        "node": "sampler",
+        "port": "concentration"
+      },
       "timing": "same_step"
     }
   ]

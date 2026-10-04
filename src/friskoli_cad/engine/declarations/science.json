@@ -1,7 +1,7 @@
 [
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "pts.capsule_area",
       "version": "1.0.0",
       "scope": "population",
@@ -39,18 +39,17 @@
           }
         ],
         "algorithm": "Read fixed capsule geometry; total length includes both end caps.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_pts_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -129,7 +128,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "pts.capacity_rebuilt",
       "version": "1.0.0",
       "scope": "population",
@@ -207,18 +206,17 @@
           }
         ],
         "algorithm": "Rebuilt source footprint-limited total copies; source A parameterization remains distinct.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_pts_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -228,7 +226,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "pts.capacity_simplified",
       "version": "1.0.0",
       "scope": "population",
@@ -299,18 +297,17 @@
           }
         ],
         "algorithm": "Simplified source reference-area-scaled total copies; this is not the rebuilt footprint rule.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_pts_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -320,7 +317,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "uptake.pts_request",
       "version": "1.0.0",
       "scope": "population",
@@ -385,18 +382,17 @@
           }
         ],
         "algorithm": "Potential uptake only; does not debit inventory or imply that requested material is available.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_pts_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -406,7 +402,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "signal.pts_accepted",
       "version": "1.0.0",
       "scope": "population",
@@ -546,18 +542,17 @@
           }
         ],
         "algorithm": "Source phenomenological signal. Exact EI frozen-flux step, then CheY exponential step with end-step CheA frozen (first-order coupling); motor bias is a readout, no motor or motion is executed.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_pts_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -567,7 +562,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "space.axis_aligned_obstacle",
       "version": "1.0.0",
       "scope": "environment",
@@ -634,18 +629,15 @@
           }
         ],
         "algorithm": "A physical solid for capsule collision and impermeable field faces; bounds must align with the grid.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -718,7 +710,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "source.finite_local",
       "version": "1.0.0",
       "scope": "environment",
@@ -796,18 +788,17 @@
           }
         ],
         "algorithm": "Finite soluble material release. Exhaustion releases zero; no surface-enzyme or polymer-degradation claim.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_first_release_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -889,7 +880,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "material.degradable_box",
       "version": "1.0.0",
       "scope": "environment",
@@ -972,18 +963,15 @@
           }
         ],
         "algorithm": "Inventory counts releasable soluble nutrient equivalents (molecule), not polymer chains. Explicit capsule-contact enzyme releases those equivalents. Partial depletion keeps the box as a geometry approximation; exhaustion removes its collision and diffusion mask after the step, exposing zero-concentration fluid voxels next step. No specific enzyme/polymer/PTS chemistry is claimed.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1080,7 +1068,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "reaction.contact_degradation",
       "version": "1.0.0",
       "scope": "environment",
@@ -1130,18 +1118,15 @@
           }
         ],
         "algorithm": "Registered global provider: reads material stocks and surface enzyme copies at step start, shares each cell enzyme budget across contacts, and releases soluble nutrient equivalents before diffusion and uptake. kcat_s is constructed nutrient equivalents per enzyme per second; specific hydrolysis and enzyme kinetics remain replaceable, not experimentally calibrated.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1156,7 +1141,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "surface.enzyme_activity",
       "version": "1.0.0",
       "scope": "population",
@@ -1199,18 +1184,15 @@
           }
         ],
         "algorithm": "Explicit constructed surface enzyme copy count. Populations without this module do not degrade material; no synthesis or enzyme turnover model.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1222,7 +1204,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "field.diffusive_local",
       "version": "2.0.0",
       "scope": "environment",
@@ -1286,19 +1268,16 @@
             }
           }
         ],
-        "algorithm": "Reads all registered source/material inventories of its species globally at step start; no individual source edge. Contact release and finite spontaneous sources feed one no-flux field before stable diffusion and shared accepted uptake. Initialization is an explicit linear field about the domain center using the project species mean; negative initial fluid voxel concentrations are rejected. Gradients only initialize; diffusion then evolves freely.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "algorithm": "Initialize the declared linear field; expose committed field to readers. The common field stage settles sources, material release, external exchange and accepted uptake before stable no-flux diffusion. Negative fluid concentrations are rejected.",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1314,7 +1293,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "field.sample_local",
       "version": "1.0.0",
       "scope": "population",
@@ -1375,18 +1354,15 @@
           }
         ],
         "algorithm": "Nearest-voxel sampling at step start; gradients respect blocked faces. Grid convergence remains scenario-specific.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1396,7 +1372,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "uptake.local_settlement",
       "version": "1.0.0",
       "scope": "population",
@@ -1476,18 +1452,17 @@
           }
         ],
         "algorithm": "All populations sharing a voxel settle together using step-start support. Only explicit uptake nodes consume a species.",
-        "implementation": "friskoli_cad.engine.spatial_modules.SpatialModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_first_release_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; source equations retain their declared units and mechanisms.",
-          "Geometry and inventories evolve only through registered owners; parameters remain exploratory.",
-          "See docs/science/n3-mechanisms.md for splitting, limits and source differences."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1497,7 +1472,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "signal.constant_bias",
       "version": "1.0.0",
       "scope": "population",
@@ -1540,18 +1515,15 @@
           }
         ],
         "algorithm": "Explicit constant-bias control. Nutrient uptake can remain active without feeding back to movement.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: N3-constructed; docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1563,7 +1535,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "signal.concentration_memory",
       "version": "1.0.0",
       "scope": "population",
@@ -1645,18 +1617,17 @@
           }
         ],
         "algorithm": "Source A concentration memory and exponential motor modulation; exponent is explicitly bounded to ±20 as in the source.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_first_release_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: source A motion; docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1671,7 +1642,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "signal.chey_memory",
       "version": "1.0.0",
       "scope": "population",
@@ -1764,18 +1735,17 @@
           }
         ],
         "algorithm": "Source B low-pass CheY-P adaptation; the Hill motor readout uses the adapted signal. This is not an MCP methylation model.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_first_release_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: source B adaptation; docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -1792,7 +1762,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "signal.mcp_adaptation",
       "version": "1.0.0",
       "scope": "population",
@@ -1960,19 +1930,17 @@
           }
         ],
         "algorithm": "Reduced MWC receptor with declared linear adaptation feedback. Initialize methylation adapted to local ligand. CheA activity feeds a frozen-activity CheY step. Nutrient background is separately registered.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_first_release_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: Tu, Shimizu & Berg 2008; constructed linear F(a); docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance.",
-          "Legacy compatibility: the four ei_* parameters are validated but have no effect on MCP activity or CheY. Use v2 for new graphs; explicit project migration is documented in docs/science/n4-semantics-audit.md."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -2002,7 +1970,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "motion.hazard_run_tumble",
       "version": "1.0.0",
       "scope": "population",
@@ -2119,19 +2087,15 @@
           }
         ],
         "algorithm": "The committed motor state drives the next numerical interval. Instantaneous turns and finite fixed dwell are separate named modes. Collision is conservative geometric blocking; event clocks continue while blocked.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: N3-constructed; docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance.",
-          "RNG service: friskoli_cad.engine.random_streams.RandomStreams; pcg64-sha256-key-v1; project random_seed or explicit run seed, keyed by node ID, population ID, stable cell ID and purpose: run_hazard (unit-exponential clock), tumble_direction (turn angle/azimuth). Candidate streams commit only with a successful numerical step; complete state is checkpointed. Signal ODEs and Hill motor bias do not draw random numbers."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -2148,7 +2112,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "reaction.direct_bulk_hydrolysis",
       "version": "1.0.0",
       "scope": "environment",
@@ -2197,18 +2161,15 @@
           }
         ],
         "algorithm": "Source-B remaining-stock hydrolysis law with conservative shared contact allocation. The frozen initial material amount is an explicit global registry read. Soluble equivalents enter the external field, then uptake settles separately.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: reviewed source B direct-bulk active path; docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -2223,7 +2184,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "signal.mcp_adaptation",
       "version": "2.0.0",
       "scope": "population",
@@ -2371,19 +2332,17 @@
           }
         ],
         "algorithm": "Reduced MWC receptor with declared linear adaptation feedback. Initialize methylation adapted to local ligand. CheA activity feeds a frozen-activity CheY step. Nutrient background is separately registered.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
           "status": "tested",
           "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
+            "tests/test_first_release_science.py"
           ]
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: Tu, Shimizu & Berg 2008; constructed linear F(a); docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance.",
-          "MCP v2 exposes only active parameters; EI belongs to the separate PTS signal model. Legacy v1 remains executable; migrate_mcp_parameters removes its four unused EI parameters explicitly."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -2409,7 +2368,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "uptake.saturating_request",
       "version": "1.0.0",
       "scope": "population",
@@ -2468,20 +2427,15 @@
           }
         ],
         "algorithm": "Generic phenomenological saturating nutrient transport request. Requires finite/reservoir settlement; not a PTS pathway claim.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: N3-constructed; docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance.",
-          "Composition, state ownership and parameter provenance: docs/science/foundation-composition.md. All new maintenance, recovery, grace and death values are constructed, not literature-calibrated.",
-          "Unit reference only: https://www.bipm.org/en/si-base-units/mole ; 1 uM*um^3 = 602.214076 molecule-equivalents."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -2495,7 +2449,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "metabolism.reserve_balance",
       "version": "1.0.0",
       "scope": "population",
@@ -2579,20 +2533,15 @@
           }
         ],
         "algorithm": "Finite nutrient-equivalent reserve. Accepted uptake arrives at interval start; maintenance consumes actual available stock. When q=0, unmet duration is zero. Consumed equivalents enter a maintenance ledger, not an external recycling pool. One intracellular stock owner per population; cannot also use legacy nutrient growth. Constructed phenomenological model, not full metabolism.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: N3-constructed; docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance.",
-          "Composition, state ownership and parameter provenance: docs/science/foundation-composition.md. All new maintenance, recovery, grace and death values are constructed, not literature-calibrated.",
-          "Unit reference only: https://www.bipm.org/en/si-base-units/mole ; 1 uM*um^3 = 602.214076 molecule-equivalents."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },
@@ -2606,7 +2555,7 @@
   },
   {
     "manifest": {
-      "protocol_version": "0.1.0",
+      "protocol_version": "0.2.0",
       "id": "life.starvation_hazard",
       "version": "1.0.0",
       "scope": "population",
@@ -2685,22 +2634,15 @@
           }
         ],
         "algorithm": "Recover exposure during the maintenance-met prefix, then accumulate unmet duration. Integrate threshold hazard in both segments; no death before positive grace expires. health=exp(-S/grace) is only a dimensionless exposure readout, not a measured health scale. death_hazard is the equivalent interval-average rate. Constructed phenomenological survival, no strain calibration.",
-        "implementation": "friskoli_cad.engine.chemotaxis_modules.ChemotaxisModule",
+        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
         "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py",
-            "tests/test_modular_science.py"
-          ]
+          "status": "unreviewed",
+          "tests": []
         },
         "assumptions": [
-          "chemotaxis-spatial-v1; explicit operator splitting, no hydrodynamic or contact-force prediction.",
-          "Constructed/source-derived exploratory parameters; no experimental calibration.",
-          "Evidence: N3-constructed; docs/science/n3-mechanisms.md. Per-cell state has explicit lifecycle inheritance.",
-          "Composition, state ownership and parameter provenance: docs/science/foundation-composition.md. All new maintenance, recovery, grace and death values are constructed, not literature-calibrated.",
-          "Unit reference only: https://www.bipm.org/en/si-base-units/mole ; 1 uM*um^3 = 602.214076 molecule-equivalents.",
-          "Probability identity only: NIST exponential CDF/survival/hazard, https://www.itl.nist.gov/div898/handbook/eda/section3/eda3667.htm . This reference does not support the biological threshold, recovery rule or numerical parameter values.",
-          "RNG service: friskoli_cad.engine.random_streams.RandomStreams; pcg64-sha256-key-v1; project random_seed or explicit run seed, keyed by node ID, population ID, stable cell ID and purpose: death (uniform draw against 1-exp(-integrated starvation hazard)). Candidate streams commit only with a successful numerical step; complete state is checkpointed. Signal ODEs and Hill motor bias do not draw random numbers."
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations."
         ]
       }
     },

@@ -13,7 +13,7 @@ from friskoli_cad.tasks import TaskService
 
 
 def body(service, steps=5):
-    project = make_example('center-pts-a-small')
+    project = make_example('modular-foundation')
     return {'task_contract_version':'0.6.0','request_id':'longrun','edit_revision':'1',
         'project':project, 'version_lock':service.version_lock(project),
         'execution':{'semantics':'modular-spatial-v1','backend':'numpy-cpu','seed':17,'dt_s':.01,'steps':steps},
@@ -102,7 +102,7 @@ class LongrunTests(unittest.TestCase):
             def send_bytes(self,data): self.messages.append(canonical_loads(data))
             def recv_bytes(self): return b'\x01'
             def close(self): pass
-        project = make_example('center-pts-a-small')
+        project = make_example('modular-foundation')
         simulation = simulation_from_project(project,seed=17)
         simulation.step(.01)
         events = [{'event_id':'boundary-event', 'step':1}]
@@ -124,7 +124,7 @@ class LongrunTests(unittest.TestCase):
 
     def test_migration_quantity_mapping_and_unknown_shape_rejection(self):
         from friskoli_cad.engine.task_migration import map_field_value
-        simulation = simulation_from_project(make_example('center-pts-a-small'), seed=17)
+        simulation = simulation_from_project(make_example('modular-foundation'), seed=17)
         target_project = copy.deepcopy(simulation.project)
         target_project['domain']['counts_xyz'][0] *= 2
         target_project['domain']['spacing_um_xyz'][0] /= 2
@@ -139,7 +139,7 @@ class LongrunTests(unittest.TestCase):
             with self.assertRaises(ValueError): map_field_value(values,spec,source,grid,'unknown')
 
     def test_binary_checkpoint_rng_continuation(self):
-        project = make_example('center-pts-a-small')
+        project = make_example('modular-foundation')
         continuous = simulation_from_project(project, seed=17)
         for _ in range(3): continuous.step(.01)
         with tempfile.TemporaryDirectory() as folder:
@@ -224,7 +224,7 @@ class LongrunTests(unittest.TestCase):
 
     def test_same_domain_migration_preserves_stocks_rng_and_rejects_hidden_changes(self):
         from friskoli_cad.engine.task_migration import migrate_simulation, MAPPING
-        project = make_example('center-pts-a-small')
+        project = make_example('modular-foundation')
         simulation = simulation_from_project(project,seed=17)
         simulation.step(.01)
         target = copy.deepcopy(project)

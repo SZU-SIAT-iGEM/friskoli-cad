@@ -19,8 +19,14 @@ STAGES = ("prepare", "field", "physiology", "lifecycle", "observation")
 BACKENDS = ("numpy-cpu", "numpy-cupy-cuda")
 
 
+class _FrozenTuple(tuple):
+    """Only freeze() creates this recursively detached sequence."""
+
+
 def freeze(value):
     """Detach mutable values; share arrays only when already immutable."""
+    if isinstance(value, _FrozenTuple):
+        return value
     if isinstance(value, np.ndarray):
         result = value.copy() if value.flags.writeable else value.view()
         result.flags.writeable = False
@@ -28,7 +34,7 @@ def freeze(value):
     if isinstance(value, Mapping):
         return MappingProxyType({key: freeze(child) for key, child in value.items()})
     if isinstance(value, (tuple, list)):
-        return tuple(freeze(child) for child in value)
+        return _FrozenTuple(freeze(child) for child in value)
     if isinstance(value, (str, int, float, bool, type(None), np.generic)):
         return value
     raise ProtocolError("module.value", "/", f"Unsupported context value {type(value).__name__}")

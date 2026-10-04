@@ -5,3 +5,4 @@
 @media(max-height:500px){.center{min-height:0}.viewport{min-height:85px}.timeline{padding-block:5px}.timeline>p{display:none}.menubar{height:36px}.workspacebar{height:36px}.viewport-bottom>span{display:none}}
 @media(pointer:coarse){button,select{min-height:44px}.camera-controls button,.camera-controls select,.panel-controls button{min-height:44px}.transport input{height:44px}.files a,summary{min-height:44px}.workspacebar{min-height:48px}.timeline-title{font-size:11px}.camera-controls{justify-content:flex-start}.camera-controls select{max-width:130px}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+ .scene-marker-note{position:absolute;left:14px;bottom:50px;max-width:calc(100% - 28px);font-size:10px;color:#9bb8b9;pointer-events:none}

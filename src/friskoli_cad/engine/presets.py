@@ -22,7 +22,7 @@ def provenance(key, overrides, kinds):
 
 
 def build_chip_project(condition, seed, overrides=None):
-    """Return a modular-spatial-v1 project for 'gradient' (low -> high) or 'zero' (uniform background)."""
+    """Chip gradient along the horizontal short X axis, or a uniform control."""
     if condition not in ('gradient', 'zero'):
         raise ValueError("Chip condition must be 'gradient' or 'zero'")
     overrides = overrides or {}
@@ -36,7 +36,7 @@ def build_chip_project(condition, seed, overrides=None):
         raise ValueError('Grid spacing must divide each positive chip extent')
     counts = [int(round(x / step)) for x in (length, width, height)]
     spacing = [step, step, step]
-    slope = (high - low) / width
+    slope = (high - low) / length
 
     def node(nid, module_id, version, owner_kind, params):
         manifest = registry.get(module_id, version).manifest
@@ -49,17 +49,17 @@ def build_chip_project(condition, seed, overrides=None):
         owner = {"kind": owner_kind, "id": "cells" if owner_kind == "population" else nid}
         return {"id": nid, "module_id": module_id, "module_version": manifest["version"], "owner": owner, "parameters": parameters}
 
-    def clamp(nid, y0, y1, target, target_key):
+    def clamp(nid, x0, x1, target, target_key):
         return node(nid, "field.boundary_exchange", "1.0.0", "environment", {
-            "species": ("ligand", "low_uM"), "lower_um": ([0.0, y0, 0.0], "boundary_rate_s"), "upper_um": ([length, y1, height], "boundary_rate_s"),
+            "species": ("ligand", "low_uM"), "lower_um": ([x0, 0.0, 0.0], "boundary_rate_s"), "upper_um": ([x1, width, height], "boundary_rate_s"),
             "target_um": (target, target_key), "rate_s": (v["boundary_rate_s"], "boundary_rate_s")})
 
     nodes = [
         node("ligand_field", "field.diffusive_local", "2.0.0", "environment", {
             "species": ("ligand", "low_uM"), "diffusivity_um2_s": (v["diffusivity_um2_s"], "diffusivity_um2_s"),
-            "gradient_x_um_per_um": (0.0, "low_uM"), "gradient_y_um_per_um": (slope, "high_uM"), "gradient_z_um_per_um": (0.0, "low_uM")}),
-        clamp("low_side", 0.0, spacing[1], low, "low_uM" if condition == "gradient" else "background_uM"),
-        clamp("high_side", width - spacing[1], width, high, "high_uM" if condition == "gradient" else "background_uM"),
+            "gradient_x_um_per_um": (slope, "high_uM"), "gradient_y_um_per_um": (0.0, "low_uM"), "gradient_z_um_per_um": (0.0, "low_uM")}),
+        clamp("low_side", 0.0, spacing[0], low, "low_uM" if condition == "gradient" else "background_uM"),
+        clamp("high_side", length - spacing[0], length, high, "high_uM" if condition == "gradient" else "background_uM"),
         node("ligand_sample", "field.sample_local", "1.0.0", "population", {"species": ("ligand", "low_uM")}),
         node("motor_signal", "signal.mcp_adaptation", "2.0.0", "population", {
             "species": ("ligand", "low_uM"), "cluster_size": (v["cluster_size"], "cluster_size"),
@@ -115,8 +115,8 @@ def build_chip_project(condition, seed, overrides=None):
         "controls": {},
         "graph": {"protocol_version": "0.2.0", "id": f"{name}-graph", "nodes": nodes, "edges": edges},
         "run": {"protocol_version": "0.1.0", "run_id": f"{name}-run", "graph_id": f"{name}-graph", "groups": ["cells"], "channels": channels},
-        "observation": {"id": "high_half", "label": "High-concentration half", "axis": 1,
-                        "region_lower_um": [0.0, width / 2, 0.0], "region_upper_um": [length, width, height]},
+        "observation": {"id": "high_half", "label": "High-concentration half (+X)", "axis": 0,
+                        "region_lower_um": [length / 2, 0.0, 0.0], "region_upper_um": [length, width, height]},
     }
 
 
@@ -203,7 +203,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
                       ('reserve','intracellular_molecules'),('motility','blocked')]:
         n = by_id[nid]; p = registry.get(n['module_id'],n['module_version']).manifest['outputs'][port]
         channels[nid+'.'+port] = {'node':nid,'port':port,'group_id':'cells',**{k:p[k] for k in ('shape','quantity','unit')}}
-    points = [[center[0]+20.*factor*math.cos(2*math.pi*i/16), center[1]+20.*factor*math.sin(2*math.pi*i/16), h]
+    points = [[float(center[0]+20.*factor*math.cos(2*math.pi*i/16)), float(center[1]+20.*factor*math.sin(2*math.pi*i/16)), float(h)]
               for h in [extent[2]/4,extent[2]/2,3*extent[2]/4] for i in range(16)]
     rng = np.random.default_rng(seed)
     quats = rng.normal(size=(len(points),4)); quats /= np.linalg.norm(quats,axis=1,keepdims=True)
@@ -225,7 +225,7 @@ EXAMPLES = {
     'modular-foundation': ('模块基础 / Modular foundation', 'Field, uptake, reserve, death, motion and explicit sources.'),
     'modular-material': ('材料与生命周期 / Material and lifecycle', 'Cellulose stoichiometry, catalyst providers, erosion and lineage.'),
     **{f'chip-mcp-{c}': ('MCP 梯度芯片 / MCP gradient chip' if c == 'gradient' else 'MCP 零梯度芯片 / MCP zero-gradient chip',
-         'Wild-type MCP–MeAsp measurement benchmark, finite boundary relaxation; constructed parameters.') for c in ('gradient','zero')},
+         'Wild-type MCP–MeAsp benchmark along the short horizontal X axis; finite boundary relaxation; constructed parameters.') for c in ('gradient','zero')},
     **{f'center-pts-{m}-{s}'+('' if f else '-control'):
         (f'PTS {m.upper()} · '+('小域' if s=='small' else '中域')+(' · 无反馈对照' if not f else ''),
          'Square center-substrate engineering study; fixed surface enzymes; '+('PTS motor feedback.' if f else 'Matched control with constant motor feedback.'))

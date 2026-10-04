@@ -694,6 +694,11 @@ function removeEnvironment(id) {
 }
 
 function renderCellInspector(root, cell) {
+  if (cell) {
+    const focus = el('button','inspector-action',t('focusCell'));
+    focus.addEventListener('click',() => viewport?.focusBounds(cell.position_um,Array(3).fill(Math.max(2,cell.geometry?.length_um ?? 2) * 4)));
+    root.append(focus);
+  }
   if(cell&&state.replay){const trajectory=el('button','inspector-action',currentLanguage()==='zh-CN'?'显示此菌体3D轨迹':'Show cell 3D trajectory');trajectory.addEventListener('click',async()=>{if(state.replay.paged){trajectory.disabled=true;try{const result=await taskStore.pagers.get(state.activeRun.localId).scan({start:0,end:Infinity},cell.id);viewport?.setTrajectory(result.segments??(result.points.length>1?[result.points]:[]));trajectory.textContent=`${result.points.length}/${result.pointCount} positions · stride ${result.pointStride}`;}catch(error){status('runFailed',{message:error.message},true);}finally{trajectory.disabled=false;}}else viewport?.setTrajectory(trajectorySegments(state.replay,cell.id));});root.append(trajectory);}
   root.append(el('div', 'inspector-title', state.selectedCell), el('div', 'inspector-subtitle', t('cells')));
   if (!cell) { root.append(el('p', 'empty-message', t('noCell'))); return; }
@@ -1849,6 +1854,7 @@ async function loadProject(document,recommendedSettings=null) {
 try {
   viewport = new SpatialViewport($('spatial-canvas'), $('scene-annotations'), {
     selectCell, selectBlock, selectEnvironment,
+    markerLabel:() => t('cellMarkerNote'),
     placeEnvironment(point) {
       const object = availablePlaceables(state.modules,state.capabilities,state.objects,state.project).find(item => item.id === state.activeObject && item.status === 'ready' && item.kind !== 'population');
       if (!object || !state.project) return;

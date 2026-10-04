@@ -52,14 +52,14 @@ def test_design_generation_and_native_package_roundtrip_over_http(server_url):
     assert len(design['candidates']) == 3
     assert design['budget']['total_runs'] == 6
     assert sum(c['kind'] == 'control' for c in design['candidates']) == 1
-    workspace = {'workspace_format_version': '0.5.0', 'project': source['project'],
+    workspace = {'workspace_format_version': '0.7.0', 'project': source['project'],
         'population_blocks': [], 'graph_layout': {}, 'run_settings': source['settings'],
         'design': design, 'design_brief': source['brief']}
     schemas = [json.loads(p.read_text(encoding='utf-8')) for p in
         files('friskoli_cad.protocol').joinpath('schemas').iterdir() if p.name.endswith('.json')]
     resources = Registry().with_resources((s['$id'], Resource.from_contents(s)) for s in schemas)
     for name, value in [('design-brief', source['brief']), ('design', design), ('workspace', workspace)]:
-        version = '0.5.0' if name == 'workspace' else '0.1.0'
+        version = '0.7.0' if name == 'workspace' else '0.1.0'
         schema = next(s for s in schemas if s['$id'] == f'urn:friskoli:{name}:{version}')
         Draft202012Validator.check_schema(schema)
         Draft202012Validator(schema, registry=resources).validate(value)
@@ -135,13 +135,13 @@ def test_result_criteria_are_versioned_and_evaluation_is_read_only(server_url):
         design = json.load(response)
     assert design['design_version'] == '0.2.0'
     assert design['brief']['result_constraints'] == source['brief']['result_constraints']
-    workspace = {'workspace_format_version': '0.6.0', 'project': source['project'],
+    workspace = {'workspace_format_version': '0.7.0', 'project': source['project'],
         'population_blocks': [], 'graph_layout': {}, 'run_settings': source['settings'],
         'design': design, 'design_brief': source['brief']}
     schemas = [json.loads(p.read_text(encoding='utf-8')) for p in
         files('friskoli_cad.protocol').joinpath('schemas').iterdir() if p.name.endswith('.json')]
     resources = Registry().with_resources((s['$id'], Resource.from_contents(s)) for s in schemas)
-    schema = next(s for s in schemas if s['$id'] == 'urn:friskoli:workspace:0.6.0')
+    schema = next(s for s in schemas if s['$id'] == 'urn:friskoli:workspace:0.7.0')
     Draft202012Validator(schema, registry=resources).validate(workspace)
     payload = {'package_version': '0.1.0', 'design': design, 'workspace': workspace, 'runs': [], 'registry': None}
     original = deepcopy(payload)

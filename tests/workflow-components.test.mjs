@@ -31,7 +31,7 @@ test('missing connection status and unavailable module status never claim a runn
 });
 
 test('unknown modules retain edge anchors and original graph data', () => {
-  const graph={protocol_version:'0.1.0',nodes:[node('missing')],edges:[{id:'e',from:{node:'missing',port:'result'},to:{node:'missing',port:'input'},timing:'previous_step'}]};
+  const graph={protocol_version:'0.2.0',nodes:[node('missing')],edges:[{id:'e',from:{node:'missing',port:'result'},to:{node:'missing',port:'input'},timing:'previous_step'}]};
   const before=structuredClone(graph), resolved=resolveGraph(graph,new Map(),{allowUnknown:true});
   const editor=Object.create(GraphEditor.prototype); Object.assign(editor,{resolved,layout:{missing:{x:70,y:70}},coarse:false});
   assert.ok(editor.portPoint('missing','outputs','result')); assert.ok(editor.portPoint('missing','inputs','input'));

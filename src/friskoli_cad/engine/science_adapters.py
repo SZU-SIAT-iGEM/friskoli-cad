@@ -181,6 +181,10 @@ def motion(c, initial):
 def finite_source(c, initial):
     p = c.parameters; stock = p['initial_molecules'] if initial else float(c.state['inventory'])
     amount = min(stock, p['release_rate'] * c.dt_s)
+    # A finite source cannot release an amount smaller than its stock debit.
+    remaining = stock - amount
+    if stock - remaining > amount: remaining = math.nextafter(remaining, math.inf)
+    amount = stock - remaining
     shape = tuple(c.world['grid_shape_zyx']); z, y, x = np.indices(shape)
     centers = np.stack(((x + .5) * c.world['spacing_xyz'][0], (y + .5) * c.world['spacing_xyz'][1], (z + .5) * c.world['spacing_xyz'][2]), axis=-1)
     center = np.array([p['center_' + axis + '_um'] for axis in 'xyz'])
@@ -188,7 +192,7 @@ def finite_source(c, initial):
     mask = (np.linalg.norm(gap, axis=-1) <= p['radius_um']) & ~np.asarray(c.world['blocked'], bool).reshape(shape)
     if amount and not mask.any(): raise ValueError('finite source has no fluid support at this grid')
     delta = mask.astype(float) * amount / max(1, int(mask.sum()))
-    return ModuleProposal({'inventory': stock - amount}, {'inventory': stock - amount},
+    return ModuleProposal({'inventory': remaining}, {'inventory': remaining},
                          (Effect('field.delta', p['species'], delta),))
 
 
@@ -293,7 +297,9 @@ def adapted_modules():
             module.snapshot_object_type = 'source.attractant' if identifier == 'source.finite_local' else 'material.degradable_box'
             module.snapshot_outputs = {'remaining_molecules': 'inventory'}
             module.checkpoint_inventory = {'state': 'inventory', 'initial_parameter': 'initial_molecules', 'output': 'inventory'}
-        if identifier == 'source.finite_local': module.effect_accounting = {'field.delta': 'internal_net'}
+        if identifier == 'source.finite_local':
+            module.effect_accounting = {'field.delta': 'internal_net'}
+            module.provides_roles += ['source.inventory']
         if identifier == 'material.degradable_box': module.provides_roles += ['material.owner']
         if identifier == 'surface.enzyme_activity':
             module.provides_roles += ['enzyme.surface']

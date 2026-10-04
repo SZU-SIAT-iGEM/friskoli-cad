@@ -16,6 +16,8 @@ dist/
 coverage/
 runs/
 outputs/
+output/
+.venv-wheel/
 tmp/
 *.log
 
@@ -26,3 +28,4 @@ tmp/
 .DS_Store
 Thumbs.db
 .playwright-cli/
+docs/first-release/artifacts/*-wiki/

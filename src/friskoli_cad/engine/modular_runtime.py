@@ -211,8 +211,8 @@ class ModularSimulation:
             'fields': fields.concentrations_uM, 'geometry': world.grid.geometry,
             'positions_um': np.empty((0, 3)) if group is None else group.positions_um,
             'headings': np.empty((0, 3)) if group is None else heading_from_orientation(group.orientation_xyzw),
-            'length_um': np.asarray([] if group is None else [g.length_um for g in group.geometry]),
-            'diameter_um': np.asarray([] if group is None else [g.diameter_um for g in group.geometry]),
+            'length_um': np.asarray([] if group is None else [g.length_um for g in group.geometry], dtype=np.float64),
+            'diameter_um': np.asarray([] if group is None else [g.diameter_um for g in group.geometry], dtype=np.float64),
             'events': events, 'dead_material': dead, 'metrics': metrics, 'materials': materials, 'surface_enzymes': enzymes,
             'all_cells': {cid: {'group_id': gid, 'position_um': group.positions_um[i], 'length_um': group.geometry[i].length_um,
                 'diameter_um': group.geometry[i].diameter_um, 'heading': headings[i]}
@@ -345,17 +345,30 @@ class ModularSimulation:
                 if mid not in state or 'material.owner' not in getattr(self.registry.get(self.plan.by_id[mid].module_id, self.plan.by_id[mid].module_version), 'provides_roles', ()):
                     raise SimulationError('modular.material_owner', 'Unknown material inventory owner')
                 if amount < 0 or amount > state[mid]['inventory']: raise SimulationError('modular.material_budget', 'Material proposal exceeds shared stock')
-                state[mid]['inventory'] -= amount; outputs[mid]['inventory'] = state[mid]['inventory']
+                stock = state[mid]['inventory']
+                remaining = stock - amount
+                if stock - remaining > amount: remaining = math.nextafter(remaining, math.inf)
+                debit = stock - remaining
+                positions = np.asarray(transfer['positions_um']).reshape(-1, 3)
+                delta = np.zeros(fields.grid.shape)
+                np.add.at(delta.reshape(-1), fields.grid.flat_indices(positions), debit / len(positions))
+                before = values[transfer['species']]
+                after = before + delta / fields.grid.molecules_per_uM_voxel
+                # Do not destroy substrate when its product credit vanishes.
+                from .local_fields import _audit_transfer
+                try:
+                    _audit_transfer(stock, remaining,
+                        -math.fsum(((after - before) * fields.grid.molecules_per_uM_voxel).flat))
+                except SimulationError:
+                    debit = 0.; remaining = stock; delta.fill(0.)
+                state[mid]['inventory'] = remaining; outputs[mid]['inventory'] = remaining
                 item = ledger.setdefault(transfer['species'], {'external_net': 0., 'consumed': 0., 'maintenance': 0., 'growth': 0.})
                 contributions = transfer.get('contributions_by_group', {})
                 if contributions:
                     if not set(contributions) <= set(self.world.groups) or any(v < 0 for v in contributions.values()) or not math.isclose(math.fsum(contributions.values()), amount, rel_tol=1e-12, abs_tol=0.):
                         raise SimulationError('modular.material_attribution', 'Catalytic contributions must sum to the released amount')
                     attributed = item.setdefault('degradation_by_group', {})
-                    for gid, value in contributions.items(): attributed[gid] = attributed.get(gid, 0.) + value
-                positions = np.asarray(transfer['positions_um']).reshape(-1, 3)
-                delta = np.zeros(fields.grid.shape)
-                np.add.at(delta.reshape(-1), fields.grid.flat_indices(positions), amount / len(positions))
+                    for gid, value in contributions.items(): attributed[gid] = attributed.get(gid, 0.) + (value * debit / amount if amount else 0.)
                 material_transfers.append((nid, transfer['species'], delta))
         for nid, effect in effects:
             if not effect.kind.startswith('field.'): continue
@@ -388,6 +401,25 @@ class ModularSimulation:
             for nid, delta in deltas[species]:
                 if delta.shape != before.shape: raise SimulationError('modular.field_shape', 'Delta must follow ZYX grid')
                 positive += np.maximum(delta, 0.); negative += np.maximum(-delta, 0.)
+            # Finite sources must debit their own stock and credit the field
+            # within a transfer-relative budget. Retry only the settlement
+            # allocation with an unrepresentable release excluded.
+            from .local_fields import _audit_transfer
+            for row, (nid, delta) in enumerate(deltas[species]):
+                module = self.registry.get(self.plan.by_id[nid].module_id, self.plan.by_id[nid].module_version)
+                inventory = getattr(module, 'checkpoint_inventory', None)
+                if not inventory or 'source.inventory' not in getattr(module, 'provides_roles', ()): continue
+                old = float(self.state.get(nid, {}).get(inventory['state'], self.plan.by_id[nid].parameters[inventory['initial_parameter']].value))
+                actual_positive = (before + positive / fields.grid.molecules_per_uM_voxel - before) * fields.grid.molecules_per_uM_voxel
+                fraction = np.zeros(before.shape)
+                np.divide(np.maximum(delta, 0.), positive, out=fraction, where=positive > 0)
+                actual = math.fsum((actual_positive * fraction).flat)
+                try: _audit_transfer(old, float(state[nid][inventory['state']]), -actual)
+                except SimulationError:
+                    positive -= np.maximum(delta, 0.)
+                    deltas[species][row] = (nid, np.minimum(delta, 0.))
+                    state[nid][inventory['state']] = old
+                    outputs[nid][inventory['output']] = old
             uptake_rows = []
             for nid, payload in requested[species]:
                 indexes = fields.grid.flat_indices(np.asarray(payload['positions_um']).reshape(-1, 3))
@@ -395,18 +427,44 @@ class ModularSimulation:
                 if np.any(amount < 0): raise SimulationError('modular.uptake', 'Negative request')
                 np.add.at(negative.reshape(-1), indexes, amount)
                 uptake_rows.append((nid, indexes, amount))
-            available = before * unit + positive
-            ratio = np.ones(before.shape); np.divide(available, negative, out=ratio, where=negative > 0); ratio = np.minimum(ratio, 1.)
-            after = available - negative * ratio
-            for nid, indexes, amount in uptake_rows:
-                accepted = amount * ratio.reshape(-1)[indexes]
+            # Preserve untouched concentrations exactly. Acceptance follows the
+            # representable concentration debit, never an intermediate stock
+            # multiplication whose subtraction can disappear on conversion.
+            available = before + positive / unit
+            positive_actual = (available - before) * unit
+            positive_ratio = np.ones(before.shape)
+            np.divide(positive_actual, positive, out=positive_ratio, where=positive > 0)
+            debit = np.minimum(available, negative / unit)
+            after = available - debit
+            actual_debit = (available - after) * unit
+            ratio = np.zeros(before.shape)
+            np.divide(actual_debit, negative, out=ratio, where=negative > 0)
+            accepted_rows = [amount * ratio.reshape(-1)[indexes] for _, indexes, amount in uptake_rows]
+            # Sparse cellular claims share the same quantized voxel debit.
+            # Distributed exchange remains vectorized; a voxel contested by
+            # exchange and cells is settled together through the exact planner.
+            from .local_fields import _voxel_uptake
+            claims = {}
+            for row, (_, indexes, amounts) in enumerate(uptake_rows):
+                for column, (index, amount) in enumerate(zip(indexes, amounts, strict=True)):
+                    if amount: claims.setdefault(int(index), []).append((row, column, float(amount)))
+            for index, participants in claims.items():
+                external = [(row, float(max(-delta.flat[index], 0.))) for row, (_, delta) in enumerate(deltas[species]) if delta.flat[index] < 0]
+                new_value, accepted, shortfall = _voxel_uptake(float(available.flat[index]), unit,
+                    [p[2] for p in participants] + [p[1] for p in external], 1.)
+                after.flat[index] = new_value
+                actual_debit.flat[index] = (available.flat[index] - new_value) * unit
+                ratio.flat[index] = math.fsum(accepted) / negative.flat[index] if negative.flat[index] else 0.
+                item['unfulfilled_precision_molecules'] = item.get('unfulfilled_precision_molecules', 0.) + shortfall
+                for (row, column, _), value in zip(participants, accepted): accepted_rows[row][column] = value
+            for (nid, indexes, amount), accepted in zip(uptake_rows, accepted_rows, strict=True):
                 outputs[nid]['accepted_amount'] = accepted
                 outputs[nid]['accepted_flux'] = accepted / dt if dt else np.zeros_like(accepted)
                 outputs[nid]['cumulative_uptake'] += accepted
                 state[nid]['cumulative_uptake'] = outputs[nid]['cumulative_uptake'].copy()
-                item['consumed'] += float(accepted.sum())
+                item['consumed'] += math.fsum(accepted)
             for nid, delta in deltas[species]:
-                actual = np.maximum(delta, 0.) - np.maximum(-delta, 0.) * ratio
+                actual = np.maximum(delta, 0.) * positive_ratio - np.maximum(-delta, 0.) * ratio
                 module = self.registry.get(self.plan.by_id[nid].module_id, self.plan.by_id[nid].module_version)
                 account = getattr(module, 'effect_accounting', {}).get('field.delta', 'external_net')
                 item[account] = item.get(account, 0.) + float(actual.sum())
@@ -421,7 +479,7 @@ class ModularSimulation:
                     outputs[nid]['consumed'] = consumed
                     outputs[nid]['cumulative_consumed'] += consumed - proposed
                     state[nid]['cumulative_consumed'] += consumed - proposed
-            values[species] = np.maximum(after / unit, 0.)
+            values[species] = after
         return replace(fields, concentrations_uM={s: v.reshape(-1) for s, v in values.items()}, diffusivities_um2_s=diffusivity)
 
     def _capsules(self, world):

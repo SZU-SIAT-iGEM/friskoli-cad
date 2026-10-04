@@ -97,17 +97,8 @@
     "frame.schema.json",
     "graph-v0.2.schema.json",
     "module-v0.2.schema.json",
-    "project-v0.2.schema.json",
-    "project-v0.3.schema.json",
-    "project-v0.4.schema.json",
-    "project-v0.5.schema.json",
     "project-v0.6.schema.json",
-    "project.schema.json",
     "run.schema.json",
-    "task-v0.1.schema.json",
-    "task-v0.2.schema.json",
-    "task-v0.3.schema.json",
-    "task-v0.4.schema.json",
     "task-v0.6.schema.json",
     "workspace-v0.7.schema.json"
   ]

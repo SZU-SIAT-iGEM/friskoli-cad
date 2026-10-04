@@ -1,0 +1,10 @@
+Processing d:\wu shangru\documents\工作区\friskoli-cad-unify-profile\dist\friskoli_cad-0.2.0-py3-none-any.whl
+Installing collected packages: friskoli-cad
+  Attempting uninstall: friskoli-cad
+    Found existing installation: friskoli-cad 0.2.0
+    Uninstalling friskoli-cad-0.2.0:
+      Successfully uninstalled friskoli-cad-0.2.0
+Successfully installed friskoli-cad-0.2.0
+
+[notice] A new release of pip is available: 24.0 -> 26.2.1
+[notice] To update, run: D:\Wu Shangru\Documents\工作区\friskoli-cad-unify-profile\.venv-wheel\Scripts\python.exe -m pip install --upgrade pip

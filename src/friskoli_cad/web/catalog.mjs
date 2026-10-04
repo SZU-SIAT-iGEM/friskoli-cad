@@ -1,5 +1,5 @@
 export function registerModules(payload) {
-  if (!['0.1.0','0.2.0'].includes(payload?.protocol_version) || !Array.isArray(payload.modules)) {
+  if (payload?.protocol_version !== '0.2.0' || !Array.isArray(payload.modules)) {
     throw new Error('Invalid module catalog');
   }
   const modules = new Map();

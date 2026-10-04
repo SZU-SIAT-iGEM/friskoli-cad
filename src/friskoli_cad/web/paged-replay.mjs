@@ -96,7 +96,7 @@ export class LinkedReplay {
  async scan(filter,id,onProgress=()=>{},cancelled=()=>false){const result={events:[],eventCount:0,points:[],segments:[],pointCount:0,pointStride:1};for(const s of this.segments){const value=await s.reader.scan({...filter,frameLimit:s.count},id,(n)=>onProgress(s.offset+n,this.frameCount),cancelled);result.eventCount+=value.eventCount;result.events.push(...value.events.slice(0,500-result.events.length).map(e=>({...e,index:e.index+s.offset})));result.pointCount+=value.pointCount;result.points.push(...value.points);result.segments.push(...value.segments);while(result.points.length>2000){result.points=result.points.filter((_,i)=>i%2===0);result.segments=result.segments.map(segment=>segment.filter((_,i)=>i%2===0)).filter(segment=>segment.length>1);result.pointStride*=2;}result.pointStride=Math.max(result.pointStride,value.pointStride);}return result;}
 }
 
-const json=(value)=>JSON.stringify(value,(_,item)=>ArrayBuffer.isView(item)?Array.from(item):item);
+const json=(value)=>JSON.stringify(value??null,(_,item)=>ArrayBuffer.isView(item)?Array.from(item):item);
 export async function exportPagedResult(pager,{csv=false,writer=null,onProgress=()=>{}}={}){
  const pieces=[];let total=0;const maxFallback=16*1024*1024;
  const write=async text=>{if(writer){await writer.write(text);return;}total+=new TextEncoder().encode(text).length;if(total>maxFallback)throw Error('Export exceeds 16 MiB download buffer. Use the native file-save picker to stream it.');pieces.push(text);};

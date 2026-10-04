@@ -1,5 +1,6 @@
 const messages = {
   en: {
+    cellMarkerNote:'Cell positions · min 4 px; geometry to scale',focusCell:'Focus cell',
     mean_position_um:'Mean axial position [µm]',drift_um_s:'Drift 10–120 s [µm/s]',cumulative_degradation_molecules:'Cumulative substrate conversion [molecule]',degradation_per_initial_cell_molecules:'Conversion per initial cell [molecule/cell]',
     parameterMissing:'Not provided · required before running',parameterSource:'Value and source',range:'Range',
     spatialDemoTitle:'Motion, obstacles & local sources',spatialDemoHint:'Unbiased motion · finite sources · local diffusion',
@@ -48,7 +49,7 @@ const messages = {
     welcomeScope:'These examples demonstrate the workspace. A validated chemotaxis model is not included yet.',
     workspaceTooLarge:'Workspace file exceeds 2 MB',
     importStale:'Import cancelled because the workspace changed while reading. Open the file again to import it.',
-    demoTitle:'Modular foundation',demoHint:'3D · illustrative length-adder model',recover:'Recover local draft',
+    demoTitle:'Modular foundation',demoHint:'Field, uptake, reserve, death and motion',recover:'Recover local draft',
     export:'Export',exportJSON:'Published result · JSON',exportCSV:'Frame statistics · CSV',
     exportHint:'Includes the frozen input, saved frames, metrics and declared complete or partial status. Concentration fields are included when requested by the run.',
     noResults:'Run a project to inspect its results.',earlierRevision:'Result from an earlier draft',completed:'Completed',failed:'Failed',runs:'Runs',
@@ -112,6 +113,7 @@ const messages = {
     selectBlockFirst:'Select a population volume first.',
   },
   'zh-CN': {
+    cellMarkerNote:'细胞位置标记最小 4 px；几何按真实比例显示',focusCell:'聚焦此细胞',
     mean_position_um:'沿轴平均位置 [µm]',drift_um_s:'10–120 s 漂移 [µm/s]',cumulative_degradation_molecules:'累计底物转化量 [molecule]',degradation_per_initial_cell_molecules:'按初始菌数归一化转化量 [molecule/cell]',
     parameterMissing:'尚未提供 · 运行前须填写',parameterSource:'数值与来源',range:'范围',
     queued:'排队中',cancelled:'已取消',interrupted:'已中断',submitting:'提交中',submission_unknown:'提交结果未知',rejected:'未接受',unavailable:'记录已不可查询',
@@ -160,7 +162,7 @@ const messages = {
     welcomeScope:'这些示例用于演示工作区功能，尚未包含经验证的趋化模型。',
     workspaceTooLarge:'工作区文件超过 2 MB',
     importStale:'读取文件时工作区已改变，本次导入已取消。请重新打开文件以导入。',
-    demoTitle:'生长与分裂',demoHint:'3D · 长度 adder 演示模型',recover:'恢复本地草稿',
+    demoTitle:'模块基础',demoHint:'场、摄取、库存、死亡与运动',recover:'恢复本地草稿',
     export:'导出',exportJSON:'已发布结果 · JSON',exportCSV:'逐帧统计 · CSV',
     exportHint:'包含冻结输入、保存帧和指标，并保留完整或部分输出状态。运行请求了浓度场时，导出同时包含浓度场。',
     noResults:'运行项目后，可在这里检查结果。',earlierRevision:'来自较早草稿的结果',completed:'已完成',failed:'失败',runs:'运行记录',

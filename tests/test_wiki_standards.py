@@ -97,24 +97,21 @@ def test_sbol_explicit_component_validation_and_readback():
     assert unsupported_report('sbml')['entries'][0]['status'] == 'unsupported'
 
 
-def test_standalone_run_hashes_no_invented_design(payload, tmp_path):
-    run = run_for(payload)
-    submission = run['submission']
-    snapshot = {'document_sha256':sha256(submission),
-                'scientific_sha256':sha256({k:submission[k] for k in ('project','version_lock','execution','output_plan')}),
-                'registry_sha256':submission['version_lock']['registry_sha256']}
-    task = {'run_id':'task-test','task_contract_version':'0.4.0','status':'completed','completeness':'complete',
-            'input_snapshot':snapshot,'progress':{'committed_step':2,'simulation_time_s':.1}}
-    replay = build_replay(run['project'],dt_s=.05,steps=2)
-    replay['execution'] = {'input_snapshot':snapshot}
-    original = {'task_run_id':'task-test','task_contract_version':'0.4.0','status':'completed','completeness':'complete',
-                'submission':submission,'task':task,'manifest':deepcopy(task),'replay':replay}
-    raw = json.dumps(original).encode()
-    build_wiki(raw,tmp_path/'standalone')
-    record = json.loads((tmp_path/'standalone'/'record.json').read_text(encoding='utf-8'))
+def test_standalone_real_task06_hashes_no_invented_design(tmp_path):
+    from friskoli_cad.engine.presets import make_example
+    from friskoli_cad.tasks import TaskService
+    from friskoli_cad.run_delivery import collect_task_export,export_task_package
+    from test_first_release_workflow import submission,wait_task
+    with TaskService(tmp_path/'service') as service:
+        p=make_example();task,_=service.submit(submission(service,p,steps=2),'wiki-actual')
+        wait_task(service,task['run_id'])
+        original=collect_task_export(service,task['run_id'],inline_arrays=True)
+        archive=export_task_package(service,task['run_id'])
+    build_wiki(archive,tmp_path/'standalone')
+    record=json.loads((tmp_path/'standalone'/'record.json').read_text(encoding='utf-8'))
     assert 'design' not in record and 'design_ref' not in record['runs'][0]
-    assert (tmp_path/'standalone'/'run.result.json').read_bytes() == raw
+    assert (tmp_path/'standalone'/'run.friskoli').read_bytes()==archive
     assert (tmp_path/'standalone'/'install.html').exists()
-    original['submission']['execution']['seed'] = 55
+    original['submission']['execution']['seed']=55
     with pytest.raises(ValueError,match='provenance hash'):
         build_wiki(json.dumps(original).encode(),tmp_path/'tampered')

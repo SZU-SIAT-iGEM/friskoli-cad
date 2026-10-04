@@ -24,12 +24,13 @@ python -m friskoli_cad.replay_service --port 8765
 
 ## First run
 
-1. Open the welcome page and load **foundation-control** (no chemotaxis control) and **foundation-pts-b** (PTS-driven chemotaxis).
-2. Run both; compare them in the Design workspace.
-3. Replay in 3D and inspect individual cells.
-4. Export a `.friskoli` package, HTML/CSV report, or static Wiki page.
+1. Load **模块基础 / Modular foundation** and run its short default configuration.
+2. Load **MCP 梯度芯片 / MCP gradient chip** and its zero-gradient control for the measurement benchmark, or **PTS A/B · 小域 / 中域** and their matched controls for center-substrate research.
+3. Use Design for parameter candidates and multiple seeds. Inspect recorded metrics in Results → Data.
+4. Replay in 3D. Small cells have 4 px position markers; select a cell and use **Focus cell** to inspect its actual capsule geometry.
+5. Export a portable `.friskoli` research package and reopen it through File → Open. Frozen inputs, metrics, saved frames and requested arrays travel with it.
 
-Do not start with the 128 µm / 256³ scene: its full 10,000-step run has not been completed (see [limitations](#known-limitations)).
+The sole current execution profile is `modular-spatial-v1`. See the [support matrix](docs/first-release/support.md), [scientific scope](docs/first-release/science.md), [acceptance evidence](docs/first-release/acceptance.md), and [installation/user checklist](docs/first-release/install-and-use.md).
 
 ## Documentation
 
@@ -47,10 +48,11 @@ Do not start with the 128 µm / 256³ scene: its full 10,000-step run has not be
 ## Known limitations
 
 - Parameters are source-derived or constructed demonstration values. **Nothing is calibrated against wet-lab data**, and no 12-hour biological prediction is claimed.
-- The large-domain PTS scene (128 µm cube, 256³ grid, 200 cells, 10,000 steps) is not completed; a clear central aggregation has not been demonstrated there. Step time is the current bottleneck.
+- A omits surface sugar pools, contact QSSA and adhesion feedback; B uses documented research simplifications. Null or negative outcomes are retained. Long-term and large-domain studies require separate validation.
 - SBML, SED-ML and GenBank/FASTA export are not supported. SBOL export covers Component core properties only.
 - Browser-size simulation and pointer-logic tests have been done; physical-device testing has not.
-- Vendored Three.js and KaTeX keep their own MIT licenses (`web/vendor/*/LICENSE`). The redistribution terms of the two source models in `docs/science/source-models` have not been checked.
+- Old project/task/checkpoint formats are rejected. New same-version checkpoints retain RNG, inventories, identity and observation state.
+- User-owned A/B materials are authorized under MIT. Vendored Three.js, KaTeX and third-party dependencies keep their own license notices.
 
 ## Repository layout
 
@@ -61,7 +63,7 @@ examples/           runnable scripts and example projects
 docs/               current documentation; docs/archive/ holds history
 ```
 
-Run tests with `PYTHONPATH=src python -m pytest tests` and `node --test tests/*.test.mjs`.
+Install with `python -m pip install -e ".[standards]"`, then run `python -m pytest tests -q` and `node --test tests/*.test.mjs`. Build an installable wheel with `python -m build --wheel`.
 
 ## License
 

@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { blocksFromProject, createBlock, scatterBlock } from '../src/friskoli_cad/web/population.mjs';
 import { nextHit, registerModules, resolveGraph } from '../src/friskoli_cad/web/catalog.mjs';
 
-const project = () => JSON.parse(readFileSync(new URL('../src/friskoli_cad/examples/workspace_3d.project.json', import.meta.url)));
+const project = () => JSON.parse(readFileSync(new URL('../src/friskoli_cad/examples/center_pts_a_small.project.json', import.meta.url)));
 const staticModule = { id: 'population.static', version: '1.0.0', scope: 'population',
   inputs: {}, outputs: {}, parameters: {} };
 
@@ -17,7 +17,7 @@ test('population volume scatters reproducible 3D cells and registers an owner', 
   assert.equal(first.ids.length, 12);
   assert.equal(new Set(first.ids).size, 12);
   assert.ok(first.positions_um.some(position => position[2] !== first.positions_um[0][2]));
-  assert.ok(first.positions_um.every(([x, y, z]) => x > 0 && x < 36 && y > 0 && y < 24 && z > 0 && z < 12));
+  assert.ok(first.positions_um.every(([x, y, z]) => x > 0 && x < 64 && y > 0 && y < 64 && z > 0 && z < 32));
   assert.ok(first.orientation_xyzw.every(q => Math.abs(q.reduce((sum, v) => sum + v * v, 0) - 1) < .001));
   assert.equal(document.graph.nodes.at(-1).module_id, 'population.static');
   assert.ok(document.run.groups.includes(block.id));
@@ -30,11 +30,11 @@ test('population volume scatters reproducible 3D cells and registers an owner', 
 });
 
 test('module catalog resolves exact versions and overlapping picks cycle by ID', () => {
-  const modules = registerModules({ protocol_version: '0.1.0', modules: [staticModule] });
-  const graph = { protocol_version: '0.1.0', nodes: [{ id: 'static', module_id: 'population.static',
+  const modules = registerModules({ protocol_version: '0.2.0', modules: [staticModule] });
+  const graph = { protocol_version: '0.2.0', nodes: [{ id: 'static', module_id: 'population.static',
     module_version: '1.0.0' }], edges: [] };
   assert.equal(resolveGraph(graph, modules).nodes[0].manifest.id, 'population.static');
   assert.equal(nextHit(['a', 'b'], 'a'), 'b');
   assert.equal(nextHit(['a', 'b'], 'b'), 'a');
-  assert.throws(() => registerModules({ protocol_version: '0.1.0', modules: [staticModule, staticModule] }));
+  assert.throws(() => registerModules({ protocol_version: '0.2.0', modules: [staticModule, staticModule] }));
 });

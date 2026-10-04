@@ -1,0 +1,16 @@
+{
+  "record_date": "2026-10-04",
+  "files": {
+    "friskoli_cad-0.2.0-py3-none-any.whl": {
+      "bytes": 2132769,
+      "sha256": "7ffc4dbfdc0cf7963e3555a38a3efb63b427e7ab0d5a17fcb2cb230907ddf819"
+    }
+  },
+  "chip_configuration": {
+    "observation_axis": "x",
+    "axis_extent_um": 400.0,
+    "gradient_low_uM": 0.0,
+    "gradient_high_uM": 200.0
+  },
+  "scope": "Current wheel; isolated installation and one-step chip checks only. Long-run and end-to-end release gates remain."
+}

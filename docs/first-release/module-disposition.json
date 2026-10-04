@@ -55,7 +55,9 @@
       "stage": "field",
       "scope": "environment",
       "disposition": "retained",
-      "roles": []
+      "roles": [
+        "source.inventory"
+      ]
     },
     {
       "id": "material.degradable_box",

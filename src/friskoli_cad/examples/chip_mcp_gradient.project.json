@@ -24,7 +24,7 @@
     "unit": "uM",
     "provenance": {
      "kind": "example",
-     "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+     "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
     }
    }
   }
@@ -4259,7 +4259,7 @@
       "value": "ligand",
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+       "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
       }
      },
      "diffusivity_um2_s": {
@@ -4271,18 +4271,18 @@
       "unit": "um^2/s"
      },
      "gradient_x_um_per_um": {
-      "value": 0.0,
+      "value": 0.5,
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+       "reference": "Team plan: 200 uM MeAsp on the high side. The user specified the horizontal short X axis (400 um); the initial 0-to-200 uM field has a slope of 0.5 uM/um. Establishment in the actual chip is unmeasured."
       },
       "unit": "uM/um"
      },
      "gradient_y_um_per_um": {
-      "value": 0.25,
+      "value": 0.0,
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 200 uM MeAsp on the high side (200 uM/mm over 1 mm in the planned chip; here 0.25 uM/um over 800 um)."
+       "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
       },
       "unit": "uM/um"
      },
@@ -4290,7 +4290,7 @@
       "value": 0.0,
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+       "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
       },
       "unit": "uM/um"
      }
@@ -4309,7 +4309,7 @@
       "value": "ligand",
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+       "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
       }
      },
      "lower_um": {
@@ -4320,19 +4320,19 @@
       ],
       "provenance": {
        "kind": "example",
-       "reference": "Numerical device: first-order relaxation rate that holds the outermost grid layer at the side-channel concentration. No physical counterpart."
+       "reference": "Numerical device: finite first-order relaxation of the outermost X-min and X-max grid layers toward the side-channel concentrations. No measured physical rate; this is not an ideal Dirichlet boundary."
       },
       "unit": "um"
      },
      "upper_um": {
       "value": [
-       400.0,
        20.0,
+       800.0,
        200.0
       ],
       "provenance": {
        "kind": "example",
-       "reference": "Numerical device: first-order relaxation rate that holds the outermost grid layer at the side-channel concentration. No physical counterpart."
+       "reference": "Numerical device: finite first-order relaxation of the outermost X-min and X-max grid layers toward the side-channel concentrations. No measured physical rate; this is not an ideal Dirichlet boundary."
       },
       "unit": "um"
      },
@@ -4340,7 +4340,7 @@
       "value": 0.0,
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+       "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
       },
       "unit": "uM"
      },
@@ -4348,7 +4348,7 @@
       "value": 5.0,
       "provenance": {
        "kind": "example",
-       "reference": "Numerical device: first-order relaxation rate that holds the outermost grid layer at the side-channel concentration. No physical counterpart."
+       "reference": "Numerical device: finite first-order relaxation of the outermost X-min and X-max grid layers toward the side-channel concentrations. No measured physical rate; this is not an ideal Dirichlet boundary."
       },
       "unit": "1/s"
      }
@@ -4367,18 +4367,18 @@
       "value": "ligand",
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+       "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
       }
      },
      "lower_um": {
       "value": [
+       380.0,
        0.0,
-       780.0,
        0.0
       ],
       "provenance": {
        "kind": "example",
-       "reference": "Numerical device: first-order relaxation rate that holds the outermost grid layer at the side-channel concentration. No physical counterpart."
+       "reference": "Numerical device: finite first-order relaxation of the outermost X-min and X-max grid layers toward the side-channel concentrations. No measured physical rate; this is not an ideal Dirichlet boundary."
       },
       "unit": "um"
      },
@@ -4390,7 +4390,7 @@
       ],
       "provenance": {
        "kind": "example",
-       "reference": "Numerical device: first-order relaxation rate that holds the outermost grid layer at the side-channel concentration. No physical counterpart."
+       "reference": "Numerical device: finite first-order relaxation of the outermost X-min and X-max grid layers toward the side-channel concentrations. No measured physical rate; this is not an ideal Dirichlet boundary."
       },
       "unit": "um"
      },
@@ -4398,7 +4398,7 @@
       "value": 200.0,
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 200 uM MeAsp on the high side (200 uM/mm over 1 mm in the planned chip; here 0.25 uM/um over 800 um)."
+       "reference": "Team plan: 200 uM MeAsp on the high side. The user specified the horizontal short X axis (400 um); the initial 0-to-200 uM field has a slope of 0.5 uM/um. Establishment in the actual chip is unmeasured."
       },
       "unit": "uM"
      },
@@ -4406,7 +4406,7 @@
       "value": 5.0,
       "provenance": {
        "kind": "example",
-       "reference": "Numerical device: first-order relaxation rate that holds the outermost grid layer at the side-channel concentration. No physical counterpart."
+       "reference": "Numerical device: finite first-order relaxation of the outermost X-min and X-max grid layers toward the side-channel concentrations. No measured physical rate; this is not an ideal Dirichlet boundary."
       },
       "unit": "1/s"
      }
@@ -4425,7 +4425,7 @@
       "value": "ligand",
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+       "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
       }
      }
     }
@@ -4443,30 +4443,30 @@
       "value": "ligand",
       "provenance": {
        "kind": "example",
-       "reference": "Team plan: 0 uM MeAsp on the low side. The gradient is taken as already established and stationary; the real agar-gel chip needs time to establish it."
+       "reference": "Team plan: 0 uM low-side target. The initially linear field evolves through finite boundary exchange and diffusion. Establishment in the actual gel chip is unmeasured."
       }
      },
      "cluster_size": {
       "value": 6.0,
       "provenance": {
-       "kind": "literature",
-       "reference": "GPT-assisted literature check (2026-10-03): fits near 6 reported; effective size depends on the model and receptor state. Citation not recorded."
+       "kind": "example",
+       "reference": "Retained exploratory value. Earlier GPT-assisted attribution had no primary citation; the exact value remains unverified."
       },
       "unit": "1"
      },
      "inactive_binding_um": {
       "value": 18.0,
       "provenance": {
-       "kind": "literature",
-       "reference": "GPT-assisted literature check (2026-10-03): about 18-20 uM for Tar-MeAsp, attributed to a 2013 quantitative chemotaxis modelling study. Do not mix with a 20/500 uM set from another study. Citation not recorded."
+       "kind": "example",
+       "reference": "Retained exploratory Ki=18 uM with Ka=3000 uM. The previously cited parameter pair lacks a primary reference and remains unverified."
       },
       "unit": "uM"
      },
      "active_binding_um": {
       "value": 3000.0,
       "provenance": {
-       "kind": "literature",
-       "reference": "GPT-assisted literature check (2026-10-03): 500-3000 uM depending on the model; paired here with Ki=18 uM, which the check attributed to the same study. Citation not recorded."
+       "kind": "example",
+       "reference": "Retained exploratory Ka=3000 uM with Ki=18 uM. The previously cited parameter pair lacks a primary reference and remains unverified."
       },
       "unit": "uM"
      },
@@ -4586,8 +4586,8 @@
      "speed_um_s": {
       "value": 20.0,
       "provenance": {
-       "kind": "literature",
-       "reference": "GPT-assisted literature check (2026-10-03): swimming speed about 20-25 um/s. Citation not recorded."
+       "kind": "example",
+       "reference": "Retained exploratory value. Earlier GPT-assisted attribution had no primary citation; the exact value remains unverified."
       },
       "unit": "um/s"
      },
@@ -4721,11 +4721,11 @@
  },
  "observation": {
   "id": "high_half",
-  "label": "High-concentration half",
-  "axis": 1,
+  "label": "High-concentration half (+X)",
+  "axis": 0,
   "region_lower_um": [
+   200.0,
    0.0,
-   400.0,
    0.0
   ],
   "region_upper_um": [

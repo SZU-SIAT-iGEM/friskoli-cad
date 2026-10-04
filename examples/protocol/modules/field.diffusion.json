@@ -1,5 +1,5 @@
 {
-  "protocol_version": "0.1.0",
+  "protocol_version": "0.2.0",
   "id": "field.diffusion",
   "version": "1.0.0",
   "scope": "environment",
@@ -9,16 +9,39 @@
   "description": "Finite-volume diffusion with a uniform initial condition; protocol example only.",
   "inputs": {},
   "outputs": {
-    "concentration": {"shape": "field.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+    "concentration": {
+      "shape": "field.scalar",
+      "quantity": "concentration",
+      "unit": "uM",
+      "species_parameter": "species"
+    }
   },
   "parameters": {
-    "species": {"type": "string"},
-    "initial_concentration": {"type": "number", "unit": "uM", "minimum": 0},
-    "diffusivity": {"type": "number", "unit": "um2/s", "minimum": 0},
-    "boundary": {"type": "string"}
+    "species": {
+      "type": "string"
+    },
+    "initial_concentration": {
+      "type": "number",
+      "unit": "uM",
+      "minimum": 0
+    },
+    "diffusivity": {
+      "type": "number",
+      "unit": "um2/s",
+      "minimum": 0
+    },
+    "boundary": {
+      "type": "string"
+    }
   },
   "state": {
-    "concentration": {"shape": "field.scalar", "unit": "uM", "on_division": "not_applicable"}
+    "concentration": {
+      "shape": "field.scalar",
+      "unit": "uM",
+      "on_division": "not_applicable"
+    }
   },
-  "initial_outputs": ["concentration"]
+  "initial_outputs": [
+    "concentration"
+  ]
 }

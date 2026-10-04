@@ -1,6 +1,6 @@
 # 系统运行结构
 
-适用：`modular-spatial-v1`，Project 0.6、Module/Graph 0.2、Catalog 0.5、Task 0.6、Workspace 0.7。旧 profile 保留各自原有时序。实施与验证状态见[本轮记录](archive/planning/implementation-2026-10-03.md)；本图描述可执行职责，不把物理时长验证当成实验标定。
+适用：`modular-spatial-v1`，Project 0.6、Module/Graph 0.2、Catalog 0.5、Task 0.6、Workspace 0.7。旧 profile 执行器已删除。实施与验证状态见[当前支持矩阵](first-release/support.md)；本图描述可执行职责，不把物理时长验证当成实验标定。
 
 只有两种可执行形式：**系统机制**与**注册模块**。基础模块、PTS/MCP 等特殊模块共用同一个入口。对象库、参数包、底盘/元件和模板都是可编辑的组合数据，不拥有隐藏算法。系统也不根据案例名称决定计算路径。
 

@@ -15,10 +15,6 @@ DOMAIN_MAPPING = {**MAPPING, 'domain':'physical-coordinates-zero-fill', 'sources
 def scientific_identity(project):
     document = deepcopy(project)
     document.pop('domain'); document.pop('system_limits',None)
-    for node in document['graph']['nodes']:
-        if node['module_id'] in ('field.diffusive_local','field.ideal_local_reservoir'):
-            node['parameters'].pop('diffusivity_um2_s',None)
-            node['parameters'].pop('diffusion_um2_s',None)
     return document
 
 

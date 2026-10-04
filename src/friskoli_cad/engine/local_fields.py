@@ -17,7 +17,7 @@ import numpy as np
 from .diffusion import explicit_no_flux_limit
 from .core import GridDomain, SimulationError
 
-ARRAY_THRESHOLD = 10_000
+ARRAY_THRESHOLD = 256
 
 
 class FrozenGridArray(np.ndarray):

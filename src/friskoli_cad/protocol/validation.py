@@ -1,4 +1,4 @@
-"""Structural and cross-reference checks for graph 0.1.0 and versioned frames.
+"""Structural and cross-reference checks for graph 0.2.0 and versioned frames.
 
 These checks are shared by importers and the future graph compiler. They do not
 execute a model or claim scientific validity for any module.
@@ -59,7 +59,7 @@ def _fail(code: str, path: str, message: str) -> None:
 
 def validate_manifest(manifest: Mapping[str, object]) -> None:
     """Check a module declaration, including semantic references inside it."""
-    _check_schema("module-v0.2" if manifest.get("protocol_version") == "0.2.0" else "module", manifest)
+    _check_schema("module-v0.2", manifest)
     parameters = manifest["parameters"]
     outputs = manifest["outputs"]
     for name, definition in parameters.items():
@@ -148,7 +148,7 @@ def validate_graph(graph: Mapping[str, object], manifests: Iterable[Mapping[str,
     Unit matching is deliberately exact. A conversion requires an explicit
     conversion module so the graph records it.
     """
-    _check_schema("graph-v0.2" if graph.get("protocol_version") == "0.2.0" else "graph", graph)
+    _check_schema("graph-v0.2", graph)
     registry = {}
     for manifest in manifests:
         validate_manifest(manifest)

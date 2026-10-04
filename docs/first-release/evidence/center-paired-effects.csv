@@ -1,0 +1,17 @@
+mechanism,scale,metric,n_runs,paired_mean_difference,ci95_lower,ci95_upper,statistical_unit
+a,small,region_fraction,4,-0.015625,-0.05733844219450228,0.02608844219450228,independent seed pair
+a,small,ever_arrived_fraction,4,-0.010416666666666685,-0.06783498638658078,0.047001653053247404,independent seed pair
+a,small,mean_residence_s,4,0.273437499999988,-0.60973670647505,1.1566117064750259,independent seed pair
+a,small,degradation_per_initial_cell_molecules,4,183.85416666666669,-215.99640129732734,583.7047346306607,independent seed pair
+b,small,region_fraction,4,0.015625,-0.034100723520062486,0.06535072352006249,independent seed pair
+b,small,ever_arrived_fraction,4,0.03125000000000003,-0.052176884389004446,0.1146768843890045,independent seed pair
+b,small,mean_residence_s,4,-0.0812499999999945,-0.6515346559024242,0.4890346559024352,independent seed pair
+b,small,degradation_per_initial_cell_molecules,4,-41.66666666666664,-277.25676833326867,193.92343499993535,independent seed pair
+a,medium,region_fraction,4,-0.005208333333333332,-0.03694750376726984,0.02653083710060317,independent seed pair
+a,medium,ever_arrived_fraction,4,0.026041666666666685,-0.023684056853395835,0.0757673901867292,independent seed pair
+a,medium,mean_residence_s,4,0.5390624999999969,-0.09833185661842991,1.1764568566184237,independent seed pair
+a,medium,degradation_per_initial_cell_molecules,4,146.61458333333331,-12.048805000628107,305.27797166729476,independent seed pair
+b,medium,region_fraction,4,0.010416666666666666,-0.022733815680041666,0.043567149013374995,independent seed pair
+b,medium,ever_arrived_fraction,4,-0.02083333333333337,-0.09244656003872137,0.05077989337205463,independent seed pair
+b,medium,mean_residence_s,4,0.032812499999990696,-1.9962576837496133,2.0618826837495945,independent seed pair
+b,medium,degradation_per_initial_cell_molecules,4,18.75,-775.9574817807006,813.4574817807006,independent seed pair

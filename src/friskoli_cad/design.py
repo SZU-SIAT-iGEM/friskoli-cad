@@ -211,8 +211,8 @@ def _resource_estimate(project, settings, registry, limits=None, *, modern=False
     from friskoli_cad.tasks.metadata import estimate
     from friskoli_cad.tasks.service import TaskLimits
     limits = limits or TaskLimits()
-    submission = {'task_contract_version': '0.6.0' if modern or settings['steps'] > 10000 or project.get('project_version') == '0.6.0' else '0.5.0' if any(k in settings for k in ('backend', 'field_stride_xyz', 'include_final_fields')) else '0.4.0',
-        'project': project, 'execution': {'steps': settings['steps']},
+    submission = {'task_contract_version': '0.6.0',
+        'project': project, 'execution': {'steps': settings['steps'], 'backend': settings.get('backend', 'numpy-cpu')},
         'output_plan': {'observables': list(project['run']['channels']),
             'frame_every_steps': settings['frame_every_steps'], 'include_fields': settings['include_fields'],
             'field_stride_xyz': settings.get('field_stride_xyz', [1, 1, 1]),
@@ -319,8 +319,13 @@ def generate_design(project, settings, brief, *, task_limits=None):
                 penalty += constraint.get('weight', 1.) * violation
         if not math.isfinite(penalty):
             reasons.append('Soft constraint penalty exceeds finite numeric range')
-        resource, resource_reasons = _resource_estimate(candidate, settings, registry, task_limits, modern=brief['brief_version']=='0.3.0')
-        reasons.extend(resource_reasons)
+        resource = None
+        if not reasons:
+            try:
+                resource, resource_reasons = _resource_estimate(candidate, settings, registry, task_limits, modern=brief['brief_version']=='0.3.0')
+                reasons.extend(resource_reasons)
+            except (ProtocolError, SimulationError, ValueError, TypeError, KeyError) as error:
+                reasons.append('Project preparation failed: ' + str(error))
         if not reasons:
             try:
                 _prepare(candidate, settings)

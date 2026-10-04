@@ -538,7 +538,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
                 'api_version': '0.2.0', 'workspace_versions': ['0.7.0'],
                 'catalog_versions': ['0.5.0'], 'execution_semantics': MODULAR_PROFILE,
                 'execution_profiles': [MODULAR_PROFILE], 'project_versions': ['0.6.0'], 'replay_versions': ['0.1.0'],
-                'design': {'design_version': '0.3.0', 'design_versions': ['0.2.0', '0.3.0'],
+                'design': {'design_version': '0.3.0', 'design_versions': ['0.1.0', '0.2.0', '0.3.0'],
                     'evaluation_version': '0.1.0', 'package_version': '0.1.0', 'execution_profiles': [MODULAR_PROFILE],
                     'max_runs': 32, 'request_bytes': MAX_DESIGN_REQUEST_BYTES, 'standards': standards_capabilities()},
                 'biological_assemblies': {'assembly_versions': ['0.1.0'], 'extract': True, 'apply': True},

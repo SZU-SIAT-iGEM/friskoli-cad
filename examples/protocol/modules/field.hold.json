@@ -1,5 +1,5 @@
 {
-  "protocol_version": "0.1.0",
+  "protocol_version": "0.2.0",
   "id": "field.hold",
   "version": "1.0.0",
   "scope": "environment",
@@ -9,14 +9,31 @@
   "description": "Hold a uniform species concentration for a contract example.",
   "inputs": {},
   "outputs": {
-    "concentration": {"shape": "field.scalar", "quantity": "concentration", "unit": "uM", "species_parameter": "species"}
+    "concentration": {
+      "shape": "field.scalar",
+      "quantity": "concentration",
+      "unit": "uM",
+      "species_parameter": "species"
+    }
   },
   "parameters": {
-    "species": {"type": "string"},
-    "level": {"type": "number", "unit": "uM", "minimum": 0}
+    "species": {
+      "type": "string"
+    },
+    "level": {
+      "type": "number",
+      "unit": "uM",
+      "minimum": 0
+    }
   },
   "state": {
-    "concentration": {"shape": "field.scalar", "unit": "uM", "on_division": "not_applicable"}
+    "concentration": {
+      "shape": "field.scalar",
+      "unit": "uM",
+      "on_division": "not_applicable"
+    }
   },
-  "initial_outputs": ["concentration"]
+  "initial_outputs": [
+    "concentration"
+  ]
 }

@@ -1,4 +1,4 @@
-"""Versioned catalog adapter around unchanged module 0.1 manifests.
+"""Versioned catalog adapter around formal Module 0.2 manifests.
 
 Declarations describe editor capabilities. They never provide executable code.
 """

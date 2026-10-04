@@ -190,6 +190,33 @@ export class SpatialViewport {
       this.cells.add(mesh);
       this.meshes.push(mesh);
     }
+    // Screen markers keep small cells visible without changing their geometry.
+    if (snapshot.frame.cells.length) {
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.Float32BufferAttribute(snapshot.frame.cells.flatMap(cell => cell.position_um), 3));
+      geometry.setAttribute('diameter', new THREE.Float32BufferAttribute(snapshot.frame.cells.map(cell => cell.geometry?.diameter_um ?? Math.min(...this.domain.spacing_um_xyz) * .4), 1));
+      const material = new THREE.ShaderMaterial({
+        uniforms: { viewportHeight: {value:this.canvas.clientHeight}, pixelRatio: {value:this.renderer.getPixelRatio()} },
+        vertexShader: `attribute float diameter;
+          uniform float viewportHeight; uniform float pixelRatio; varying float visible;
+          void main() {
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            float pixels = diameter * abs(projectionMatrix[1][1]) * viewportHeight / (2.0 * gl_Position.w);
+            visible = pixels < 4.0 ? 1.0 : 0.0;
+            gl_PointSize = 4.0 * pixelRatio;
+          }`,
+        fragmentShader: `varying float visible;
+          void main() {
+            float r = length(gl_PointCoord - vec2(0.5));
+            if (visible < 0.5 || r > 0.5) discard;
+            gl_FragColor = vec4(0.39, 0.88, 0.77, 1.0 - smoothstep(0.35, 0.5, r));
+          }`,
+        transparent:true, depthWrite:false
+      });
+      this.cellMarkers = new THREE.Points(geometry, material);
+      this.cellMarkers.renderOrder = 4;
+      this.cells.add(this.cellMarkers);
+    } else this.cellMarkers = null;
     const field = snapshot.concentrations[fieldId];
     if (field && range) {
       const section = concentrationSlice(field,this.domain,normal,slice);
@@ -469,7 +496,20 @@ export class SpatialViewport {
     if (objectId) { this.callbacks.selectEnvironment?.(objectId); return; }
     if (!this.meshes?.length) return;
     const ids = [...new Set(this.raycaster.intersectObjects(this.meshes).map(hit => hit.object.userData.cellIds[hit.instanceId]))];
-    if (ids.length) this.callbacks.selectCell(nextHit(ids, this.selectedId));
+    if (ids.length) { this.callbacks.selectCell(nextHit(ids, this.selectedId)); return; }
+    // Picking uses the same screen coordinates as the position markers.
+    if (!this.snapshot?.frame.cells.length) return;
+    const rect = this.canvas.getBoundingClientRect(), threshold = event.pointerType === 'touch' ? 14 : 7;
+    const near = [];
+    for (const cell of this.snapshot?.frame.cells ?? []) {
+      const projected = new THREE.Vector3(...cell.position_um).project(this.camera);
+      if (projected.z < -1 || projected.z > 1) continue;
+      const distance = Math.hypot(rect.left + (projected.x + 1) * rect.width / 2 - event.clientX,
+        rect.top + (1 - projected.y) * rect.height / 2 - event.clientY);
+      if (distance <= threshold) near.push({id:cell.id, distance, depth:projected.z});
+    }
+    near.sort((a,b) => a.distance - b.distance || a.depth - b.depth);
+    if (near.length) this.callbacks.selectCell(nextHit(near.map(cell => cell.id), this.selectedId));
   }
 
   setCamera(view) {
@@ -554,6 +594,7 @@ export class SpatialViewport {
     requestAnimationFrame(() => {
       this.pending = false;
       if (this.canvas.clientWidth < 1) return;
+      if (this.cellMarkers) this.cellMarkers.material.uniforms.viewportHeight.value = this.canvas.clientHeight;
       this.renderer.render(this.world, this.camera);
       this.drawAnnotations();
     });
@@ -562,6 +603,12 @@ export class SpatialViewport {
   drawAnnotations() {
     this.annotations.replaceChildren();
     if (!this.snapshot) return;
+    if (this.snapshot.frame.cells.length) {
+      const note = document.createElement('span');
+      note.className = 'scene-marker-note';
+      note.textContent = this.callbacks.markerLabel?.() ?? 'Cell position markers · min 4 px; geometry to scale';
+      this.annotations.append(note);
+    }
     if (this.mode === 'space') return;
     const groups = new Map();
     for (const cell of this.snapshot.frame.cells) {

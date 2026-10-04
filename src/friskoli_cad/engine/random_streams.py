@@ -132,4 +132,11 @@ class RandomStreams:
         return result
 
     def clone(self):
-        return self.from_dict(self.to_dict())
+        # Internal states have already been validated. JSON encoding and
+        # checkpoint validation belong to the external restore boundary.
+        result = type(self)(self.run_seed)
+        for key, stream in self._streams.items():
+            generator = np.random.PCG64(0)
+            generator.state = stream.bit_generator.state
+            result._streams[key] = RandomStream(generator)
+        return result

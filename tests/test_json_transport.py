@@ -1,3 +1,5 @@
+import hashlib
+import struct
 import json, math, unittest
 from pathlib import Path
 from friskoli_cad.protocol.task_validation import TaskValidationError, strict_json_loads, canonical_bytes, canonical_loads, sha256, _validator

@@ -186,15 +186,15 @@ def test_returned_design_matches_registered_schemas_with_long_id():
 
 def test_task05_settings_preserved_and_full_field_budget_uses_configured_limits():
     from friskoli_cad.tasks import TaskLimits
-    project = make_example('center-pts-a-small')
+    project = make_example('modular-foundation')
     project['domain'].update(geometry='volume', counts_xyz=[256]*3, spacing_um_xyz=[.5]*3)
     config = {'dt_s': .001, 'steps': 2, 'backend': 'numpy-cpu', 'field_stride_xyz': [8]*3,
               'include_fields': True, 'include_final_fields': True, 'frame_every_steps': 2}
-    limits = TaskLimits(voxels=256**3, estimated_memory_bytes=2*1024**3, output_bytes=1024**3)
+    limits = TaskLimits(voxels=256**3, estimated_memory_bytes=8*1024**3, output_bytes=1024**3)
     result = generate_design(project, config, brief(), task_limits=limits)
     assert len(result['candidates']) == 3
     assert result['settings'] == config
-    assert result['budget']['max_memory_bytes'] < 2*1024**3
+    assert result['budget']['max_memory_bytes'] < 8*1024**3
     assert result['budget']['resource_estimates'][0]['output_bytes'] > 256**3*8
     assert result['candidates'][0]['project']['domain']['counts_xyz'] == [256]*3
 

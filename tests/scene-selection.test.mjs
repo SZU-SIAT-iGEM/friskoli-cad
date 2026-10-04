@@ -170,8 +170,8 @@ test('tool commands cannot bypass locked, hidden, unsupported or Results selecti
 });
 
 test('step limits prefer matched task capability, then top-level limit, then conservative fallback', () => {
-  const project={execution_profile:'chemotaxis-spatial-v1',project_version:'0.5.0'};
-  const task={task_contract_version:'0.4.0',execution:{semantics:project.execution_profile},limits:{steps:2345}};
+  const project={execution_profile:'modular-spatial-v1',project_version:'0.6.0'};
+  const task={task_contract_version:'0.6.0',execution:{semantics:project.execution_profile},limits:{steps:2345}};
   const caps={task_profiles:{[project.execution_profile]:task},limits:{steps:1900}};
   assert.equal(executionStepLimit(caps,project),2345);
   assert.equal(executionStepLimit(caps,{...project,project_version:'0.4.0'}),1900);

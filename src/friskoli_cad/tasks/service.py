@@ -237,7 +237,8 @@ class TaskService:
             plan = compiled_plan(project, registry, backend=execution["backend"])
         except ProtocolError as error:
             path = getattr(error, "path", "")
-            raise TaskError(422, getattr(error, "code", "task.project_invalid"), str(error),
+            status = 413 if error.code == 'spatial.resource_limit' else 422
+            raise TaskError(status, getattr(error, "code", "task.project_invalid"), str(error),
                             "/project" + (path if path != "/" else ""), phase="validate") from error
         strides = submission["output_plan"].get("field_stride_xyz", [1, 1, 1])
         if profile == 'modular-spatial-v1':

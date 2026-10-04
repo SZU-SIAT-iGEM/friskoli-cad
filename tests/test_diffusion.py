@@ -1,3 +1,4 @@
+from friskoli_cad.engine.core import SimulationError
 import unittest
 import numpy as np
 from friskoli_cad.engine.core import GridDomain

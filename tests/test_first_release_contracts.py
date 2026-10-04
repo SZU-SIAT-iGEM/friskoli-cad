@@ -65,3 +65,30 @@ def test_chip_geometry_parameter_contract_is_not_silently_adjusted():
     assert len(p['groups']['cells']['ids']) == 200
     with pytest.raises(ValueError,match='divide'): build_chip_project('gradient',1,{'grid_spacing_um':19.})
     with pytest.raises(ValueError,match='condition'): build_chip_project('other',1)
+
+
+@pytest.mark.parametrize('condition', ['gradient', 'zero'])
+@pytest.mark.parametrize('source', ['builder', 'packaged_example'])
+def test_chip_field_and_observations_follow_horizontal_short_axis(condition, source):
+    project = (build_chip_project(condition, 1) if source == 'builder'
+               else make_example('chip-mcp-' + condition))
+    sim = simulation_from_project(project)
+    # The 400 um short horizontal side is X; voxel centers are 10, 30, ..., 390 um.
+    initial = np.asarray(sim.current.concentration_fields['ligand']).reshape(10, 40, 20)
+    profile = np.arange(5., 200., 10.) if condition == 'gradient' else np.full(20, 100.)
+    np.testing.assert_allclose(initial, np.broadcast_to(profile, initial.shape), atol=1e-12)
+    observation = project['observation']
+    assert observation['axis'] == 0
+    assert observation['region_lower_um'] == [200., 0., 0.]
+    assert observation['region_upper_um'] == [400., 800., 200.]
+    # Both finite exchange slabs cover Y/Z and are adjacent to the X walls.
+    nodes = {node['id']: node for node in project['graph']['nodes']}
+    assert nodes['low_side']['parameters']['upper_um']['value'] == [20., 800., 200.]
+    assert nodes['high_side']['parameters']['lower_um']['value'] == [380., 0., 0.]
+    sim.step(.1)
+    field = np.asarray(sim.current.concentration_fields['ligand']).reshape(10, 40, 20)
+    np.testing.assert_allclose(field, np.broadcast_to(field[0, 0], field.shape), atol=1e-12)
+    positions = np.array([cell['position_um'] for cell in sim.current.cell_frame['cells']])
+    metrics = sim.current.metrics['by_group']['cells']
+    assert metrics['mean_position_um'] == pytest.approx(positions[:, 0].mean(), abs=1e-12)
+    assert metrics['region_fraction'] == pytest.approx(np.mean(positions[:, 0] >= 200.))

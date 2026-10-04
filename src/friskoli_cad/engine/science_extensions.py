@@ -61,6 +61,8 @@ class ScientificModule:
 
     def project_preflight(self, parameters, project, owner_id):
         p = thaw(parameters)
+        if 'minimum_tumble_rate_s' in p and p['minimum_tumble_rate_s'] > p['maximum_tumble_rate_s']:
+            raise ValueError('minimum tumble rate must not exceed maximum tumble rate')
         shape = tuple(reversed(project['domain']['counts_xyz']))
         for name in ('lower_um', 'upper_um', 'velocity_xyz_um_s', 'release_position_um'):
             if name in p and (np.asarray(p[name]).shape != (3,) or not np.isfinite(p[name]).all()):
@@ -128,6 +130,7 @@ def scheduled_source(c, initial):
 
 
 def initial_array(c, initial):
+    if not initial: return _proposal({'initialized': 1.})
     values = law.nonnegative(c.parameters['values_um'])
     if values.shape != tuple(c.world['grid_shape_zyx']):
         raise ValueError('initial array must use exact ZYX grid shape')

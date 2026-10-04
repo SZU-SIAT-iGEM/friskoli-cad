@@ -28,14 +28,14 @@ test('submission waits for exact request and key durability before network accep
   let committed=false,release;const gate=new Promise(r=>release=r),writes=[],calls=[];
   const storage={setItem(k,v){writes.push(JSON.parse(v));},flush:async()=>{await gate;committed=true;}};
   const store=new TaskStore({submitTask:async(submission,key)=>{assert.equal(committed,true);calls.push({submission,key});throw Error('response lost');}},{storage,newId:()=>crypto.randomUUID()});
-  const frozen={task_contract_version:'0.4.0',request_id:'original',project:{run:{}},version_lock:{registry_sha256:'a'.repeat(64)},execution:{seed:7},output_plan:{}};
+  const frozen={task_contract_version:'0.6.0',request_id:'original',project:{run:{}},version_lock:{registry_sha256:'a'.repeat(64)},execution:{seed:7},output_plan:{}};
   const record=store.create(frozen,{draftToken:'x',revision:1,idempotencyRetentionSeconds:60});const pending=store.submit(record.localId);assert.equal(calls.length,0);release();await pending;
   assert.deepEqual(calls[0].submission,writes[0].records[0].submission);assert.equal(calls[0].key,writes[0].records[0].idempotencyKey);
   await store.retry(record.localId);assert.deepEqual(calls[1],calls[0]);
 });
 test('32 frozen repeats plus retained failed attempts fit the bounded durable metadata store',()=>{
   let serial=0;const storage={setItem(k,v){this.value=v;},getItem(){return this.value;}},store=new TaskStore({}, {storage,newId:()=>String(++serial),isProtected:()=>true});
-  for(let i=0;i<40;i++){const record=store.create({task_contract_version:'0.4.0',request_id:'request-'+i,project:{run:{}},execution:{seed:i%32,steps:2},output_plan:{}},{draftToken:'d',revision:i,idempotencyRetentionSeconds:60,design_ref:{design_id:'d',candidate_id:'a',candidate_name:'A'}});store.replace(record.localId,{status:i<8?'failed':'completed',completeness:i<8?'none':'complete'});}
+  for(let i=0;i<40;i++){const record=store.create({task_contract_version:'0.6.0',request_id:'request-'+i,project:{run:{}},execution:{seed:i%32,steps:2},output_plan:{}},{draftToken:'d',revision:i,idempotencyRetentionSeconds:60,design_ref:{design_id:'d',candidate_id:'a',candidate_name:'A'}});store.replace(record.localId,{status:i<8?'failed':'completed',completeness:i<8?'none':'complete'});}
   assert.equal(store.list().length,40);const restored=new TaskStore({}, {storage}).restore();assert.equal(restored.length,40);assert.equal(restored.filter(r=>r.status==='failed').length,8);assert.equal(JSON.parse(storage.value).records.some(r=>Object.hasOwn(r,'replay')),false);
 });
 test('candidate seeds are frozen into project as well as execution selection',()=>{

@@ -46,6 +46,7 @@ def test_domain_expansion_zero_fills_and_keeps_origin_across_binary_restore(tmp_
 
 def test_zero_crop_succeeds_nonzero_crop_and_source_support_loss_rejected():
     p=project(); p['species']['nutrient']['initial_concentration']['value']=1.
+    p['observation']['region_upper_um'][0]=180.
     sim=simulation_from_project(p,seed=17); sim.step(.01)
     grown,_=migrate_simulation(sim,expanded(p),DOMAIN_MAPPING)
     cropped,_=migrate_simulation(grown,p,DOMAIN_MAPPING)
@@ -53,7 +54,7 @@ def test_zero_crop_succeeds_nonzero_crop_and_source_support_loss_rejected():
     bad=deepcopy(p); bad['domain']['counts_xyz'][0]-=1
     with pytest.raises(ValueError,match='discard|outflow'):
         migrate_simulation(sim,bad,DOMAIN_MAPPING)
-    q=project()
+    q=project(); q['observation']['region_upper_um'][0]=180.
     add(q,'source.spatial_schedule',{'species':'nutrient','lower_um':[190.,0.,0.],
         'upper_um':[200.,100.,2.],'events':[{'kind':'pulse','time_s':5.,'amount_molecules':10.}]})
     scheduled=simulation_from_project(q); scheduled.step(.01)
@@ -95,7 +96,7 @@ def test_declared_float32_cannot_silently_underflow_small_amount():
 
 def test_migration_origin_cannot_change_scientific_project_data():
     from friskoli_cad.engine.modular_checkpoint import restore_checkpoint
-    from friskoli_cad.engine.spatial_checkpoint import _hash
+    from friskoli_cad.engine.checkpoint_tools import _hash
     p=project(); sim=simulation_from_project(p); sim.step(.01)
     moved,_=migrate_simulation(sim,expanded(p),DOMAIN_MAPPING)
     payload=moved.checkpoint()
