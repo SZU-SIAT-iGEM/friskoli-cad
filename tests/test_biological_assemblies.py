@@ -102,7 +102,7 @@ def test_real_templates_extract_validate_and_apply_without_losing_environment(te
 
 
 def test_application_preserves_other_population_and_allows_provider_id_binding():
-    project = clone_population(make_example("center-pts-a-small"))
+    project = clone_population(make_example("center-pts-a-small-strong"))
     valid_project(project)
     assembly = extract_assembly(project, "cells", metadata("pts-part"))
 
@@ -132,7 +132,7 @@ def test_application_preserves_other_population_and_allows_provider_id_binding()
 
 
 def test_chassis_replaces_geometry_while_part_keeps_geometry():
-    project = make_example("center-pts-a-small")
+    project = make_example("center-pts-a-small-strong")
     group_id = "cells"
     original = deepcopy(project["groups"][group_id]["initial_geometry"])
     part = extract_assembly(project, group_id, metadata("pts-part", kind="part"))
@@ -159,7 +159,7 @@ def test_chassis_replaces_geometry_while_part_keeps_geometry():
     ],
 )
 def test_malformed_or_incompatible_assemblies_are_rejected(mutator, code):
-    project = make_example("center-pts-a-small")
+    project = make_example("center-pts-a-small-strong")
     assembly = extract_assembly(project, "cells", metadata())
     mutator(assembly)
     with pytest.raises(ProtocolError, match=code):
@@ -167,7 +167,7 @@ def test_malformed_or_incompatible_assemblies_are_rejected(mutator, code):
 
 
 def test_unknown_binding_and_empty_target_are_rejected():
-    project = make_example("center-pts-a-small")
+    project = make_example("center-pts-a-small-strong")
     assembly = extract_assembly(project, "cells", metadata())
     req = assembly["input_requirements"][0]
     with pytest.raises(ProtocolError, match="assembly.binding"):

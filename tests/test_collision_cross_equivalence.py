@@ -29,7 +29,7 @@ def test_complete_trajectory_matches_original_cross_product(monkeypatch):
     from friskoli_cad.engine.presets import make_example
     from friskoli_cad.project import simulation_from_project
 
-    project = make_example('center-pts-a-small')
+    project = make_example('center-pts-a-small-strong')
     current, previous = simulation_from_project(project), simulation_from_project(project)
     for _ in range(12):
         current.step(.1)

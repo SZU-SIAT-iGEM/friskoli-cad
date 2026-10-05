@@ -4,7 +4,7 @@ import pytest
 
 from friskoli_cad.engine.hazard_walk import HazardWalkParameters, HazardWalkState, advance_hazard_walk
 from friskoli_cad.engine.random_streams import RandomStreams
-from friskoli_cad.engine.random_walk import RandomWalkBudgetError
+from friskoli_cad.engine.walk_primitives import RandomWalkBudgetError
 
 KEY = dict(node_id='motor', group_id='population', cell_id='stable-1')
 

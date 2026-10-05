@@ -34,14 +34,6 @@
       "roles": []
     },
     {
-      "id": "signal.pts_accepted",
-      "version": "1.0.0",
-      "stage": "physiology",
-      "scope": "population",
-      "disposition": "retained",
-      "roles": []
-    },
-    {
       "id": "space.axis_aligned_obstacle",
       "version": "1.0.0",
       "stage": "prepare",
@@ -117,22 +109,6 @@
     },
     {
       "id": "signal.constant_bias",
-      "version": "1.0.0",
-      "stage": "physiology",
-      "scope": "population",
-      "disposition": "retained",
-      "roles": []
-    },
-    {
-      "id": "signal.concentration_memory",
-      "version": "1.0.0",
-      "stage": "physiology",
-      "scope": "population",
-      "disposition": "retained",
-      "roles": []
-    },
-    {
-      "id": "signal.chey_memory",
       "version": "1.0.0",
       "stage": "physiology",
       "scope": "population",
@@ -607,6 +583,14 @@
       "scope": "population",
       "disposition": "retained",
       "roles": []
+    },
+    {
+      "id": "signal.pts_methylation",
+      "version": "1.0.0",
+      "stage": "physiology",
+      "scope": "population",
+      "disposition": "retained",
+      "roles": []
     }
   ],
   "retired_wrappers": [
@@ -628,10 +612,6 @@
     },
     {
       "id": "life.health_balance",
-      "disposition": "retired legacy wrapper"
-    },
-    {
-      "id": "division.area_adder",
       "disposition": "retired legacy wrapper"
     },
     {

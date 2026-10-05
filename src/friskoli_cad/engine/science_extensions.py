@@ -61,6 +61,11 @@ class ScientificModule:
 
     def project_preflight(self, parameters, project, owner_id):
         p = thaw(parameters)
+        if self.manifest['id'] == 'signal.pts_methylation':
+            from dataclasses import fields
+            from friskoli_cad.science.pts_methylation import PTSMethylationParameters, advance
+            par = PTSMethylationParameters(**{f.name: p[f.name.lower()] for f in fields(PTSMethylationParameters)})
+            advance(0., p['initial_ei_fraction'], p['initial_methylation'], p['initial_chey_p_um'], 0., par)
         if 'minimum_tumble_rate_s' in p and p['minimum_tumble_rate_s'] > p['maximum_tumble_rate_s']:
             raise ValueError('minimum tumble rate must not exceed maximum tumble rate')
         shape = tuple(reversed(project['domain']['counts_xyz']))

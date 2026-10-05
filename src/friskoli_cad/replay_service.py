@@ -29,7 +29,7 @@ from friskoli_cad.tasks import TaskError, TaskLimits, TaskService
 
 
 EXAMPLE_PROJECT = files("friskoli_cad").joinpath("examples", "modular_foundation.project.json")
-MAX_REQUEST_BYTES = 1_000_000
+MAX_REQUEST_BYTES = 4 * 1024 * 1024
 MAX_STEPS = 10_000
 MAX_REPLAY_VALUES = 1_000_000
 MAX_VIEW_TILES = 4_096
@@ -599,7 +599,7 @@ class ReplayHandler(BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
             if length <= 0 or length > MAX_REQUEST_BYTES:
-                raise ReplayRequestError("request.size", "request size must be between 1 and 1000000 bytes", 413)
+                raise ReplayRequestError("request.size", f"request size must be between 1 and {MAX_REQUEST_BYTES} bytes", 413)
             request = json.loads(self.rfile.read(length))
             if not isinstance(request, dict) or not {"project", "dt_s", "steps"} <= set(request) or set(request) - {"project", "dt_s", "steps", "request_id"}:
                 raise ReplayRequestError("request.shape", "expected project, dt_s and steps")

@@ -1,14 +1,9 @@
-"""Explicit A/B adaptation and a reduced MCP receptor model.
-
-These functions have no RNG, inventory or pose side effects. Concentration
-memory, CheY memory and receptor methylation are different state variables.
-All parameter values must be supplied; none are calibrated biological defaults.
-"""
+"""MCP receptor adaptation, CheY kinetics and shared motor readout."""
 from dataclasses import dataclass, fields
 
 import numpy as np
 
-from .pts import SignalParameters, _align, _product, _rates, _relax, _value
+from .pts import _align, _product, _rates, _relax, _value
 
 
 def _signed(name, value):
@@ -19,50 +14,6 @@ def _signed(name, value):
     if not np.all(np.isfinite(out)):
         raise ValueError(f"{name} must be finite")
     return out
-
-
-def _memory(old, signal, dt_s, tau_s):
-    old, signal = _align(_value("memory", old), _value("signal", signal))
-    dt = _value("dt_s", dt_s, scalar=True)
-    tau = _value("tau_s", tau_s, scalar=True)
-    if dt == 0:
-        return old.copy()
-    if tau == 0:
-        return signal.copy()
-    with np.errstate(over="ignore", under="ignore"):
-        amount = -np.expm1(-dt / tau)
-    return np.where(amount <= .5, old + amount * (signal - old),
-                    signal + (1 - amount) * (old - signal))
-
-
-def advance_concentration_memory(memory_uM, concentration_uM, dt_s, *, memory_tau_s):
-    """A: exact low-pass step at a frozen local bulk concentration."""
-    return _memory(memory_uM, concentration_uM, dt_s, memory_tau_s)
-
-
-def rebuilt_motor_bias(base_bias, memory_uM, concentration_uM, *, gradient_strength_per_uM):
-    """A: source exponential modulation, including its explicit ±20 log gate."""
-    b, m, c = _align(_value("base_bias", base_bias, upper=1),
-                     _value("memory_uM", memory_uM), _value("concentration_uM", concentration_uM))
-    gain = _value("gradient_strength_per_uM", gradient_strength_per_uM, scalar=True)
-    if gain == 0:
-        return b.copy()
-    with np.errstate(over="ignore"):
-        z = np.clip(-gain * (c - m), -20, 20)
-    return np.minimum(b * np.exp(z), 1.0)
-
-
-def advance_chey_memory(memory_uM, chey_uM, dt_s, *, adaptation_tau_s):
-    """B: low-pass the newly advanced raw CheY-P, not extracellular sugar."""
-    return _memory(memory_uM, chey_uM, dt_s, adaptation_tau_s)
-
-
-def adapted_chey_signal(chey_uM, memory_uM, *, baseline_uM, total_uM):
-    total = _value("total_uM", total_uM, scalar=True)
-    baseline = _value("baseline_uM", baseline_uM, upper=total, scalar=True)
-    y, m = _align(_value("chey_uM", chey_uM, upper=total),
-                 _value("memory_uM", memory_uM, upper=total))
-    return np.clip(baseline + (y - m), 0, total)
 
 
 def motor_bias(chey_uM, *, half_uM, hill):
@@ -188,10 +139,10 @@ class CheYParameters:
                    positive=field.name in {'motor_hill', 'motor_half_uM'})
 
 
-def advance_chey_from_activity(activity, chey_uM, dt_s, p: SignalParameters | CheYParameters):
+def advance_chey_from_activity(activity, chey_uM, dt_s, p: CheYParameters):
     """Freeze MCP receptor activity, set CheA=A_total*activity, advance CheY."""
-    if not isinstance(p, (SignalParameters, CheYParameters)):
-        raise ValueError("CheY integration requires CheYParameters or legacy SignalParameters")
+    if not isinstance(p, (CheYParameters)):
+        raise ValueError("CheY integration requires CheYParameters")
     a, y = _align(_value("activity", activity, upper=1),
                  _value("chey_uM", chey_uM, upper=p.chey_total_uM))
     dt = _value("dt_s", dt_s, scalar=True)

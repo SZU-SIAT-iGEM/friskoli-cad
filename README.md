@@ -25,12 +25,14 @@ python -m friskoli_cad.replay_service --port 8765
 ## First run
 
 1. Load **模块基础 / Modular foundation** and run its short default configuration.
-2. Load **MCP 梯度芯片 / MCP gradient chip** and its zero-gradient control for the measurement benchmark, or **PTS A/B · 小域 / 中域** and their matched controls for center-substrate research.
+2. Load **MCP 梯度芯片 / MCP gradient chip** and its zero-gradient control for the measurement benchmark, or **PTS A/B · 小域 · 强释放** and their matched controls for center-substrate research.
 3. Use Design for parameter candidates and multiple seeds. Inspect recorded metrics in Results → Data.
 4. Replay in 3D. Small cells have 4 px position markers; select a cell and use **Focus cell** to inspect its actual capsule geometry.
 5. Export a portable `.friskoli` research package and reopen it through File → Open. Frozen inputs, metrics, saved frames and requested arrays travel with it.
 
 The sole current execution profile is `modular-spatial-v1`. See the [support matrix](docs/first-release/support.md), [scientific scope](docs/first-release/science.md), [acceptance evidence](docs/first-release/acceptance.md), and [installation/user checklist](docs/first-release/install-and-use.md).
+
+The four center-substrate presets use a **1 µm grid**, the `responsive` PTS methylation profile, and 4,000 surface enzymes at kcat = 130/s. A/B both follow accepted PTS uptake → EI → methylation feedback → CheY-P → motor → motion. These are exploratory settings; the dated studies in `docs/first-release/evidence/` describe earlier configurations.
 
 ## Documentation
 
@@ -43,6 +45,7 @@ The sole current execution profile is `modular-spatial-v1`. See the [support mat
 | [docs/science/README.md](docs/science/README.md) | Model equations, parameter sources, limits |
 | [docs/standards-export.md](docs/standards-export.md) | Supported SBOL/OMEX export and what is not supported |
 | [docs/architecture.md](docs/architecture.md), [docs/system-execution.md](docs/system-execution.md) | How the system is built and executed |
+| [docs/README.md](docs/README.md), [CONTRIBUTING.md](CONTRIBUTING.md) | Documentation index and development setup |
 | [docs/archive/](docs/archive/) | Development records, verification logs, superseded protocols |
 
 ## Known limitations
@@ -59,11 +62,13 @@ The sole current execution profile is `modular-spatial-v1`. See the [support mat
 ```
 src/friskoli_cad/   engine, protocol schemas, task service, web frontend
 tests/              Python (pytest) and frontend (.mjs) tests
-examples/           runnable scripts and example projects
+examples/protocol/  protocol examples
+research/           reproducible study and export scripts
 docs/               current documentation; docs/archive/ holds history
+archive/            retired implementation, tests and presets
 ```
 
-Install with `python -m pip install -e ".[standards]"`, then run `python -m pytest tests -q` and `node --test tests/*.test.mjs`. Build an installable wheel with `python -m build --wheel`.
+For development, install with `python -m pip install -e ".[dev,standards]"` and `npm ci`, then run `python -m pytest tests -q` and `npm test`. Build the current installable wheel with `python -m build --wheel`; see [CONTRIBUTING.md](CONTRIBUTING.md) for study dependencies and service restarts after source changes.
 
 ## License
 

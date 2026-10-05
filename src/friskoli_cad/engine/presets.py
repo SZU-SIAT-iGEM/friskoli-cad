@@ -120,8 +120,34 @@ def build_chip_project(condition, seed, overrides=None):
     }
 
 
-def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1, spacing_um=4.):
+RELEASE = {'baseline': (1000., .5), 'strong': (4000., 130.)}
+
+SIGNAL_PROFILES = {
+    'current': {
+        'ei_dephos_per_molecule': .01, 'ei_rephos_s': 1.,
+        'pts_energy_gain': 2., 'methylation_energy': 1., 'methylation_reference': 2., 'methylation_max': 4.,
+        'adaptation_rate_s': 1., 'baseline_activity': .5, 'initial_methylation': 2.,
+        'chea_total_um': 1., 'chey_total_um': 10., 'chey_phos_per_um_s': 1.,
+        'chey_dephos_s': 1., 'motor_hill': 4., 'motor_half_um': 3.5,
+        'initial_ei_fraction': 0., 'initial_chey_p_um': 10. / 3.,
+    },
+    'responsive': {
+        'ei_dephos_per_molecule': .05, 'ei_rephos_s': 5.,
+        'pts_energy_gain': 2., 'methylation_energy': 1., 'methylation_reference': 2., 'methylation_max': 4.,
+        'adaptation_rate_s': .2, 'baseline_activity': .5, 'initial_methylation': 2.,
+        'chea_total_um': 1., 'chey_total_um': 10., 'chey_phos_per_um_s': 5.,
+        'chey_dephos_s': 5., 'motor_hill': 4., 'motor_half_um': 3.5,
+        'initial_ei_fraction': 0., 'initial_chey_p_um': 10. / 3.,
+    },
+}
+
+
+def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1, spacing_um=1., release='baseline', signal_profile='current'):
     """Matched square-domain PTS/surface-enzyme study and feedback-disabled control."""
+    if release not in RELEASE:
+        raise ValueError('Unknown center-study release setting')
+    if signal_profile not in SIGNAL_PROFILES:
+        raise ValueError('Unknown center-study signal profile')
     if mechanism not in ('a', 'b') or scale not in ('small', 'medium'):
         raise ValueError('Center study requires mechanism a/b and scale small/medium')
     registry = modular_registry()
@@ -140,9 +166,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
             'owner': {'kind': 'population' if population else 'environment', 'id': 'cells' if population else nid},
             'parameters': {k: {'value': v, **({'unit': m['parameters'][k]['unit']} if 'unit' in m['parameters'][k] else {}),
                 'provenance': {'kind': 'example', 'reference': reference}} for k, v in params.items()}}
-    signal = {'species':'sugar', 'ei_total_um':1., 'ei_dephos_per_molecule':.01, 'ei_rephos_s':1.,
-        'ei_chea_inhibition_um':1., 'chea_total_um':1., 'chey_total_um':10., 'chey_phos_per_um_s':1.,
-        'chey_dephos_s':1., 'motor_hill':4., 'motor_half_um':3.5, 'initial_ei_fraction':0., 'initial_chey_p_um':5.}
+    signal = {'species': 'sugar', **SIGNAL_PROFILES[signal_profile]}
     capacity = {'g_requested':2., 'reference_pts_copies':100.}
     capacity.update({'basal_inner_fraction':.5, 'pts_max_available_fraction':.4, 'ascf_area_um2':.001} if mechanism == 'a'
                     else {'g_cap':3., 'reference_area_um2':5.})
@@ -162,23 +186,21 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
         node('sugar_sample', 'field.sample_local', {'species':'sugar'}),
         node('uptake_request', 'uptake.pts_request', {'species':'sugar', 'turnover_s':2., 'half_saturation_um':1.}),
         node('accepted_uptake', 'uptake.local_settlement', {'species':'sugar', 'initial_molecules':0.}),
-        node('pts_signal', 'signal.pts_accepted', signal),
-        node('memory_motor', 'signal.concentration_memory' if mechanism == 'a' else 'signal.chey_memory',
-            {'species':'sugar', 'memory_tau_s':3., 'gradient_strength_per_um':2., 'initial_memory_um':0.} if mechanism == 'a' else
-            {'adaptation_tau_s':3., 'baseline_um':3.5, 'total_um':10., 'motor_hill':8., 'motor_half_um':3.5, 'initial_memory_um':5.}),
+        node('pts_signal', 'signal.pts_methylation', signal),
         node('motility', 'motion.hazard_run_tumble', {'tumble_mode':'instant', 'turn_kernel':'isotropic', 'speed_um_s':20.,
             'minimum_tumble_rate_s':.1, 'maximum_tumble_rate_s':3., 'tumble_duration_s':.1}),
-        node('surface_enzyme', 'surface.enzyme_activity', {'enzyme_copies':1000.}),
+        node('surface_enzyme', 'surface.enzyme_activity', {'enzyme_copies':RELEASE[release][0]}),
         node('central_substrate', 'material.degradable_box', {'species':'sugar',
             **{f'{side}_{axis}_um':float(value[i]) for side, value in [('lower',lower),('upper',upper)] for i, axis in enumerate('xyz')},
             'initial_molecules':100000000.}, population=False),
-        node('contact_hydrolysis', 'reaction.contact_degradation', {'kcat_s':.5, 'contact_range_um':.5}, population=False),
+        node('contact_hydrolysis', 'reaction.contact_degradation', {'kcat_s':RELEASE[release][1], 'contact_range_um':.5}, population=False),
         node('reserve', 'metabolism.reserve_balance', {'species':'sugar', 'initial_molecules':1000000., 'maintenance_molecules_s':10.}),
     ]
     if not feedback:
         # Match each mechanism's unstimulated readout, keeping the feedback
         # modules active for measurements. Only the motor-to-motion edge changes.
-        bias = 5.**4/(3.5**4 + 5.**4) if mechanism == 'a' else .5
+        baseline_y = signal['initial_chey_p_um']
+        bias = baseline_y**signal['motor_hill']/(signal['motor_half_um']**signal['motor_hill'] + baseline_y**signal['motor_hill'])
         nodes.append(node('constant_motor', 'signal.constant_bias', {'bias':bias}))
     def edge(a, pa, b, pb, timing='same_step'):
         return {'id':f'{a}_{pa}_to_{b}_{pb}', 'from':{'node':a,'port':pa}, 'to':{'node':b,'port':pb}, 'timing':timing}
@@ -191,15 +213,11 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
         edge('uptake_request','requested_flux','accepted_uptake','requested_flux'),
         edge('accepted_uptake','accepted_flux','pts_signal','accepted_flux'),
         edge('accepted_uptake','accepted_amount','reserve','accepted_amount'),
-        edge('memory_motor' if feedback else 'constant_motor','motor_bias','motility','motor_bias','previous_step')]
-    if mechanism == 'a':
-        edges += [edge('sugar_sample','concentration','memory_motor','concentration'),edge('pts_signal','motor_bias','memory_motor','motor_bias')]
-    else:
-        edges += [edge('pts_signal','chey_p','memory_motor','chey_p')]
+        edge('pts_signal' if feedback else 'constant_motor','motor_bias','motility','motor_bias','previous_step')]
     channels = {}
     by_id = {n['id']:n for n in nodes}
     for nid, port in [('sugar_sample','concentration'),('accepted_uptake','accepted_amount'),('accepted_uptake','cumulative_uptake'),
-                      ('pts_signal','chey_p'),('memory_motor','motor_bias'),('memory_motor','memory'),('surface_enzyme','enzyme_copies'),
+                      ('pts_signal','chey_p'),('pts_signal','motor_bias'),('pts_signal','methylation'),('pts_signal','activity'),('pts_signal','ei_fraction'),('surface_enzyme','enzyme_copies'),
                       ('reserve','intracellular_molecules'),('motility','blocked')]:
         n = by_id[nid]; p = registry.get(n['module_id'],n['module_version']).manifest['outputs'][port]
         channels[nid+'.'+port] = {'node':nid,'port':port,'group_id':'cells',**{k:p[k] for k in ('shape','quantity','unit')}}
@@ -207,7 +225,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
               for h in [extent[2]/4,extent[2]/2,3*extent[2]/4] for i in range(16)]
     rng = np.random.default_rng(seed)
     quats = rng.normal(size=(len(points),4)); quats /= np.linalg.norm(quats,axis=1,keepdims=True)
-    name = f'center-pts-{mechanism}-{scale}' + ('' if feedback else '-control')
+    name = f'center-pts-{mechanism}-{scale}' + ('' if release == 'baseline' else '-' + release) + ('' if feedback else '-control')
     geom = {'shape':'capsule','length_um':2.,'diameter_um':.8,'provenance':{'kind':'example','reference':reference}}
     return {'project_version':'0.6.0','execution_profile':'modular-spatial-v1','random_seed':seed,'id':name,
         'domain':{'geometry':'volume','counts_xyz':counts.tolist(),'spacing_um_xyz':[spacing_um]*3},
@@ -226,10 +244,11 @@ EXAMPLES = {
     'modular-material': ('材料与生命周期 / Material and lifecycle', 'Cellulose stoichiometry, catalyst providers, erosion and lineage.'),
     **{f'chip-mcp-{c}': ('MCP 梯度芯片 / MCP gradient chip' if c == 'gradient' else 'MCP 零梯度芯片 / MCP zero-gradient chip',
          'Wild-type MCP–MeAsp benchmark along the short horizontal X axis; finite boundary relaxation; constructed parameters.') for c in ('gradient','zero')},
-    **{f'center-pts-{m}-{s}'+('' if f else '-control'):
-        (f'PTS {m.upper()} · '+('小域' if s=='small' else '中域')+(' · 无反馈对照' if not f else ''),
-         'Square center-substrate engineering study; fixed surface enzymes; '+('PTS motor feedback.' if f else 'Matched control with constant motor feedback.'))
-       for m in ('a','b') for s in ('small','medium') for f in (True,False)}
+    **{f'center-pts-{m}-small-strong'+('-control' if not f else ''):
+        (f'PTS {m.upper()} · 小域 · 强释放'+(' · 无反馈对照' if not f else ''),
+         'Strong-release center-substrate study with the responsive PTS methylation profile; 4000 surface enzymes '
+         'at kcat 130/s and a 1 um grid resolve the interfacial concentration layer. Exploratory constructed setting, not calibrated.')
+       for m in ('a','b') for f in (True, False)},
 }
 
 

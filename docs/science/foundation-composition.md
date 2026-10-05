@@ -22,7 +22,7 @@
 | 实际摄取 | `uptake.local_settlement` | 请求、同一个场 → accepted amount/flux | 库存不足按共享结算分配；累计摄取是统计量，不是另一份胞内储备 |
 | 基础营养生存 | `metabolism.reserve_balance` | accepted amount → 可用储备、维持已用量、未满足时长 | 唯一胞内营养库存 owner；无需 growth/expression/PTS |
 | 持续匮乏死亡 | `life.starvation_hazard` | 未满足时长 → 匮乏时间、health 读数、等效 hazard | 消费 reserve 输出；宽限期后才抽死亡；自身唯一 death owner |
-| PTS 特殊信号 | `signal.pts_accepted` + A/B memory | 实际接受通量 → EI/CheA/CheY、motor bias | 只有实际摄取驱动 PTS 信号，不使用未接受请求 |
+| PTS 特殊信号 | `signal.pts_methylation` | 实际接受通量 → EI → 甲基化反馈调节的 CheA → CheY → motor bias | 只有实际摄取驱动 PTS 信号，不使用未接受请求 |
 | MCP 特殊信号 | `signal.mcp_adaptation@2.0.0` | 独立 ligand 浓度 → MWC、CheY、motor bias | 无无效 EI 参数；完整 MCP 场景另有恒定养分背景 |
 | 无趋化对照 | `signal.constant_bias` | 固定偏置 → motor bias | 摄取、营养生存仍可运行；没有信号方向反馈 |
 | 基础随机运动 | `motion.hazard_run_tumble` | 已提交 motor bias → 连续位置/朝向 | 独立 hazard/方向 RNG，统一胶囊碰撞；恒 bias 即无偏随机运动对照 |

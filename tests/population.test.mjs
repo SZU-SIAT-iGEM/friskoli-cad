@@ -4,7 +4,7 @@ import { test } from 'node:test';
 import { blocksFromProject, createBlock, scatterBlock } from '../src/friskoli_cad/web/population.mjs';
 import { nextHit, registerModules, resolveGraph } from '../src/friskoli_cad/web/catalog.mjs';
 
-const project = () => JSON.parse(readFileSync(new URL('../src/friskoli_cad/examples/center_pts_a_small.project.json', import.meta.url)));
+const project = () => JSON.parse(readFileSync(new URL('../src/friskoli_cad/examples/center_pts_a_small_strong.project.json', import.meta.url)));
 const staticModule = { id: 'population.static', version: '1.0.0', scope: 'population',
   inputs: {}, outputs: {}, parameters: {} };
 

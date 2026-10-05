@@ -96,7 +96,7 @@ def test_empty_and_sphere_limit():
     compare(cells,[replace(c,position_um=(c.position_um[0]+.1,*c.position_um[1:])) for c in cells])
 
 
-@pytest.mark.parametrize('example',['center-pts-a-small','modular-foundation'])
+@pytest.mark.parametrize('example',['center-pts-a-small-strong','modular-foundation'])
 def test_full_simulation_checkpoint_including_rng_matches_reference(example,monkeypatch):
     from friskoli_cad.engine import modular_runtime as spatial_runtime
     from friskoli_cad.engine.presets import make_example

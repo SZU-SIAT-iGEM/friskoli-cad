@@ -117,8 +117,8 @@ Binary64 rounding is reported with a bound proportional to `ulp(mass scale)`
 and the operation count. Negative concentration is never clipped to zero and
 mass is never silently normalized. Invalid numerics, an unrepresentable inventory
 transfer or a residual outside the bound rejects the proposal. Per-cell and
-per-reservoir settlement retain the stricter exact-rational accounting supplied
-by `settlement.py`.
+per-voxel settlement retain the stricter exact-rational accounting implemented
+inside `local_fields.py`.
 
 Default step budgets allow 10,000 diffusion substeps and 20,000,000 estimated
 work items. Grid-by-species-by-substep work, source support work and cell sampling

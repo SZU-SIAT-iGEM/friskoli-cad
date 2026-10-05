@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import math
 from numbers import Integral, Real
 
-from .random_walk import isotropic_heading, RandomWalkBudgetError
+from .walk_primitives import isotropic_heading, RandomWalkBudgetError
 
 WALK_VERSION = 'integrated-hazard-walk/v1'
 

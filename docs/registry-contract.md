@@ -46,11 +46,11 @@ geometry.capsule_readout@1.0.0 只读所属群组的当前位置、总长 L、�
 
 原内核通过 position/heading 和 length/diameter 输出识别状态写入者；新的只读模块显式声明 world_access=read_only，防止读取模块被当作第二个运动或生长模块。旧模块保持 legacy_inferred。读取在 phase 3，位于当前运动/生长 phase 2 之后、浓度采样 phase 4 之前；分裂后按既有 refresh 顺序重读。既有示例的事件、几何、轨迹、原 channels 和浓度数组均作回归对照。
 
-position 可以连到 field.sample_box_support@2.0.0 的 position 输入，仍要求同群组。场输入要求相同物种、quantity、shape、unit；相同单位不代表不同物理量可相连。面积读取本身不引入膜容量约束，采样不等于摄取或趋化。
+position 可以连到 `field.sample_local@1.0.0` 的 position 输入，仍要求同群组；当前实现按最近体素采样。场输入要求相同物种、quantity、shape、unit；相同单位不代表不同物理量可相连。面积读取本身不引入膜容量约束，采样不等于摄取或趋化。
 
 ## 数学说明的边界
 
-首批明确登记了菌群初始化算法、胶囊面积/体积、重叠权重浓度采样。其余既有模块显示“尚未登记数学说明”，不会伪装已审查。tested 表示登记了实现测试引用，不代表方程自动证明、实验标定或科学模型有效性。
+首批明确登记了菌群初始化算法、胶囊面积/体积和位置采样。其余既有模块显示“尚未登记数学说明”，不会伪装已审查。tested 表示登记了实现测试引用，不代表方程自动证明、实验标定或科学模型有效性。
 
 LaTeX 使用固定版本 KaTeX 0.18.9 离线渲染，资源与 MIT 许可证随包交付，见 [第三方资源说明](../src/friskoli_cad/web/vendor/katex/README.md)。trust=false，公式不执行模型代码；源码、测试路径作为文本展示，不自动加载外部内容。
 

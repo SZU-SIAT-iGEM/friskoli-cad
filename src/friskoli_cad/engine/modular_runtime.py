@@ -368,7 +368,7 @@ class ModularSimulation:
                     if not set(contributions) <= set(self.world.groups) or any(v < 0 for v in contributions.values()) or not math.isclose(math.fsum(contributions.values()), amount, rel_tol=1e-12, abs_tol=0.):
                         raise SimulationError('modular.material_attribution', 'Catalytic contributions must sum to the released amount')
                     attributed = item.setdefault('degradation_by_group', {})
-                    for gid, value in contributions.items(): attributed[gid] = attributed.get(gid, 0.) + (value * debit / amount if amount else 0.)
+                    for gid, value in contributions.items(): attributed[gid] = attributed.get(gid, 0.) + (float(value) * debit / amount if amount else 0.)
                 material_transfers.append((nid, transfer['species'], delta))
         for nid, effect in effects:
             if not effect.kind.startswith('field.'): continue

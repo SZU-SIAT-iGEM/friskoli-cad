@@ -1,5 +1,7 @@
 # 隔离安装与独立用户记录
 
+2026-10-05：当前源码安装与打包步骤见[开发说明](../../CONTRIBUTING.md)。下面的 wheel 和独立用户检查流程保存 2026-10-04 的交付记录；该 wheel 早于当前 PTS 甲基化与 DX=1 预设，不能用作当前版本安装包。
+
 Python 3.11+。交付的 wheel 在 `artifacts/friskoli_cad-0.2.0-py3-none-any.whl`；SHA-256 由[制品清单](artifacts/manifest.json)记录。请在源码目录外建立一个空文件夹，把 wheel 放进去，然后运行：
 
 ```powershell

@@ -2,7 +2,7 @@
 
 第一版采用 modular-spatial-v1。正式 ID/version、端口、单位、来源和检查状态来自 Catalog 0.5；完整列表见[模块索引](module-reference.md)，当前支持范围见[唯一支持矩阵](first-release/support.md)。旧开发执行器已删除。
 
-欢迎页提供模块基础、材料与生命周期、MCP 梯度/零梯度，以及 PTS A/B 小域/中域及各自匹配对照。模块基础适合第一次运行；中心案例是固定表面酶的研究近似，不能称为完整来源模型。
+欢迎页提供模块基础、材料与生命周期、MCP 梯度/零梯度，以及 PTS A/B 小域强释放及各自匹配对照。四个中心案例使用 DX=1 µm 和 responsive 甲基化参数。模块基础适合第一次运行；中心案例是固定表面酶的研究近似，不能称为完整来源模型。
 
 在 Workflow 中连接已注册模块。端口的 shape、quantity、unit、species 和 population owner 必须相容；same_step 输入必须由同一步先完成的模块提供，previous_step 输入读取上一步已提交值。声明的阶段限制依赖关系。检查会按路径指出错误，不自动替换机制。
 

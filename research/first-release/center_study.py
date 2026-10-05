@@ -43,7 +43,7 @@ def main():
     parser.add_argument('--seeds',type=int,default=4)
     parser.add_argument('--duration',type=float,default=120.)
     parser.add_argument('--dt',type=float,default=.1)
-    parser.add_argument('--spacing',type=float,default=4.)
+    parser.add_argument('--spacing',type=float,default=1.)
     parser.add_argument('--scale',choices=('small','medium'))
     parser.add_argument('--mechanism',choices=('a','b'))
     args=parser.parse_args();args.out.mkdir(parents=True,exist_ok=True)

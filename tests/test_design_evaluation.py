@@ -14,7 +14,7 @@ from friskoli_cad.engine.presets import make_example
 
 @pytest.fixture(scope='module')
 def prototype():
-    project = make_example('center-pts-a-small')
+    project = make_example('center-pts-a-small-strong')
     brief = {'brief_version': '0.2.0', 'id': 'evaluated', 'name': 'Exploratory design',
              'goal': {'metric': 'mean_displacement_um', 'direction': 'maximize', 'group_id': 'cells'},
              'chassis': {'name': 'Example', 'provenance': 'Constructed; not calibrated'},

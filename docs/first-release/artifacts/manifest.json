@@ -12,5 +12,5 @@
     "gradient_low_uM": 0.0,
     "gradient_high_uM": 200.0
   },
-  "scope": "Current wheel; isolated installation and one-step chip checks only. Long-run and end-to-end release gates remain."
+  "scope": "Historical 2026-10-04 wheel; isolated installation and one-step chip checks only. Predates current PTS methylation and DX=1 presets. Build the current wheel from source. Long-run and end-to-end release gates remain."
 }

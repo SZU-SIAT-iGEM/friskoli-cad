@@ -442,6 +442,14 @@ def _csv_cell(value):
     return value
 
 
+def _frozen_input(run):
+    return {'project_sha256': _hash(_json(run.get('project'))),
+            'settings': run.get('settings'),
+            'submission': {k: v for k, v in (run.get('submission') or {}).items() if k != 'project'},
+            'submission_sha256': _hash(_json(run.get('submission'))),
+            'full_inputs': 'evidence/runs.json in the accompanying .friskoli package'}
+
+
 def _csv(data):
     summaries, records = _report(data)
     stream = io.StringIO(newline='')
@@ -459,11 +467,7 @@ def _csv(data):
         rows.append(['run', data['design']['id'], row['candidate_id'], candidate.get('name', ''), candidate.get('kind', ''),
             goal['metric'], goal['group_id'], row['series'], row['run_id'], row['seed'], '', '', '', row['value'],
             row['reason'] or 'included', _json(row['version_lock']).decode('utf-8'), candidate.get('soft_penalty'),
-            _json({'project_sha256': _hash(_json(original.get('project'))),
-                   'settings': original.get('settings'),
-                   'submission': {k: v for k, v in (original.get('submission') or {}).items() if k != 'project'},
-                   'submission_sha256': _hash(_json(original.get('submission'))),
-                   'full_inputs': 'evidence/runs.json in the accompanying .friskoli package'}).decode('utf-8')])
+            _json(_frozen_input(original)).decode('utf-8')])
     if data['design']['brief']['brief_version'] in ('0.2.0', '0.3.0'):
         from friskoli_cad.design_evaluation import _evaluate
         evaluation = _evaluate(data)
@@ -490,7 +494,9 @@ def _html(data):
     excluded = ''.join('<li>' + h(r['run_id']) + ': ' + h(r['reason']) + '</li>' for r in records if r['reason'])
     evidence = _json({'brief': design['brief'], 'baseline_project': design['baseline_project'],
                       'candidates': design['candidates'], 'excluded': design['excluded'], 'settings': design['settings'],
-                      'budget': design['budget'], 'run_evidence': [{k: r.get(k) for k in ('id', 'design_ref', 'project', 'settings', 'submission', 'task', 'manifest')} for r in data['runs']]}).decode('utf-8')
+                      'budget': design['budget'], 'run_evidence': [
+                          {**{k: r.get(k) for k in ('id', 'design_ref', 'task', 'manifest')},
+                           'frozen_input': _frozen_input(r)} for r in data['runs']]}).decode('utf-8')
     evaluation_html = ''
     disclaimer = '此报告不宣称实验性能或自动推荐。'
     if design['brief']['brief_version'] in ('0.2.0', '0.3.0'):
@@ -513,7 +519,7 @@ def _html(data):
         '<p>仅纳入完整运行、匹配冻结输入和观测、seed 唯一的结果。不同来源锁分别统计。N 为有效 seed 数；SD 使用样本标准差。N&lt;2 时无法估计重复间不确定性；空值不当作零。' + disclaimer + '</p>'
         '<p>soft_penalty 单独列出，不与目标指标相加或用于自动排名。</p><table><thead><tr><th>候选</th><th>类型</th><th>来源系列 SHA-256</th><th>N</th><th>均值</th><th>样本 SD</th><th>soft_penalty</th><th>不确定性</th></tr></thead><tbody>' + rows + '</tbody></table>'
         + evaluation_html + '<h2>未参与统计的运行</h2><ul>' + (excluded or '<li>无</li>') + '</ul>'
-        '<h2>只读来源与运行输入</h2><p>历史锁不会因导入而替换，也不会自动执行。文件校验值只能证明包内一致性，不能证明作者身份。</p><details><summary>参数 provenance、约束、排除原因、完整冻结输入和锁</summary><pre>'
+        '<h2>只读来源与运行输入</h2><p>完整运行输入保存在随附 .friskoli 包的 evidence/runs.json 中。历史锁不会因导入而替换，也不会自动执行。文件校验值只能证明包内一致性，不能证明作者身份。</p><details><summary>参数 provenance、约束、排除原因、输入哈希和锁</summary><pre>'
         + h(evidence) + '</pre></details></html>')
 
 

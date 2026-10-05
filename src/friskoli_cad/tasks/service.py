@@ -44,7 +44,7 @@ class TaskError(ValueError):
 
 @dataclass(frozen=True)
 class TaskLimits:
-    request_bytes: int = 1_000_000
+    request_bytes: int = 4 * 1024 * 1024
     cells: int = 2_000
     voxels: int = 262_144
     steps: int = 4_320_000

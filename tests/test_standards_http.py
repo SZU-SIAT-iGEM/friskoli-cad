@@ -63,12 +63,12 @@ def test_invalid_standard_requests_never_bypass_native_package_checks(server_url
     assert 'error' in json.load(error.value)
 
 
-def test_standard_request_limit_matches_design_export(server_url,payload,monkeypatch):
+def test_standard_request_limit_matches_design_export(server_url,monkeypatch):
     import friskoli_cad.replay_service as service
     monkeypatch.setattr(service,'MAX_DESIGN_REQUEST_BYTES',64)
     for path in ('/api/design/export','/api/design/standards'):
         with pytest.raises(HTTPError) as error:
-            request(server_url,path,{'payload':payload,'format':'omex'})
+            request(server_url,path,{'payload':{'padding':'x'*64},'format':'omex'})
         assert error.value.code==413
 
 

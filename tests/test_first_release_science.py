@@ -70,17 +70,6 @@ def test_late_frame_failure_rolls_back_rng_ledger_and_observation(monkeypatch):
     assert export_checkpoint(sim) == export_checkpoint(restored)
 
 
-def test_ab_memory_matches_closed_form_and_has_distinct_input():
-    old, signal, dt, tau = 2., 5., .1, 3.
-    reference = signal + (old-signal)*math.exp(-dt/tau)
-    assert chemotaxis.advance_concentration_memory(old, signal, dt, memory_tau_s=tau) == pytest.approx(reference, abs=2e-15)
-    assert chemotaxis.advance_chey_memory(old, signal, dt, adaptation_tau_s=tau) == pytest.approx(reference, abs=2e-15)
-    assert chemotaxis.rebuilt_motor_bias(.5, 2., 3., gradient_strength_per_uM=2.) == pytest.approx(.5*math.exp(-2.))
-    adapted = min(10., max(0., 3.5 + 5. - reference))
-    assert chemotaxis.adapted_chey_signal(5., reference, baseline_uM=3.5, total_uM=10.) == pytest.approx(adapted)
-    assert chemotaxis.motor_bias(adapted, half_uM=3.5, hill=8.) == pytest.approx(adapted**8/(3.5**8+adapted**8))
-
-
 def test_mcp_backward_euler_satisfies_independently_written_equation():
     p = chemotaxis.MWCParameters(6.,18.,3000.,1.,0.,.3,1/3)
     ligand, old, dt = 100., 1.2, .1

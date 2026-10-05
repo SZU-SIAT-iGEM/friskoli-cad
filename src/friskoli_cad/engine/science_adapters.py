@@ -62,7 +62,6 @@ def sample_local(c, initial):
     return ModuleProposal({'concentration': values, 'gradient': gradient}, {})
 
 
-
 def capacity(rebuilt):
     def evaluate(c, initial):
         cls, fn = (pts.RebuiltCapacityParameters, pts.rebuilt_capacity) if rebuilt else (pts.SimplifiedCapacityParameters, pts.simplified_capacity)
@@ -92,27 +91,17 @@ def constant_bias(c, initial):
     return ModuleProposal({'motor_bias': np.full(len(c.entity_ids), c.parameters['bias'], dtype=float)}, {})
 
 
-def pts_signal(c, initial):
+def pts_methylation(c, initial):
+    from friskoli_cad.science import pts_methylation as law
     p, count = c.parameters, len(c.entity_ids)
-    par = parameters(c, pts.SignalParameters)
-    value = pts.signal_readout(np.full(count, p['initial_ei_fraction'], dtype=float), np.full(count, p['initial_chey_p_um'], dtype=float), par) if initial else pts.advance_accepted_signal(c.inputs['accepted_flux'], c.state['ei_fraction'], c.state['chey_p'], c.dt_s, par)
-    return ModuleProposal({'ei_fraction': value.ei_fraction, 'chey_p': value.chey_p_uM,
-        'chea_active': value.chea_active_uM, 'motor_bias': value.motor_bias}, {'ei_fraction': value.ei_fraction, 'chey_p': value.chey_p_uM})
-
-
-def concentration_memory(c, initial):
-    p = c.parameters; concentration = c.inputs['concentration']
-    memory = np.full(len(c.entity_ids), p['initial_memory_um'], dtype=float) if initial else chemotaxis.advance_concentration_memory(c.state['memory'], concentration, c.dt_s, memory_tau_s=p['memory_tau_s'])
-    bias = chemotaxis.rebuilt_motor_bias(c.inputs['motor_bias'], memory, concentration, gradient_strength_per_uM=p['gradient_strength_per_um'])
-    return ModuleProposal({'memory': memory, 'motor_bias': bias}, {'memory': memory})
-
-
-def chey_memory(c, initial):
-    p = c.parameters; chey = c.inputs['chey_p']
-    memory = np.full(len(c.entity_ids), p['initial_memory_um'], dtype=float) if initial else chemotaxis.advance_chey_memory(c.state['memory'], chey, c.dt_s, adaptation_tau_s=p['adaptation_tau_s'])
-    effective = chemotaxis.adapted_chey_signal(chey, memory, baseline_uM=p['baseline_um'], total_uM=p['total_um'])
-    bias = chemotaxis.motor_bias(effective, half_uM=p['motor_half_um'], hill=p['motor_hill'])
-    return ModuleProposal({'memory': memory, 'effective_chey': effective, 'motor_bias': bias}, {'memory': memory})
+    par = parameters(c, law.PTSMethylationParameters)
+    e = np.full(count, p['initial_ei_fraction']) if initial else c.state['ei_fraction']
+    m = np.full(count, p['initial_methylation']) if initial else c.state['methylation']
+    y = np.full(count, p['initial_chey_p_um']) if initial else c.state['chey_p']
+    e, m, a, y, bias = law.advance(c.inputs['accepted_flux'], e, m, y, 0. if initial else c.dt_s, par)
+    return ModuleProposal({'ei_fraction':e, 'methylation':m, 'activity':a,
+        'chea_active':a*p['chea_total_um'], 'chey_p':y, 'motor_bias':bias},
+        {'ei_fraction':e, 'methylation':m, 'chey_p':y})
 
 
 def mcp(c, initial):
@@ -256,9 +245,7 @@ def adapted_modules():
         'uptake.saturating_request': ('prepare', uptake_request(False), (), ()),
         'uptake.local_settlement': ('field', uptake_settlement, ('positions_um',), ('field.uptake',)),
         'signal.constant_bias': ('physiology', constant_bias, (), ()),
-        'signal.pts_accepted': ('physiology', pts_signal, (), ()),
-        'signal.concentration_memory': ('physiology', concentration_memory, (), ()),
-        'signal.chey_memory': ('physiology', chey_memory, (), ()),
+        'signal.pts_methylation': ('physiology', pts_methylation, (), ()),
         'signal.mcp_adaptation': ('physiology', mcp, (), ()),
         'metabolism.reserve_balance': ('physiology', reserve, (), ('inventory.consumption',)),
         'life.starvation_hazard': ('physiology', starvation, (), ('lifecycle.death',)),

@@ -43,7 +43,7 @@ PTS 示例只使用一个可溶物种 `nutrient`。实体底物降解后释放�
 
 胶囊碰撞覆盖胞体—胞体、器壁和注册实体盒，包含整段运动的检查。无法证明安全的提案保守地保持区间起始姿态，返回 blocked；不会把阻挡伪造成死亡。拥挤时可能低估运动，未包含接触力、摩擦和流体动力学。见[碰撞参考](collision-baseline.md)。
 
-事件时钟与随机流按运行 seed、模块、菌群、稳定菌体 ID 和用途隔离，步失败时连同场和科学状态一起回滚。输出帧频率不改变数值步。分步方式仍可能影响场算子拆分及碰撞阻挡，不能把随机序列可复现等同于任意步长轨迹相同。见[随机机制](random-walk-baseline.md)与[场算法](local-fields-baseline.md)。
+事件时钟与随机流按运行 seed、模块、菌群、稳定菌体 ID 和用途隔离，步失败时连同场和科学状态一起回滚。输出帧频率不改变数值步。分步方式仍可能影响场算子拆分及碰撞阻挡，不能把随机序列可复现等同于任意步长轨迹相同。当前运动实现位于 `engine/hazard_walk.py`；旧无偏推进说明见[归档记录](../archive/legacy-runtime/random-walk-baseline.md)，场算法见[本地场说明](local-fields-baseline.md)。
 
 Python 运行器有版本锁定的 JSON checkpoint，保存完整 RNG 与可恢复状态；任务服务仍未开放 pause/resume。前端保存的设计文件是初始条件，任务 frozen input 是本次运行的输入，两者均不能冒充运行中间态。
 

@@ -163,7 +163,7 @@ def test_growth_division_records_membrane_assumption_and_splits_inventory():
 
 
 def test_material_adapter_graph_and_checkpoint():
-    p = json.loads(files('friskoli_cad').joinpath('examples/center_pts_a_small.project.json').read_text(encoding='utf8'))
+    p = json.loads(files('friskoli_cad').joinpath('examples/center_pts_a_small_strong.project.json').read_text(encoding='utf8'))
     p.update(project_version='0.6.0', execution_profile='modular-spatial-v1')
     p['graph']['protocol_version'] = '0.2.0'
     sim = simulation_from_project(p); sim.step(.01)
@@ -244,7 +244,7 @@ def test_catalytic_output_cannot_be_spent_twice_but_observer_is_allowed():
 
 def test_surface_enzyme_owner_is_unique_per_population():
     from friskoli_cad.engine.modular_runtime import validate_modular_project
-    p = json.loads(files('friskoli_cad').joinpath('examples/center_pts_a_small.project.json').read_text(encoding='utf8'))
+    p = json.loads(files('friskoli_cad').joinpath('examples/center_pts_a_small_strong.project.json').read_text(encoding='utf8'))
     p.update(project_version='0.6.0', execution_profile='modular-spatial-v1'); p['graph']['protocol_version'] = '0.2.0'
     enzyme = next(n for n in p['graph']['nodes'] if n['module_id'] == 'surface.enzyme_activity')
     second = deepcopy(enzyme); second['id'] = 'second_surface_enzyme'; p['graph']['nodes'].append(second)
@@ -272,7 +272,7 @@ def test_distinct_contact_providers_cannot_double_spend_same_population_pool():
 
 def test_material_and_contact_hydrolysis_share_surface_catalytic_pool():
     from friskoli_cad.engine.modular_runtime import validate_modular_project
-    p = json.loads(files('friskoli_cad').joinpath('examples/center_pts_a_small.project.json').read_text(encoding='utf8'))
+    p = json.loads(files('friskoli_cad').joinpath('examples/center_pts_a_small_strong.project.json').read_text(encoding='utf8'))
     p.update(project_version='0.6.0', execution_profile='modular-spatial-v1'); p['graph']['protocol_version'] = '0.2.0'
     gid = next(n['owner']['id'] for n in p['graph']['nodes'] if n['module_id'] == 'surface.enzyme_activity')
     provider = add(p, 'enzyme.contact_provider', {'lower_um': [1., 1., 0.], 'upper_um': [2., 2., 2.], 'copies_per_cell': 10., 'contact_range_um': 1.}, population=True)

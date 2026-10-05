@@ -403,166 +403,6 @@
   {
     "manifest": {
       "protocol_version": "0.2.0",
-      "id": "signal.pts_accepted",
-      "version": "1.0.0",
-      "scope": "population",
-      "phase": 5,
-      "scientific_role": "mechanism",
-      "maturity": "exploratory",
-      "description": "Source phenomenological signal. Exact EI frozen-flux step, then CheY exponential step with end-step CheA frozen (first-order coupling); motor bias is a readout, no motor or motion is executed.",
-      "inputs": {
-        "accepted_flux": {
-          "shape": "cell.scalar",
-          "quantity": "accepted_flux",
-          "unit": "molecule/s",
-          "species_parameter": "species"
-        }
-      },
-      "outputs": {
-        "ei_fraction": {
-          "shape": "cell.scalar",
-          "quantity": "ei_dephosphorylated_fraction",
-          "unit": "1"
-        },
-        "chea_active": {
-          "shape": "cell.scalar",
-          "quantity": "chea_active_concentration",
-          "unit": "uM"
-        },
-        "chey_p": {
-          "shape": "cell.scalar",
-          "quantity": "chey_phosphorylated_concentration",
-          "unit": "uM"
-        },
-        "motor_bias": {
-          "shape": "cell.scalar",
-          "quantity": "motor_bias",
-          "unit": "1"
-        }
-      },
-      "parameters": {
-        "species": {
-          "type": "string"
-        },
-        "ei_total_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        },
-        "ei_dephos_per_molecule": {
-          "type": "number",
-          "unit": "1/molecule",
-          "minimum": 0
-        },
-        "ei_rephos_s": {
-          "type": "number",
-          "unit": "1/s",
-          "minimum": 0
-        },
-        "ei_chea_inhibition_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        },
-        "chea_total_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        },
-        "chey_total_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        },
-        "chey_phos_per_um_s": {
-          "type": "number",
-          "unit": "1/(uM*s)",
-          "minimum": 0
-        },
-        "chey_dephos_s": {
-          "type": "number",
-          "unit": "1/s",
-          "minimum": 0
-        },
-        "motor_hill": {
-          "type": "number",
-          "unit": "1",
-          "minimum": 0
-        },
-        "motor_half_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        },
-        "initial_ei_fraction": {
-          "type": "number",
-          "unit": "1",
-          "minimum": 0,
-          "maximum": 1
-        },
-        "initial_chey_p_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        }
-      },
-      "state": {
-        "ei_fraction": {
-          "shape": "cell.scalar",
-          "unit": "1",
-          "on_division": "copy"
-        },
-        "chey_p": {
-          "shape": "cell.scalar",
-          "unit": "uM",
-          "on_division": "copy"
-        }
-      },
-      "initial_outputs": [
-        "ei_fraction",
-        "chea_active",
-        "chey_p",
-        "motor_bias"
-      ]
-    },
-    "declaration": {
-      "label": "PTS 接受通量信号 / Accepted-flux PTS signal",
-      "category": "mechanism",
-      "mathematics": {
-        "kind": "equations",
-        "equations": [
-          {
-            "latex": "\\dot e=k_dJ_{\\rm acc}(1-e)-k_re,\\quad A=\\frac{A_T}{1+E_Te/K_I},\\quad\\dot Y=k_yA(Y_T-Y)-k_zY,\\quad b=\\frac{Y^h}{K_M^h+Y^h}",
-            "symbols": {
-              "e": "outputs.ei_fraction; dephosphorylated EI fraction",
-              "J_{\\rm acc}": "inputs.accepted_flux [molecule/s]",
-              "A": "outputs.chea_active [uM]",
-              "Y": "outputs.chey_p [uM]"
-            }
-          }
-        ],
-        "algorithm": "Source phenomenological signal. Exact EI frozen-flux step, then CheY exponential step with end-step CheA frozen (first-order coupling); motor bias is a readout, no motor or motion is executed.",
-        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
-        "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_pts_science.py"
-          ]
-        },
-        "assumptions": [
-          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
-          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
-          "docs/first-release/science.md records splitting and source-specific approximations."
-        ]
-      }
-    },
-    "roles": [],
-    "default_parameters": {},
-    "object_types": []
-  },
-  {
-    "manifest": {
-      "protocol_version": "0.2.0",
       "id": "space.axis_aligned_obstacle",
       "version": "1.0.0",
       "scope": "environment",
@@ -1536,233 +1376,6 @@
   {
     "manifest": {
       "protocol_version": "0.2.0",
-      "id": "signal.concentration_memory",
-      "version": "1.0.0",
-      "scope": "population",
-      "phase": 6,
-      "scientific_role": "mechanism",
-      "maturity": "exploratory",
-      "description": "Source A concentration memory and exponential motor modulation; exponent is explicitly bounded to ±20 as in the source.",
-      "inputs": {
-        "concentration": {
-          "shape": "cell.scalar",
-          "quantity": "concentration",
-          "unit": "uM",
-          "species_parameter": "species"
-        },
-        "motor_bias": {
-          "shape": "cell.scalar",
-          "quantity": "motor_bias",
-          "unit": "1"
-        }
-      },
-      "outputs": {
-        "memory": {
-          "shape": "cell.scalar",
-          "quantity": "concentration_memory",
-          "unit": "uM",
-          "species_parameter": "species"
-        },
-        "motor_bias": {
-          "shape": "cell.scalar",
-          "quantity": "motor_bias",
-          "unit": "1"
-        }
-      },
-      "parameters": {
-        "species": {
-          "type": "string"
-        },
-        "memory_tau_s": {
-          "type": "number",
-          "unit": "s",
-          "minimum": 0
-        },
-        "gradient_strength_per_um": {
-          "type": "number",
-          "unit": "1/uM",
-          "minimum": 0
-        },
-        "initial_memory_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        }
-      },
-      "state": {
-        "memory": {
-          "shape": "cell.scalar",
-          "unit": "uM",
-          "on_division": "copy"
-        }
-      },
-      "initial_outputs": [
-        "memory",
-        "motor_bias"
-      ]
-    },
-    "declaration": {
-      "label": "浓度记忆·重建版 / Concentration memory · rebuilt",
-      "category": "mechanism",
-      "mathematics": {
-        "kind": "equations",
-        "equations": [
-          {
-            "latex": "\\dot m=(C-m)/\\tau,\\quad b=\\min(1,b_{PTS}\\exp[-g(C-m)])",
-            "symbols": {
-              "C": "inputs.concentration [uM]",
-              "m": "state.memory [uM]",
-              "g": "parameters.gradient_strength_per_um [1/uM]"
-            }
-          }
-        ],
-        "algorithm": "Source A concentration memory and exponential motor modulation; exponent is explicitly bounded to ±20 as in the source.",
-        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
-        "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py"
-          ]
-        },
-        "assumptions": [
-          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
-          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
-          "docs/first-release/science.md records splitting and source-specific approximations."
-        ]
-      }
-    },
-    "roles": [],
-    "default_parameters": {
-      "species": "nutrient",
-      "memory_tau_s": 3.0,
-      "gradient_strength_per_um": 3.0,
-      "initial_memory_um": 1.0
-    },
-    "object_types": []
-  },
-  {
-    "manifest": {
-      "protocol_version": "0.2.0",
-      "id": "signal.chey_memory",
-      "version": "1.0.0",
-      "scope": "population",
-      "phase": 6,
-      "scientific_role": "mechanism",
-      "maturity": "exploratory",
-      "description": "Source B low-pass CheY-P adaptation; the Hill motor readout uses the adapted signal. This is not an MCP methylation model.",
-      "inputs": {
-        "chey_p": {
-          "shape": "cell.scalar",
-          "quantity": "chey_phosphorylated_concentration",
-          "unit": "uM"
-        }
-      },
-      "outputs": {
-        "memory": {
-          "shape": "cell.scalar",
-          "quantity": "chey_memory",
-          "unit": "uM"
-        },
-        "effective_chey": {
-          "shape": "cell.scalar",
-          "quantity": "chey_phosphorylated_concentration",
-          "unit": "uM"
-        },
-        "motor_bias": {
-          "shape": "cell.scalar",
-          "quantity": "motor_bias",
-          "unit": "1"
-        }
-      },
-      "parameters": {
-        "adaptation_tau_s": {
-          "type": "number",
-          "unit": "s",
-          "minimum": 0
-        },
-        "baseline_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        },
-        "total_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        },
-        "motor_hill": {
-          "type": "number",
-          "unit": "1",
-          "minimum": 0
-        },
-        "motor_half_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        },
-        "initial_memory_um": {
-          "type": "number",
-          "unit": "uM",
-          "minimum": 0
-        }
-      },
-      "state": {
-        "memory": {
-          "shape": "cell.scalar",
-          "unit": "uM",
-          "on_division": "copy"
-        }
-      },
-      "initial_outputs": [
-        "memory",
-        "effective_chey",
-        "motor_bias"
-      ]
-    },
-    "declaration": {
-      "label": "CheY-P 记忆·简化版 / CheY-P memory · simplified",
-      "category": "mechanism",
-      "mathematics": {
-        "kind": "equations",
-        "equations": [
-          {
-            "latex": "\\dot m=(Y-m)/\\tau,\\quad Y_{eff}=\\mathrm{clip}(Y_0+Y-m,0,Y_T)",
-            "symbols": {
-              "Y": "inputs.chey_p [uM]",
-              "m": "state.memory [uM]",
-              "Y_0": "parameters.baseline_um [uM]"
-            }
-          }
-        ],
-        "algorithm": "Source B low-pass CheY-P adaptation; the Hill motor readout uses the adapted signal. This is not an MCP methylation model.",
-        "implementation": "friskoli_cad.engine.science_adapters.ScientificModule",
-        "verification": {
-          "status": "tested",
-          "tests": [
-            "tests/test_first_release_science.py"
-          ]
-        },
-        "assumptions": [
-          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
-          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
-          "docs/first-release/science.md records splitting and source-specific approximations."
-        ]
-      }
-    },
-    "roles": [],
-    "default_parameters": {
-      "adaptation_tau_s": 3.0,
-      "baseline_um": 2.0,
-      "total_um": 10.0,
-      "motor_hill": 4.0,
-      "motor_half_um": 3.0,
-      "initial_memory_um": 2.0
-    },
-    "object_types": []
-  },
-  {
-    "manifest": {
-      "protocol_version": "0.2.0",
       "id": "signal.mcp_adaptation",
       "version": "1.0.0",
       "scope": "population",
@@ -2652,6 +2265,207 @@
       "recovery_rate": 1.0,
       "death_rate_per_min": 0.1
     },
+    "object_types": []
+  },
+  {
+    "manifest": {
+      "protocol_version": "0.2.0",
+      "id": "signal.pts_methylation",
+      "version": "1.0.0",
+      "scope": "population",
+      "phase": 8,
+      "scientific_role": "mechanism",
+      "maturity": "exploratory",
+      "description": "Accepted PTS flux drives EI and receptor-complex energy; bounded methylation feedback acts upstream of CheY. Constructed reduced model, not calibrated cellobiose kinetics.",
+      "inputs": {
+        "accepted_flux": {
+          "shape": "cell.scalar",
+          "quantity": "accepted_flux",
+          "unit": "molecule/s",
+          "species_parameter": "species"
+        }
+      },
+      "outputs": {
+        "ei_fraction": {
+          "shape": "cell.scalar",
+          "quantity": "ei_dephosphorylated_fraction",
+          "unit": "1"
+        },
+        "chea_active": {
+          "shape": "cell.scalar",
+          "quantity": "chea_active_concentration",
+          "unit": "uM"
+        },
+        "chey_p": {
+          "shape": "cell.scalar",
+          "quantity": "chey_phosphorylated_concentration",
+          "unit": "uM"
+        },
+        "motor_bias": {
+          "shape": "cell.scalar",
+          "quantity": "motor_bias",
+          "unit": "1"
+        },
+        "methylation": {
+          "shape": "cell.scalar",
+          "quantity": "receptor_methylation",
+          "unit": "1"
+        },
+        "activity": {
+          "shape": "cell.scalar",
+          "quantity": "receptor_activity",
+          "unit": "1"
+        }
+      },
+      "parameters": {
+        "species": {
+          "type": "string"
+        },
+        "ei_dephos_per_molecule": {
+          "type": "number",
+          "unit": "1/molecule",
+          "minimum": 0
+        },
+        "ei_rephos_s": {
+          "type": "number",
+          "unit": "1/s",
+          "minimum": 0
+        },
+        "chea_total_um": {
+          "type": "number",
+          "unit": "uM",
+          "minimum": 0
+        },
+        "chey_total_um": {
+          "type": "number",
+          "unit": "uM",
+          "minimum": 0
+        },
+        "chey_phos_per_um_s": {
+          "type": "number",
+          "unit": "1/(uM*s)",
+          "minimum": 0
+        },
+        "chey_dephos_s": {
+          "type": "number",
+          "unit": "1/s",
+          "minimum": 0
+        },
+        "motor_hill": {
+          "type": "number",
+          "unit": "1",
+          "exclusiveMinimum": 0
+        },
+        "motor_half_um": {
+          "type": "number",
+          "unit": "uM",
+          "exclusiveMinimum": 0
+        },
+        "initial_ei_fraction": {
+          "type": "number",
+          "unit": "1",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "initial_chey_p_um": {
+          "type": "number",
+          "unit": "uM",
+          "minimum": 0
+        },
+        "pts_energy_gain": {
+          "type": "number",
+          "unit": "1",
+          "minimum": 0
+        },
+        "methylation_energy": {
+          "type": "number",
+          "unit": "1",
+          "exclusiveMinimum": 0
+        },
+        "methylation_reference": {
+          "type": "number",
+          "unit": "1",
+          "minimum": 0
+        },
+        "methylation_max": {
+          "type": "number",
+          "unit": "1",
+          "exclusiveMinimum": 0
+        },
+        "adaptation_rate_s": {
+          "type": "number",
+          "unit": "1/s",
+          "minimum": 0
+        },
+        "baseline_activity": {
+          "type": "number",
+          "unit": "1",
+          "exclusiveMinimum": 0,
+          "exclusiveMaximum": 1
+        },
+        "initial_methylation": {
+          "type": "number",
+          "unit": "1",
+          "minimum": 0
+        }
+      },
+      "state": {
+        "ei_fraction": {
+          "shape": "cell.scalar",
+          "unit": "1",
+          "on_division": "copy"
+        },
+        "chey_p": {
+          "shape": "cell.scalar",
+          "unit": "uM",
+          "on_division": "copy"
+        },
+        "methylation": {
+          "shape": "cell.scalar",
+          "unit": "1",
+          "on_division": "copy"
+        }
+      },
+      "initial_outputs": [
+        "ei_fraction",
+        "chea_active",
+        "chey_p",
+        "motor_bias",
+        "methylation",
+        "activity"
+      ]
+    },
+    "declaration": {
+      "label": "PTS 甲基化适应 / PTS methylation adaptation",
+      "category": "mechanism",
+      "mathematics": {
+        "kind": "equations",
+        "equations": [
+          {
+            "latex": "\\dot e=k_dJ_{acc}(1-e)-k_re,\\quad a=\\sigma(\\operatorname{logit}(a_0)-g e+\\epsilon_m(m-m_0)),\\quad\\dot m=k_m(a_0-a),\\quad A=A_Ta,\\quad\\dot Y=k_yA(Y_T-Y)-k_zY,\\quad b=Y^h/(K_M^h+Y^h)",
+            "symbols": {}
+          }
+        ],
+        "algorithm": "Accepted PTS flux drives EI and receptor-complex energy; bounded methylation feedback acts upstream of CheY. Constructed reduced model, not calibrated cellobiose kinetics.",
+        "implementation": "friskoli_cad.science.pts_methylation.advance",
+        "verification": {
+          "status": "unreviewed",
+          "tests": [
+            "tests/test_pts_methylation.py"
+          ]
+        },
+        "assumptions": [
+          "modular-spatial-v1; stage and same_step/previous_step timing are explicit in the execution contract and graph.",
+          "Parameters are exploratory. Numerical checks do not establish experimental calibration.",
+          "docs/first-release/science.md records splitting and source-specific approximations.",
+          "Methylation is a reduced continuous state bounded to [0,methylation_max]; outward rates vanish at bounds.",
+          "Neumann et al. 2012 doi:10.1073/pnas.1205307109 supports pathway architecture, not this energy law or parameter values.",
+          "No extracellular concentration input or MeAsp binding constants. A/B share kinetics and motor parameters."
+        ]
+      }
+    },
+    "roles": [],
+    "default_parameters": {},
     "object_types": []
   }
 ]

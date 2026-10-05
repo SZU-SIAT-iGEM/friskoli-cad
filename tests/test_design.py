@@ -27,7 +27,7 @@ def node(project, nid):
     return next(n for n in project['graph']['nodes'] if n['id'] == nid)
 
 
-@pytest.mark.parametrize('example', ['center-pts-a-small','center-pts-b-small','chip-mcp-gradient','modular-foundation'])
+@pytest.mark.parametrize('example', ['center-pts-a-small-strong','center-pts-b-small-strong','chip-mcp-gradient','modular-foundation'])
 def test_all_six_templates_have_real_candidates_and_fixed_control(example):
     baseline = make_example(example)
     before = deepcopy(baseline)
@@ -75,7 +75,7 @@ def constraint(kind, value, **updates):
 
 
 def test_hard_constraints_soft_penalty_and_incomplete_design_are_explicit():
-    project = make_example('center-pts-a-small')
+    project = make_example('center-pts-a-small-strong')
     result = generate_design(project, settings(), brief(constraints=[constraint('hard', 6)]))
     assert result['budget']['feasible_candidate_count'] == 1
     assert not result['budget']['recommendable']
@@ -88,7 +88,7 @@ def test_hard_constraints_soft_penalty_and_incomplete_design_are_explicit():
 
 @pytest.mark.parametrize('cause', ['hard', 'range', 'coupled'])
 def test_no_feasible_candidates_returns_empty_and_reasons(cause):
-    project = make_example('center-pts-a-small')
+    project = make_example('center-pts-a-small-strong')
     b = brief()
     if cause == 'hard':
         b['constraints'] = [constraint('hard', -1)]
