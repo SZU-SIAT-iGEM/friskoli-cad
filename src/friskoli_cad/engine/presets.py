@@ -142,9 +142,11 @@ RELEASE = {'baseline': (200., 2.5), 'strong': (200., 130.)}
 BOUNDARY_SINK = {'thickness_um': 4., 'rate_s': 5., 'target_um': 0.}
 
 # The substrate is a cube centred on the domain, scaled as a whole rather than
-# stretched per axis. 24 um in the 64 x 64 x 32 um small domain is a 3x scale of
-# the original 8 um block and exactly fills the interior left by the 4 um sinks.
-SUBSTRATE_EDGE_UM = 24.
+# stretched per axis: 16 um here, doubled to 32 um in the medium domain. 16 um is
+# the largest cube the radial observation can still contain, because a complete
+# sphere must fit inside the domain and the small domain is only 32 um tall, so
+# radii are capped at 16 um while a cube's circumradius is edge*sqrt(3)/2.
+SUBSTRATE_EDGE_UM = 16.
 
 # Literature values and physical bounds only. Nothing here is a gain: the two
 # activity couplings, the sensor working point, the CheY cycle rates and the
@@ -261,7 +263,10 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
         raise ValueError('Grid spacing must divide each study extent')
     counts = counts.astype(int)
     center = extent / 2
-    lower, upper = center - SUBSTRATE_EDGE_UM * factor / 2, center + SUBSTRATE_EDGE_UM * factor / 2
+    _half = SUBSTRATE_EDGE_UM * factor / 2
+    lower, upper = center - _half, center + _half
+    # Largest radius whose sphere still fits inside the domain, with a 1 um margin.
+    _sphere_cap = float(np.min(extent)) / 2. - 1.
     reference = 'docs/first-release/science.md: constructed center-substrate study; no parameter fitting'
     def node(nid, mid, params, version='1.0.0', population=True):
         m = registry.get(mid, version).manifest
@@ -371,9 +376,14 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
             'orientation_xyzw':quats.tolist(),'initial_geometry':[deepcopy(geom) for _ in points]}},'controls':{},
         'graph':{'protocol_version':'0.2.0','id':name+'-graph','nodes':nodes,'edges':edges},
         'run':{'protocol_version':'0.1.0','run_id':name+'-run','graph_id':name+'-graph','groups':['cells'],'channels':channels},
+        # Both the observation box and the radial spheres are derived from the substrate
+        # so they cannot go stale when its size changes. Sized for the old 8 um block they
+        # sat inside a larger one and reported region_fraction, ever_arrived_fraction and
+        # mean_residence_s as permanently zero.
         'observation':{'id':'center_region','label':'Center-substrate neighborhood','axis':0,
-            'region_lower_um':(center-8.*factor).tolist(),'region_upper_um':(center+8.*factor).tolist(),
-            'radial_center_um':center.tolist(),'radial_radii_um':[8.*factor,12.*factor,16.*factor]}}
+            'region_lower_um':(center-(_half+4.)).tolist(),'region_upper_um':(center+(_half+4.)).tolist(),
+            'radial_center_um':center.tolist(),
+            'radial_radii_um':[_half+1.,(_half+1.+_sphere_cap)/2.,_sphere_cap]}}
 
 
 EXAMPLES = {
