@@ -1900,6 +1900,9 @@ try {
 for (const button of document.querySelectorAll('[data-view]')) button.addEventListener('click', () => setView(button.dataset.view));
 for (const button of document.querySelectorAll('[data-left]')) button.addEventListener('click', () => {
   state.left = button.dataset.left;
+  // renderAll owns this class, but it only runs on full renders, so switching
+  // tabs left the highlight on the previous tab while the list had already changed.
+  for (const other of document.querySelectorAll('[data-left]')) other.classList.toggle('active', other.dataset.left === state.left);
   renderLeft(); renderInspector();
 });
 $('left-search').addEventListener('input', renderLeft);
@@ -1982,7 +1985,12 @@ for (const [button, dock] of [['objects-tool', 'left'], ['properties-tool', 'rig
     const className = `show-${dock}`;
     const opened = $('studio').classList.contains(className);
     closeDocks();
-    if (!opened) { $('studio').classList.add(className); $('dock-backdrop').hidden = false; }
+    if (!opened) {
+      $('studio').classList.add(className);
+      // Above 960px a dock is a grid column, not an overlay, so a backdrop would
+      // only dim the panel underneath and swallow every click inside it.
+      $('dock-backdrop').hidden = !matchMedia('(max-width:960px)').matches;
+    }
   });
 }
 for (const button of document.querySelectorAll('[data-inspector]')) button.addEventListener('click', () => {
