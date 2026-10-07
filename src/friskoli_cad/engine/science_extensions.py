@@ -255,7 +255,9 @@ def extension_modules():
         scheduled_source, reads=GRID_READS, effects=('field.delta',))
     add('field.initial_array', '任意初始场 / Initial array', 'field', 'environment', {}, {'initialized': SCALAR},
         {'species': SPECIES, 'values_um': array_parameter('uM', {'type': 'array', 'items': {'type': 'array', 'items': {'type': 'number', 'minimum': 0}}})}, {},
-        r'C(x,0)=C_0(x)', 'Explicit ZYX array in uM; initial stock, not recurring supply.',
+        r'C(x,0)=C_0(x)', 'Explicit ZYX array in uM; initial stock, not recurring supply. '
+        'Obstacle voxels are solid, so the array value there is discarded rather than rejected; '
+        'the obstacle geometry can be edited without rewriting the grid.',
         initial_array, reads=GRID_READS, effects=('field.initial',), writes=('field.initial',))
     for identifier, label in [('field.boundary_exchange', '有限浓度交换 / Finite concentration exchange'),
                               ('reaction.oxygen_exchange', '气液氧交换 / Oxygen exchange')]:
