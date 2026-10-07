@@ -14,6 +14,8 @@
 
 其余门槛（G1、G2、G4、G5、G7、G8）本次未改变，状态见下表。
 
+**测试套件现状（2026-10-07，提交 `c389b09`）：** 全量 446 passed / 3 failed / 3 skipped。三个失败中，`test_design_http.py::test_result_criteria_are_versioned_and_evaluation_is_read_only` 与 `test_task_longrun.py::LongrunTests::test_nonzero_pause_and_service_reopen_resume_matches_continuous_rng` 在改动前的基线 `f16a6bd` 上重跑**同样失败**（已用 `git worktree` 对照），属既有问题；第三个 `test_design_generation_and_native_package_roundtrip_over_http` 单独运行通过，受并发负载影响。后者的失败形态是在 40 s 超时内任务未进入终态，与本次改动无关。
+
 2026-10-05补充：[中心底物诊断同步记录](center-diagnosis-2026-10-05.md) 已补入酶释放扫描、80条A/B适应测试及54条三参数组合记录的审阅。接触方向转换、恢复判据及控制比较存在缺项；保留PTS与适应，后续小实验串行。本次同步没有增加运行验收成绩。
 
 2026-10-04。用户要求提交目前完成的结果，后续由别人接手。本记录区分已验证能力和未完成的发布门槛，不把本轮提交称为全部 G1–G9 通过。
