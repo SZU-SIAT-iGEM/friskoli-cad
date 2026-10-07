@@ -16,7 +16,7 @@ import time
 import uuid
 import psutil
 from friskoli_cad.project import validate_project
-from friskoli_cad.engine.profiles import MODULAR_PROFILE, profile_for_project, task_version
+from friskoli_cad.engine.profiles import MODULAR_PROFILE, profile_for_project
 from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.protocol.task_validation import (VERSION, TaskValidationError, canonical_bytes, canonical_loads, sha256, strict_json_loads, validate_submission)
 from .metadata import BACKEND, compiled_plan, estimate, provenance, registry_metadata

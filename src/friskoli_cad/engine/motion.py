@@ -49,33 +49,3 @@ def orientation_after_heading(
     return np.column_stack((rotated_xyz, rotated_w))
 
 
-def turn_about_z(heading: np.ndarray, angles_rad: np.ndarray) -> np.ndarray:
-    """Turn headings about the vertical axis without changing their Z component."""
-    cosine, sine = np.cos(angles_rad), np.sin(angles_rad)
-    result = np.array(heading, dtype=np.float64, copy=True)
-    result[:, 0] = cosine * heading[:, 0] - sine * heading[:, 1]
-    result[:, 1] = sine * heading[:, 0] + cosine * heading[:, 1]
-    return result
-
-
-def reflect_in_box(
-    positions_um: np.ndarray, heading: np.ndarray, distance_um: float,
-    extent_um: tuple[float, float, float], *, thin_layer: bool,
-) -> tuple[np.ndarray, np.ndarray]:
-    """Fold straight center-point paths at each box face, including repeated hits."""
-    positions = np.array(positions_um, dtype=np.float64, copy=True)
-    directions = np.array(heading, dtype=np.float64, copy=True)
-    for axis, extent in enumerate(extent_um):
-        if thin_layer and axis == 2:
-            continue
-        unfolded = positions[:, axis] + distance_um * directions[:, axis]
-        phase = np.mod(unfolded, 2 * extent)
-        positions[:, axis] = np.where(phase <= extent, phase, 2 * extent - phase)
-        directions[:, axis] *= np.where(phase <= extent, 1, -1)
-        # An exact face hit has already reflected for the next interval.
-        lower = phase == 0
-        upper = phase == extent
-        directions[lower, axis] = np.abs(directions[lower, axis])
-        directions[upper, axis] = -np.abs(directions[upper, axis])
-        positions[upper, axis] = np.nextafter(extent, 0)
-    return positions, directions

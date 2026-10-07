@@ -43,4 +43,4 @@ python examples/runtime/benchmark.py --geometry volume --cells 10000 --steps 3
 
 ## 本例边界
 
-运行器支持 `field.scalar`、`cell.scalar` 和用于移动的 `cell.vector` 数值执行，薄层与完整 3D 均可运行；本例仍只有一个菌体组、一个均匀初始浓度的物种和固定菌体位置。本例的场没有扩散；扩散版行为图见[无通量扩散](no-flux-diffusion.md)，移动版见[移动菌体](moving-cells.md)，分裂版见[长度 adder](adder-division.md)。当前空间耦合按最近体素采样；旧固定物理作用范围方案见[归档说明](archive/legacy-runtime/box-support.md)。本例保留阶段 3b 的语义；后续[科学 profile](archive/legacy-protocols/chemotaxis-profile.md)已单独实现胶囊碰撞、营养生长、死亡与分裂，并接入前端回放。协议可以表达比各个运行器更多的形状与事件；未实现的形状会明确报错。两种基础环境实现通过同一套菌体模块运行，限制见[环境模块对照](environment-swap.md)。
+运行器支持 `field.scalar`、`cell.scalar` 和用于移动的 `cell.vector` 数值执行，薄层与完整 3D 均可运行；本例仍只有一个菌体组、一个均匀初始浓度的物种和固定菌体位置。本例的场没有扩散；扩散版行为图见[无通量扩散](no-flux-diffusion.md)，移动版见[移动菌体](moving-cells.md)，分裂版见[长度 adder](adder-division.md)。当前空间耦合按最近体素采样；旧固定物理作用范围方案见[归档说明](../legacy-runtime/box-support.md)。本例保留阶段 3b 的语义；后续[科学 profile](../legacy-protocols/chemotaxis-profile.md)已单独实现胶囊碰撞、营养生长、死亡与分裂，并接入前端回放。协议可以表达比各个运行器更多的形状与事件；未实现的形状会明确报错。两种基础环境实现通过同一套菌体模块运行，限制见[环境模块对照](environment-swap.md)。

@@ -179,7 +179,7 @@ H没有经过测量映射；原健康参数部分按设计标准选择。因此�
 
 建议把需求、库存结算、PTS、适应、运动、附着、水解、周期扩散、生长、表达、健康和分裂登记为独立数学模块或明确复合模块。胞内、胞外和纤维库存各有唯一结算责任；细胞身份与fiber/grid映射明确，避免多个模块重复写状态。
 
-这些拆分已在 N3 按明确状态责任实现；当前执行合同、几何与源版本仍有差异，详见 [N3 科学说明](../../science/n3-mechanisms.md)。源周期扩散不能无说明地换成 no-flux；胶囊总长也要经过转换。完整公式定位、参数证据强弱、测试与版本差异见[源模型审查](../../science/source-models/simplified-v4.md)，合同依据见[registry-contract](../../registry-contract.md)。
+这些拆分已在 N3 按明确状态责任实现；当前执行合同、几何与源版本仍有差异，详见 [N3 科学说明](../../archive/science/n3-mechanisms.md)。源周期扩散不能无说明地换成 no-flux；胶囊总长也要经过转换。完整公式定位、参数证据强弱、测试与版本差异见[源模型审查](../../science/source-models/simplified-v4.md)，合同依据见[registry-contract](../../archive/legacy-protocols/registry-contract.md)。
 
 ## 10. 证据怎样读
 

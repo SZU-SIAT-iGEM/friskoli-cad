@@ -8,7 +8,7 @@ from dataclasses import fields
 import math
 import numpy as np
 
-from friskoli_cad.science import pts, chemotaxis, physiology, survival, processes
+from friskoli_cad.science import pts, chemotaxis, survival, processes
 from .module_api import Effect, ModuleProposal, thaw
 from .science_extensions import ScientificModule
 

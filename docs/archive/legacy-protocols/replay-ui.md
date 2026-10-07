@@ -1,10 +1,10 @@
 # 运行服务与协议回放 · 阶段 4b
 
-**当前实施更新（2026-10-01）：** 默认本地启动启用[异步任务服务](task-service.md)，前端按项目 profile 精确选择 Task 0.1–0.4 后使用 `/api/runs`，支持排队、取消、恢复查询和 partial 结果。[空间 Task 0.3](archive/legacy-protocols/spatial-profile.md)可传输真实浓度场，并始终传输有限源与材料库存；[科学 Task 0.4](archive/legacy-protocols/chemotaxis-profile.md)进一步提供逐步指标、稀疏帧生命周期记录与死亡规则。Task 0.1/0.2 仍不传场数组。[Checkpoint 文件与 CLI](checkpoint-files.md)分别支持独立空间和科学运行的完整状态恢复；任务 pause/resume/checkpoint 能力仍为 false，项目编辑器不导入 checkpoint。
+**当前实施更新（2026-10-01）：** 默认本地启动启用[异步任务服务](task-service.md)，前端按项目 profile 精确选择 Task 0.1–0.4 后使用 `/api/runs`，支持排队、取消、恢复查询和 partial 结果。[空间 Task 0.3](spatial-profile.md)可传输真实浓度场，并始终传输有限源与材料库存；[科学 Task 0.4](chemotaxis-profile.md)进一步提供逐步指标、稀疏帧生命周期记录与死亡规则。Task 0.1/0.2 仍不传场数组。[Checkpoint 文件与 CLI](checkpoint-files.md)分别支持独立空间和科学运行的完整状态恢复；任务 pause/resume/checkpoint 能力仍为 false，项目编辑器不导入 checkpoint。
 
 本页其余同步请求、旧示例和限额说明记录阶段 4b 的 `/api/replay` 兼容路径。可用 `--sync-only` 启动旧模式；当前任务限制以 capabilities 为准，不能用旧同步限额推定异步能力。
 
-这一阶段建立可从源码启动的本地运行服务和可编辑的工作区。界面参考旧版 WebUI 的专业软件布局：项目与运行设置在左、空间视口及时间轴居中、单菌体检查在右；代码和样式重新编写，没有迁入旧项目的编辑器、内核或假结果。工作区、接口和交互约定分别见[工作区协议](archive/legacy-protocols/workspace-protocol-0.2.md)、[OpenAPI](openapi.json)和[交互规范](interaction-specification.md)。
+这一阶段建立可从源码启动的本地运行服务和可编辑的工作区。界面参考旧版 WebUI 的专业软件布局：项目与运行设置在左、空间视口及时间轴居中、单菌体检查在右；代码和样式重新编写，没有迁入旧项目的编辑器、内核或假结果。工作区、接口和交互约定分别见[工作区协议](workspace-protocol-0.2.md)、[OpenAPI](../../openapi.json)和[交互规范](../design/interaction-specification.md)。
 
 在仓库根目录运行：
 

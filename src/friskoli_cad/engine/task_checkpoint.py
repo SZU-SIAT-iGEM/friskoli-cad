@@ -7,7 +7,7 @@ import tempfile
 import zipfile
 import numpy as np
 from friskoli_cad.tasks.arrays import write_array, read_array, validate_descriptor
-from friskoli_cad.protocol.task_validation import canonical_bytes, strict_json_loads, sha256
+from friskoli_cad.protocol.task_validation import strict_json_loads, sha256
 
 METADATA_LIMIT = 16 * 1024 * 1024
 SEGMENT_LIMIT = 4 * 1024 * 1024

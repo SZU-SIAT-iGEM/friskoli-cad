@@ -1,6 +1,6 @@
 # 从纤维表面水解到细菌运动
 
-rebuilt-v2 中文 Wiki 草稿，2026-09-29。27文件原始来源清单标识：6f7bfc361389a6d7a5e269cd414025afe10fc5579f53cf1720af5866a4ffe219。原始源没有Git commit；[科学审查](../../science/source-models/rebuilt-v2.md)提供完整hash、方程、源码行号、修正与测试记录。**2026-10-01 更新：来源中的浓度记忆、生长、表达与健康公式已迁入 N3；原三池传质改为 direct-bulk。下文保留源模型解释，不代表完整 CAD 复刻。参数未经本项目实验标定。** 当前运行见 [N3 Wiki](n3-chemotaxis.md) 与 [机制差异](../../science/n3-mechanisms.md)。
+rebuilt-v2 中文 Wiki 草稿，2026-09-29。27文件原始来源清单标识：6f7bfc361389a6d7a5e269cd414025afe10fc5579f53cf1720af5866a4ffe219。原始源没有Git commit；[科学审查](../../science/source-models/rebuilt-v2.md)提供完整hash、方程、源码行号、修正与测试记录。**2026-10-01 更新：来源中的浓度记忆、生长、表达与健康公式已迁入 N3；原三池传质改为 direct-bulk。下文保留源模型解释，不代表完整 CAD 复刻。参数未经本项目实验标定。** 当前运行见 [N3 Wiki](n3-chemotaxis.md) 与 [机制差异](../../archive/science/n3-mechanisms.md)。
 
 ## 我们想理解的问题
 

@@ -13,7 +13,10 @@
 | 本次入库检查 | [2026-10-05 软件与打包记录](repository-checks-2026-10-05.md) |
 | 中心底物诊断 | [2026-10-05 诊断](first-release/center-diagnosis-2026-10-05.md) |
 | 历史来源与实现 | [科学来源](science/README.md)、[开发记录](archive/)、[退休实现](../archive/README.md) |
+| 阶段专题与旧合同 | [引擎与数值阶段记录](archive/engine-stages/)、[旧协议与服务记录](archive/legacy-protocols/)、[阶段科学记录](archive/science/) |
 
 当前八个预设包含模块基础、材料与生命周期、MCP 梯度/零梯度和 PTS A/B 小域强释放及匹配对照。四个中心预设使用 DX=1 µm、responsive 甲基化参数；旧小域/中域预设已经归档。
 
-`first-release/evidence/`、`first-release/artifacts/` 和各阶段文档保存带日期的检查结果。2026-10-04 的 wheel、旧中心场结果和早期 profile 的记录不能代表当前版本的测试或科学验收。根目录中的早期引擎专题也按文中的阶段和配置阅读；当前运行入口以本索引的指南为准。
+`first-release/evidence/`、`first-release/artifacts/` 和各阶段文档保存带日期的检查结果。2026-10-04 的 wheel、旧中心场结果和早期 profile 的记录不能代表当前版本的测试或科学验收。当前运行入口以本索引的指南为准。
+
+标题写作「阶段 3a…3n」的引擎与数值专题、以及已被新合同取代的服务与协议记录，已移入 `archive/`。它们描述统一执行规范之前的实现，正文中的 `examples/runtime/` 等路径随 P3 一并删除，不再可解析，只作追溯。

@@ -2,7 +2,6 @@
 
 Effects are proposals only. The owning runtime settles and commits them.
 """
-from copy import deepcopy
 import math
 import numpy as np
 
@@ -22,7 +21,6 @@ SCALAR = port('global.scalar', 'scalar', '1')
 CELL = port('cell.scalar', 'scalar', '1')
 AMOUNT = port('global.scalar', 'amount', 'molecule')
 RECORD_PORT = port('global.record', 'record', '1')
-FIELD = port('field.scalar', 'concentration', 'uM', True)
 
 
 class ScientificModule:

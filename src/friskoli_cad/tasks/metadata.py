@@ -13,7 +13,6 @@ from .artifacts import final_field_estimate, concentration_species
 from friskoli_cad.engine.profiles import MODULAR_PROFILE, profile_for_project, registry_for_profile, registry_for_project, task_version
 from friskoli_cad.protocol.task_validation import sha256
 
-SEMANTICS = MODULAR_PROFILE
 BACKEND = "numpy-cpu"
 
 

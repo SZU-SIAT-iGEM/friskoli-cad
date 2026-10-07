@@ -1,14 +1,14 @@
 # N3：趋化、直接释放与细胞生理
 
-核查日期：2026-10-01。执行语义为 `chemotaxis-spatial-v1`。本文解释当前机制和来源差异；实际数值验收见 [完整 N3 验证](../archive/verification/verification-n3-complete.md)。这些模型用于比较假设，尚无本工程菌的实验标定。
+核查日期：2026-10-01。执行语义为 `chemotaxis-spatial-v1`。本文解释当前机制和来源差异；实际数值验收见 [完整 N3 验证](../verification/verification-n3-complete.md)。这些模型用于比较假设，尚无本工程菌的实验标定。
 
 ## 来源与复现范围
 
-A 指相邻审查库的 `rebuilt-v2`，B 指 `simplified-v4`。逐文件 SHA256 与最后改动 commit 存在 [n3_source_lock.json](../../src/friskoli_cad/science/data/n3_source_lock.json)，从独立源进程生成的构造输入输出存在 [n3_fixtures.json](../../src/friskoli_cad/science/data/n3_fixtures.json)。原 B ZIP 的 SHA256 仍为 `a3900092cb03a9d686800ca3c9450a2ce09fd5470c921b416b5aae5d0b63a5c2`。纯公式测试比较源输出、独立解析解和数值参照；这不等于整条轨迹复现。
+A 指相邻审查库的 `rebuilt-v2`，B 指 `simplified-v4`。逐文件 SHA256 与最后改动 commit 存在 [n3_source_lock.json](../../../src/friskoli_cad/science/data/n3_source_lock.json)，从独立源进程生成的构造输入输出存在 [n3_fixtures.json](../../../src/friskoli_cad/science/data/n3_fixtures.json)。原 B ZIP 的 SHA256 仍为 `a3900092cb03a9d686800ca3c9450a2ce09fd5470c921b416b5aae5d0b63a5c2`。纯公式测试比较源输出、独立解析解和数值参照；这不等于整条轨迹复现。
 
 按本轮选择，水解产物直接进入同一胞外 field，不迁入 A 的 contact/surface/bulk 三池。A 的传质假设已被替换。其浓度记忆、Monod、表达反馈与健康机制可以分别使用，但这个组合不能称为原 A 的完整复刻。B 的 direct-bulk 机制也经过 CAD 的接触几何、局部源与库存结算规则适配。
 
-默认案例的短时可见参数属于 `constructed`；在下面列出的 A/B 原值属于 `source-derived`；它们对本工程菌的校准状态均为 `unknown`。文献支持具体机制，不替代码参数背书。[n3_evidence.json](../../src/friskoli_cad/science/data/n3_evidence.json)记录文献定位、读取范围与不支持的推断。
+默认案例的短时可见参数属于 `constructed`；在下面列出的 A/B 原值属于 `source-derived`；它们对本工程菌的校准状态均为 `unknown`。文献支持具体机制，不替代码参数背书。[n3_evidence.json](../../../src/friskoli_cad/science/data/n3_evidence.json)记录文献定位、读取范围与不支持的推断。
 
 ## 状态与时间
 

@@ -15,10 +15,3 @@ def number(unit="1", minimum=0, maximum=None):
 
 
 SPECIES = {"type": "string"}
-AREA = port("cell.scalar", "surface_area", "um^2")
-COPIES = port("cell.scalar", "carrier_copies", "molecule")
-CONCENTRATION = port("cell.scalar", "concentration", "uM", True)
-REQUEST = port("cell.scalar", "requested_flux", "molecule/s", True)
-ACCEPTED = port("cell.scalar", "accepted_flux", "molecule/s", True)
-INVENTORY = port("global.scalar", "bulk_inventory", "molecule", True)
-BULK_C = port("global.scalar", "concentration", "uM", True)

@@ -1,8 +1,8 @@
 # Friskoli-CAD Product & Interaction Specification · 1.0
 
-本页在 4b 交互规范基础上更新至 2026-10-01：N1 注册目录、N2 异步任务与 N3 趋化模板/指标/比较已交付。完整设计/候选流程和 Wiki 只读目标见[产品与交互设计](archive/design/product-and-interaction.md)；具体实施范围以[开发安排](archive/planning/development-order.md)为准。
+本页在 4b 交互规范基础上更新至 2026-10-01：N1 注册目录、N2 异步任务与 N3 趋化模板/指标/比较已交付。完整设计/候选流程和 Wiki 只读目标见[产品与交互设计](product-and-interaction.md)；具体实施范围以[开发安排](../planning/development-order.md)为准。
 
-产品定位：构建、执行与分析单菌体生物仿真的可视化工作区。本规范采纳所附用户历程中的对象操作、可撤销编辑、明确反馈与输入/结果分离原则；附件中的建议不视为已经实现的功能或发布承诺。原 [Workspace/API 0.2](archive/legacy-protocols/workspace-protocol-0.2.md) 合同继续保留；当前工作区见[注册目录与 Workspace 0.4](registry-contract.md)，运行合同见[任务服务](task-service.md)及[空间 profile](archive/legacy-protocols/spatial-profile.md)。
+产品定位：构建、执行与分析单菌体生物仿真的可视化工作区。本规范采纳所附用户历程中的对象操作、可撤销编辑、明确反馈与输入/结果分离原则；附件中的建议不视为已经实现的功能或发布承诺。原 [Workspace/API 0.2](../legacy-protocols/workspace-protocol-0.2.md) 合同继续保留；当前工作区见[注册目录与 Workspace 0.4](../legacy-protocols/registry-contract.md)，运行合同见[任务服务](../legacy-protocols/task-service.md)及[空间 profile](../legacy-protocols/spatial-profile.md)。
 
 ## 工作区与常规操作
 
@@ -46,7 +46,7 @@ Run 状态：默认异步服务记录 queued、running、completed、failed、ca
 
 物体库按当前 catalog 和 initializer adapter 启用对象。空间 profile 已提供障碍物、有限局部源和可降解材料盒，并执行胶囊运动接触检查；材料释放依赖显式表面酶和接触降解机制。纤维仍未实现，未知或不兼容对象不可用于求解。Task 0.3/0.4 可显示真实场及有限对象库存；旧 Task 0.1/0.2 不输出场数组。旧 spatial-unbiased-v1 不包含生长、分裂、外部日程或 MCP，PTS 信号不偏置运动。N3 chemotaxis-spatial-v1 的显式图包含 PTS/MCP 趋化、材料及生命周期分支，详情见科学合同。
 
-M4 [checkpoint 文件](checkpoint-files.md)仅由 Python 库与 CLI 保存/恢复独立空间运行。任务服务的 pause/resume/checkpoint 仍为 false；草稿恢复、结果回放和项目导入均不提供 checkpoint 续算入口。
+M4 [checkpoint 文件](../legacy-protocols/checkpoint-files.md)仅由 Python 库与 CLI 保存/恢复独立空间运行。任务服务的 pause/resume/checkpoint 仍为 false；草稿恢复、结果回放和项目导入均不提供 checkpoint 续算入口。
 
 ## N3 科学编辑与结果比较
 
@@ -62,4 +62,4 @@ Data 使用后端记录的位移、区域占比、曾到达比例与驻留时间
 
 每项功能都需核对成功路径、错误路径、撤销、保存重开与草稿/运行隔离。每个新增科学模块仍遵循 CONTRIBUTING 的公式、参数来源、单位、执行时序与回归要求。UI 改动不能宣称解决科学模型拟合、参数标定或数值适用性。
 
-4b 原验收边界见[前端迁移验收](archive/planning/frontend-migration.md)；后续证据见 [N3 UI](archive/verification/verification-n3-ui.md)、[N2](archive/verification/verification-n2.md)、[空间验收](archive/verification/verification-spatial.md)及 [M4](archive/verification/verification-m4.md)。浏览器尺寸模拟、触摸事件测试、实体设备测试分开报告。协议与交互变化需同时更新本页、数据协议、示例、测试、README 与 PROGRESS；不再允许仅在会话里记录已实现状态。
+4b 原验收边界见[前端迁移验收](../planning/frontend-migration.md)；后续证据见 [N3 UI](../verification/verification-n3-ui.md)、[N2](../verification/verification-n2.md)、[空间验收](../verification/verification-spatial.md)及 [M4](../verification/verification-m4.md)。浏览器尺寸模拟、触摸事件测试、实体设备测试分开报告。协议与交互变化需同时更新本页、数据协议、示例、测试、README 与 PROGRESS；不再允许仅在会话里记录已实现状态。

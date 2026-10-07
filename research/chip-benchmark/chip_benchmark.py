@@ -23,7 +23,6 @@ from pathlib import Path
 
 import numpy as np
 
-from friskoli_cad.engine.science_extensions import modular_registry
 from friskoli_cad.project import simulation_from_project
 
 HERE = Path(__file__).resolve().parent

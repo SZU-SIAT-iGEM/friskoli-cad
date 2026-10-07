@@ -14,7 +14,7 @@ Space的空间属性 → Physical duration 另有通用“12小时预设”按�
 
 ## 可追溯参数
 
-源模型是 `friskoli-model-review/simplified-v4`，审查版本 `6b6180b68ac047b244aa9947fe7cc7d227f76310`，文件校验见 [n3_source_lock.json](../../src/friskoli_cad/science/data/n3_source_lock.json)。主要依据为 `config.py`、`core/agent.py`、`model_b_morphology/division.py` 和 `model_b_morphology/health.py`。这里的“源模型参数”只表示忠实沿用代码，**不表示这些数值经过 Friskoli 菌株实验测定**。
+源模型是 `friskoli-model-review/simplified-v4`，审查版本 `6b6180b68ac047b244aa9947fe7cc7d227f76310`，文件校验见 [n3_source_lock.json](../../../src/friskoli_cad/science/data/n3_source_lock.json)。主要依据为 `config.py`、`core/agent.py`、`model_b_morphology/division.py` 和 `model_b_morphology/health.py`。这里的“源模型参数”只表示忠实沿用代码，**不表示这些数值经过 Friskoli 菌株实验测定**。
 
 | 参数 | 值与单位 | 性质 |
 |---|---|---|
@@ -54,7 +54,7 @@ Space的空间属性 → Physical duration 另有通用“12小时预设”按�
 
 在无摄取的质量上界下，100 s 后平均浓度为 7.9180673 µM。无限域持续点源近似 `C(r)=Q/(4πDr × 602.214076)` 在 r=10 µm 给出约 20.33 µM，仅用于数量级核查；实际是有限域、有限半径源、瞬态扩散并含摄取，不能把该近似当作真实浓度答案。
 
-dt=0.01 s 下每步自由游动 0.25 µm，tumble dwell 有 10 步分辨率。3D 显式扩散的稳定上限为 `dx²/(6D)=0.00064102564 s`；实际系统采用0.9稳定系数，因此每主步执行 **18个子步**。更大域及后端选择由通用field系统处理。单个float64的256³场占128 MiB，实际峰值还包含候选场、临时数组、输出与checkpoint；不据此承诺完成用时。2026-10-03真实任务与性能诊断见[完整场景报告](../archive/verification/verification-n5-performance.md)，第7s保存帧尚未形成明确中心聚集，当前不能宣称已通过趋化结果验收。
+dt=0.01 s 下每步自由游动 0.25 µm，tumble dwell 有 10 步分辨率。3D 显式扩散的稳定上限为 `dx²/(6D)=0.00064102564 s`；实际系统采用0.9稳定系数，因此每主步执行 **18个子步**。更大域及后端选择由通用field系统处理。单个float64的256³场占128 MiB，实际峰值还包含候选场、临时数组、输出与checkpoint；不据此承诺完成用时。2026-10-03真实任务与性能诊断见[完整场景报告](../verification/verification-n5-performance.md)，第7s保存帧尚未形成明确中心聚集，当前不能宣称已通过趋化结果验收。
 
 ### 可表示的几何增长
 

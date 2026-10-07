@@ -1,5 +1,4 @@
 """Portable Task 0.6 records with verified, package-relative array segments."""
-from copy import deepcopy
 import hashlib
 import io
 import json

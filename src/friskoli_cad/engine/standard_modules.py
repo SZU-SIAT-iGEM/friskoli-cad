@@ -5,7 +5,7 @@ import numpy as np
 from friskoli_cad.science.processes import matched_trilinear_weights
 from .module_api import ModuleProposal
 from .port_semantics import entity_ids_for_port
-from .science_extensions import ScientificModule, array_parameter, RECORD_PORT, GRID_READS
+from .science_extensions import ScientificModule, RECORD_PORT, GRID_READS
 from .declarations import port, SPECIES
 
 

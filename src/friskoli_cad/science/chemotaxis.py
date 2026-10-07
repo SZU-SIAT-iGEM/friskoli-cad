@@ -26,15 +26,6 @@ def motor_bias(chey_uM, *, half_uM, hill):
     return np.where(z >= 0, 1 / (1 + tail), tail / (1 + tail))
 
 
-def tumble_hazard(bias, *, minimum_s, maximum_s):
-    b = _value("bias", bias, upper=1)
-    lo = _value("minimum_s", minimum_s, scalar=True)
-    hi = _value("maximum_s", maximum_s, scalar=True)
-    if hi < lo:
-        raise ValueError("maximum_s must be >= minimum_s")
-    return lo + (hi - lo) * b
-
-
 @dataclass(frozen=True)
 class MWCParameters:
     cluster_size: float

@@ -4,8 +4,6 @@ These are constructed hypotheses, not strain-calibrated metabolic models.
 Accepted nutrient is available at the interval start (operator splitting).
 """
 from dataclasses import dataclass
-from fractions import Fraction
-import math
 import numpy as np
 
 from .pts import _value, _align, _product
@@ -17,40 +15,6 @@ class ReserveReadout:
     used_molecules: np.ndarray
     unmet_duration_s: np.ndarray
     correction_molecules: np.ndarray
-
-
-def advance_reserve(reserve, accepted, dt_s, maintenance_molecules_s, correction=None):
-    reserve, accepted = _align(_value('reserve', reserve), _value('accepted', accepted))
-    dt = _value('dt_s', dt_s, scalar=True)
-    rate = _value('maintenance_molecules_s', maintenance_molecules_s, scalar=True)
-    demand = _product('maintenance demand', rate, dt)
-    from .chemotaxis import _signed
-    low = np.zeros_like(reserve) if correction is None else _signed('reserve correction', correction)
-    reserve, accepted, low = _align(reserve, accepted, low)
-    after, used, next_low = np.empty_like(reserve), np.empty_like(reserve), np.empty_like(reserve)
-    # A two-component amount retains arrivals below the current reserve ULP.
-    # Exact binary rationals determine consumption before rounding either part;
-    # this changes no biological rates and avoids silently dropping tiny flux.
-    for index in np.ndindex(reserve.shape):
-        total = Fraction(float(reserve[index])) + Fraction(float(low[index])) + Fraction(float(accepted[index]))
-        if total < 0:
-            raise ValueError('Corrected reserve must be nonnegative')
-        consumed_exact = min(total, Fraction(float(demand)))
-        consumed = float(consumed_exact)
-        if Fraction(consumed) > consumed_exact:
-            consumed = math.nextafter(consumed, 0.)
-        remainder = total - Fraction(consumed)
-        high = float(remainder)
-        if not math.isfinite(high):
-            raise ValueError('Reserve overflows')
-        tail = float(remainder - Fraction(high))
-        residual = abs(remainder - Fraction(high) - Fraction(tail))
-        bound = 1e-10 * float(accepted[index]) + 8 * math.ulp(float(accepted[index]))
-        if residual > Fraction(bound):
-            raise ValueError('Reserve compensation exceeds the transfer precision budget')
-        after[index], used[index], next_low[index] = high, consumed, tail
-    unmet = np.zeros_like(after) if rate == 0 else np.maximum(0., dt - used / rate)
-    return ReserveReadout(after, used, unmet, next_low)
 
 
 @dataclass(frozen=True)

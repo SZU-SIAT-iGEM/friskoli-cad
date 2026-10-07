@@ -1,6 +1,6 @@
 # 系统级数值执行与资源规则
 
-2026-10-03：新统一 profile 的全图 planner、模块执行合同、端口/状态资源预算及事务时序见[系统运行图](system-execution.md)。CPU-only 模块继续在 CPU，已声明 CUDA 的系统扩散使用显式 host/device 传输；不是整图 GPU 驻留。旧 profile 的数值算法与下方已有验证保留。
+2026-10-03：新统一 profile 的全图 planner、模块执行合同、端口/状态资源预算及事务时序见[系统运行图](../../system-execution.md)。CPU-only 模块继续在 CPU，已声明 CUDA 的系统扩散使用显式 host/device 传输；不是整图 GPU 驻留。旧 profile 的数值算法与下方已有验证保留。
 
 这些机制适用于空间执行规则中的所有已注册模块。案例只保存对象、参数和图连接，不依据案例 ID 选择求解逻辑。科学行为通过模块声明；调度、有限库存结算、存储和资源校验由系统处理。
 
@@ -24,6 +24,6 @@
 
 ## 显示与原始数据
 
-Task 0.5 可以显式设置 `field_stride_xyz`，每个轴必须整除计算网格。回放场使用体积平均，并同时标注计算与显示格距；计算网格不变。`include_final_fields` 独立导出完整最终场 NPZ，包含数组、单位、计算域、摘要与 SHA-256。NPZ 不含 pickle，下载后可用 `numpy.load(..., allow_pickle=False)` 读取。具体合同见 [场预览与原始导出](task-field-previews.md)。
+Task 0.5 可以显式设置 `field_stride_xyz`，每个轴必须整除计算网格。回放场使用体积平均，并同时标注计算与显示格距；计算网格不变。`include_final_fields` 独立导出完整最终场 NPZ，包含数组、单位、计算域、摘要与 SHA-256。NPZ 不含 pickle，下载后可用 `numpy.load(..., allow_pickle=False)` 读取。具体合同见 [场预览与原始导出](../legacy-protocols/task-field-previews.md)。
 
-10000 步的完整场景验收记录在 [N5 验收](archive/verification/verification-n5-simulation.md)。当前大场性能分析和加速是N5前置任务，见[剩余清单 P01–P04](archive/planning/remaining-work.md)。开发须剖析真实负载，在相同科学参数、网格、dt及精度下比较实现并验证结果；最终使用体验由用户验收。不以扩大时间步、缩小场景或降低精度作为系统优化的证据。
+10000 步的完整场景验收记录在 [N5 验收](../verification/verification-n5-simulation.md)。当前大场性能分析和加速是N5前置任务，见[剩余清单 P01–P04](remaining-work.md)。开发须剖析真实负载，在相同科学参数、网格、dt及精度下比较实现并验证结果；最终使用体验由用户验收。不以扩大时间步、缩小场景或降低精度作为系统优化的证据。
