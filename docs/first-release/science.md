@@ -14,15 +14,15 @@ field 阶段先结算材料释放、显式来源、外部交换和共享摄取�
 
 | 机制 | 本版关系与单位 | 数值方法与适用范围 |
 | --- | --- | --- |
-| 体素扩散 | `dC/dt = D∇²C`，D: um²/s | 面通量成对加减；封闭外壁和障碍物面无通量；显式稳定性约束决定内部子步 |
+| 体素扩散 | `dC/dt = D∇²C`，D: um²/s | 面通量成对加减；障碍物面无通量；中心案例在外壁另加六个互不重叠的边界汇（`field.boundary_exchange`，target 0 uM、rate 5/s） |
 | 边界交换 | `C' = Ctarget + (C-Ctarget)exp(-k dt)`，k: 1/s | 只在声明的边界区域作用；实际场增减记入 external_net；有限速率，不能称严格恒浓度 |
 | 共享摄取 | `request = copies × turnover × C/(K+C) × dt` | 按体素库存共享；accepted 由可表示的场扣除限制，不能以请求替代 accepted |
 | 有限来源与材料 | 来源/底物库存扣除，等量溶解产物进入场 | 微小库存或场信用无法表示时保留未转移物质；物质误差采用 transfer-relative 检查 |
 | A 功能载体 | `min(g × reference_copies, area × (1-basal_inner) × max_fraction / footprint)` | 固定膜占用近似；面积由胶囊几何计算 |
 | B 功能载体 | `min(g × reference_copies, area / reference_area × reference_copies × gcap)` | 参考面积缩放近似，与 A 的膜占用方程分别声明 |
-| PTS EI | `de/dt = alpha × accepted_flux × (1-e) - beta × e` | 本步 accepted_flux 固定；精确一阶松弛；e 是去磷酸化比例 |
-| PTS 感知复合体 | `a = sigmoid(logit(a0) - g e + epsilon_m (m-m0))`；`A = Atotal × a` | PTS 输入改变复合体活性，不读取配体浓度 |
-| PTS 甲基化适应 | `dm/dt = km(a0-a)`，`0 ≤ m ≤ mmax` | 有界 Backward Euler；边界处向外的变化率为零；EI → methylation → CheY 顺序分裂，一阶精度 |
+| PTS EI | `de/dt = kd × accepted_flux × (1-e) - kre × e` | 本步 accepted_flux 固定；精确一阶松弛；e 是去磷酸化比例；kd 由“EI 在 PTS 摄取半饱和处恰好半去磷酸化”推出 |
+| PTS 感知复合体 | `a = clip(a0 - e + gm(m-mmin), 0, 1)`；`A = Atotal × a` | PTS 抑制 CheA，CheR 甲基化激活它；两个斜率由各自输入的量程推出，不引入放大倍数 |
+| PTS 甲基化适应 | `dm/dt = km(a0-a)`，`mmin ≤ m ≤ mmax` | 有界 Backward Euler；边界处向外的变化率为零；EI → methylation → CheY 顺序分裂，一阶精度；甲基化量程恰好覆盖完整 PTS 区间 |
 | PTS CheY | `dy/dt = kp A (Ytotal-y)-kd y` | 固定本步末 CheA 做指数推进；A/B 共用 Hill 马达读出 |
 | MCP MWC | `a=1/(1+exp(F))`；`F=N[epsilon(mref-m)+log((1+L/Ki)/(1+L/Ka))]` | 准平衡受体，L: uM；m 是约化的无量纲坐标 |
 | MCP 适应 | `dm/dt=k(a0-a)` | Backward Euler，64 次有界二分求隐式标量方程；这不是原论文中完整拟合的适应律 |
@@ -35,13 +35,15 @@ field 阶段先结算材料释放、显式来源、外部交换和共享摄取�
 
 ## 中心材料工程研究
 
-小域为 64×64×32 um，中域为 128×128×64 um，XY 均为正方形。中心 PTS 预设网格为 1 um、dt=0.1 s。中心材料边长为 8 / 16 um，初始库存 1e8 molecule equivalent。48 个初始细胞位于三层环形初态，方向由 seed 生成；长 2 um，直径 0.8 um，速度 20 um/s。
+小域为 64×64×32 um，中域为 128×128×64 um，XY 均为正方形。中心 PTS 预设网格为 1 um、dt=0.05 s。中心材料边长为 8 / 16 um，初始库存 1e8 molecule equivalent。48 个初始细胞位于三层环形初态，方向由 seed 生成；长 2 um，直径 0.8 um，速度 20 um/s。
 
-固定表面酶每细胞 1000 copies，kcat=0.5/s，接触范围 0.5 um。初始溶解糖是显式 Gaussian 场，peak=1 uM，sigma=8 / 16 um；材料内部为零。这部分是初始场库存，不计作材料降解。D=10 um²/s，reserve=1e6 molecule/cell，maintenance=10 molecule/s/cell。全部为构造值，完整输入保存在各 run 的 project 中。
+固定表面酶每细胞 200 copies，接触范围 0.5 um。释放速率只由 `copies x kcat` 决定（已验证 (4000,130)、(200,2600)、(400,1300) 给出逐位相同的场），因此这个因式分解是按合理性选的，不是按效果调的：200 copies 是单基因外膜展示构建体的合理量级；强释放臂 kcat=130/s 对应作用于**可溶底物**的糖苷酶，这正是 `material.degradable_box` 所代表的（结晶纤维素上的进程性纤维素酶只有 0.01-1/s）；弱释放臂保持同一拷贝数、只把 kcat 降到 2.5/s，两臂共用同一个构建体。初始溶解糖是显式 Gaussian 场，peak=1 uM，sigma=8 / 16 um；材料内部为零。这部分是初始场库存，不计作材料降解。D=10 um²/s，reserve=1e6 molecule/cell，maintenance=10 molecule/s/cell。全部为构造值，完整输入保存在各 run 的 project 中。
 
-A/B 共享环境、摄取律、初态、PTS 甲基化信号及马达参数；差异保留在容量公式。纯 PTS 链只有 accepted_flux 输入，关闭摄取后没有浓度旁路。默认 a0=0.5、g=2、epsilon_m=1、m0=2、mmax=4、km=1/s；初始 EI 去磷酸化比例为零，CheY-P=10/3 uM，位于零通量平衡。对照仅将 motor → motion 改为相同基线的常数，约 0.4514。通用 Design 的 0.5 control 是另一配置。
+中心案例是**开放系统**：释放的产物从域边界离开，不在闭盒里累积。没有边界汇时，细胞自身释放会在约 60 s 内把整个域灌到约 1 uM 的平台，相对梯度塌缩到界面层的 1-2 um 内，远处细胞完全处于适应态、感知不到任何东西。边界汇的厚度 4 um、rate 5/s（与芯片同一套一阶松弛），六块互不重叠地切分边界壳层，因此角落不会被放松两次。
 
-[Neumann 等（2012）](https://doi.org/10.1073/pnas.1205307109)支持 PTS 与甲基化适应的通路联系；上述能量关系和参数是约化模型假设。A/B 尚不是经误差分析建立的完整模型与降阶模型。旧记忆模型的聚集结果不能作为本版验收数据。
+A/B 共享环境、摄取律、初态、PTS 甲基化信号及马达参数；差异保留在容量公式。纯 PTS 链只有 accepted_flux 输入，关闭摄取后没有浓度旁路。独立常量：a0=1/3、mmin=0、mmax=4、tau_m=4 s、motor_hill=10.3（Cluzel 等，2000）。由此推出：km=1/s（= span/tau_m）、gm=0.25，当前环境浓度处的初态 e0≈0.0575、m0≈0.230；CheY-P 平衡在 Ytotal/2=5 uM，由 tau_chey=0.1 s 推出 kp=15、kd=5 1/s；马达半点由判据 0 推出（K≈5.348）。因此对照的常数偏置恰好等于反馈组的适应态偏置 1/3，不再是手选值。通用 Design 的 0.5 control 是另一配置。
+
+[Neumann 等（2012）](https://doi.org/10.1073/pnas.1205307109)与 [Somavanshi 等（2016）](https://doi.org/10.1371/journal.pbio.2000074)支持 PTS 与甲基化适应的通路联系；PTS 到感知复合体的耦合强度本身仍缺少直接实验约束，模型中的斜率是由输入量程推出的，不是拟合值。
 
 评价同时报告区域占比、到达与驻留、径向分布、累计材料转化，以及按初始细胞数归一化的转化量。多个 seed 是独立 run；同一 run 的 48 个细胞不当作 48 次独立实验。无效或反向效应均保留。
 

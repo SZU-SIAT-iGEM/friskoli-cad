@@ -144,13 +144,15 @@ def initial_array(c, initial):
 
 
 def reservoir_exchange(c, initial):
-    cumulative = 0. if initial else c.state['cumulative_net_input']
+    # A restored checkpoint hands state scalars back as read-only arrays, so the
+    # accumulator is coerced to a Python float before any in-place update.
+    cumulative = 0. if initial else float(np.asarray(c.state['cumulative_net_input']).ravel()[0])
     delta = np.zeros(tuple(c.world['grid_shape_zyx']))
     if not initial:
         concentration = np.asarray(c.world['fields'][c.parameters['species']]).reshape(delta.shape)
         _, change = law.exchange(concentration, c.parameters['target_um'], c.parameters['rate_s'], c.dt_s, _mask(c))
         delta = change * c.world['molecules_per_uM_voxel']
-    amount = float(delta.sum()); cumulative += amount
+    amount = float(delta.sum()); cumulative = cumulative + amount
     return _proposal({'net_input': amount, 'cumulative_net_input': cumulative}, {'cumulative_net_input': cumulative},
                      [Effect('field.delta', c.parameters['species'], delta)])
 

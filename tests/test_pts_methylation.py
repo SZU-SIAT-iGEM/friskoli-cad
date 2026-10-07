@@ -3,19 +3,31 @@ from copy import deepcopy
 import numpy as np
 import pytest
 
-from friskoli_cad.science.pts_methylation import PTSMethylationParameters, advance
+from friskoli_cad.science.pts_methylation import (
+    PTSMethylationParameters, activity_coupling, adapted_methylation, advance,
+    complex_activity, methylation_rate, self_consistent_motor_half)
+from friskoli_cad.science.chemotaxis import motor_bias
 from friskoli_cad.engine.presets import build_center_project, make_example
 from friskoli_cad.project import simulation_from_project
 
 
+def signal_node(project=None):
+    project = project or build_center_project('a', 'small')
+    return next(n for n in project['graph']['nodes'] if n['id'] == 'pts_signal')
+
+
 def parameters():
-    node = next(n for n in build_center_project('a', 'small')['graph']['nodes'] if n['id'] == 'pts_signal')
-    values = {k: v['value'] for k, v in node['parameters'].items()}
+    values = {k: v['value'] for k, v in signal_node()['parameters'].items()}
     return PTSMethylationParameters(**{f.name: values[f.name.lower()] for f in fields(PTSMethylationParameters)})
 
 
+def initial_state():
+    v = {k: x['value'] for k, x in signal_node()['parameters'].items()}
+    return (v['initial_ei_fraction'], v['initial_methylation'], v['initial_chey_p_um'])
+
+
 def trajectory(p, dt=.1, duration=40., flux=100.):
-    state = (0., p.methylation_reference, 10./3.)
+    state = initial_state()
     rows = []
     for _ in range(round(duration/dt)):
         e, m, a, y, b = advance(flux, *state, dt, p)
@@ -24,28 +36,51 @@ def trajectory(p, dt=.1, duration=40., flux=100.):
     return np.asarray(rows)
 
 
+def test_criterion_zero_holds_and_couplings_are_derived():
+    """The motor reports the declared baseline, and neither coupling is a free gain."""
+    p = parameters()
+    y0 = initial_state()[2]
+    assert motor_bias(np.array([y0]), half_uM=p.motor_half_uM, hill=p.motor_hill)[0] == pytest.approx(p.baseline_activity)
+    assert p.motor_half_uM == pytest.approx(
+        self_consistent_motor_half(y0, p.baseline_activity, p.motor_hill))
+    assert activity_coupling(p) == (1., 1./(p.methylation_max - p.methylation_min))
+    # The declared full PTS swing maps exactly onto the declared methylation range,
+    # which is what lets adaptation undo any PTS drive without a free gain.
+    assert adapted_methylation(0., p) == p.methylation_min
+    assert adapted_methylation(1., p) == pytest.approx(p.methylation_max)
+    # Starting state is the adapted fixed point, not a chosen number.
+    e0, m0, _ = initial_state()
+    assert complex_activity(e0, m0, p) == pytest.approx(p.baseline_activity)
+
+
 def test_step_response_adapts_upstream_and_frozen_methylation_does_not():
     p = parameters()
     active = trajectory(p)
     frozen = trajectory(replace(p, adaptation_rate_s=0.))
-    assert active[:, 2].min() < .43
-    assert abs(active[-1, 2] - .5) < 1e-4
-    assert abs(active[-1, 3] - 10./3.) < 1e-3
-    assert active[-1, 1] > 2.9
-    assert frozen[-1, 2] < .3
-    np.testing.assert_array_equal(frozen[:, 1], 2.)
+    # A step up in uptake inhibits CheA, then methylation restores the baseline.
+    assert active[:, 2].min() < .2
+    assert abs(active[-1, 2] - p.baseline_activity) < 1e-4
+    chey_ss = (p.chey_total_uM * p.baseline_activity * p.chea_total_uM * p.chey_phos_per_uM_s
+               / (p.chey_phos_per_uM_s * p.chea_total_uM * p.baseline_activity + p.chey_dephos_s))
+    assert abs(active[-1, 3] - chey_ss) < 1e-3
+    assert active[-1, 1] > initial_state()[1]
+    assert frozen[-1, 2] < .1
+    np.testing.assert_array_equal(frozen[:, 1], initial_state()[1])
     np.testing.assert_array_equal(active[:, 0], frozen[:, 0])
 
 
-def test_withdrawal_and_finite_adaptation_capacity():
+def test_withdrawal_and_methylation_range_compensates_the_whole_pts_swing():
     p = parameters()
     e, m, _, y, _ = trajectory(p)[-1]
     off = advance(0., e, m, y, .2, p)
-    assert off[2] > .5
-    saturated = trajectory(replace(p, pts_energy_gain=12.), duration=100.)
-    assert saturated[-1, 1] == pytest.approx(p.methylation_max)
-    assert saturated[-1, 2] < .1
+    assert off[2] > p.baseline_activity
+    # The methylation range is exactly enough for the full PTS range: a saturating
+    # step adapts back to baseline rather than pinning against methylation_max.
+    saturated = trajectory(p, flux=1e9, duration=100.)
+    assert saturated[-1, 1] == pytest.approx(p.methylation_max, rel=1e-6)
+    assert saturated[-1, 2] == pytest.approx(p.baseline_activity, abs=1e-6)
     assert np.isfinite(saturated).all()
+    assert methylation_rate(4., 0., 4.) == pytest.approx(1.)
 
 
 def test_time_step_refinement_and_invalid_states():
@@ -66,22 +101,29 @@ def test_no_concentration_bypass_when_pts_is_disabled(mechanism):
     for node in other['graph']['nodes']:
         if node['id'] == 'initial_product':
             node['parameters']['values_um']['value'] = (np.asarray(node['parameters']['values_um']['value'])*100).tolist()
+    # The 100x field would (correctly) pre-adapt a different initial state; this test is
+    # about a runtime bypass, so both sides start from the same fixed point.
+    ref = signal_node(project)['parameters']
+    for node in other['graph']['nodes']:
+        if node['id'] == 'pts_signal':
+            for k in ('initial_ei_fraction', 'initial_methylation', 'initial_chey_p_um', 'motor_half_um'):
+                node['parameters'][k]['value'] = ref[k]['value']
     first, second = simulation_from_project(project), simulation_from_project(other)
     for _ in range(4):
         first.step(.1); second.step(.1)
         for port in ('ei_fraction','methylation','activity','chey_p','motor_bias'):
             np.testing.assert_array_equal(first.outputs['pts_signal'][port],second.outputs['pts_signal'][port])
-    np.testing.assert_allclose(first.outputs['pts_signal']['activity'], .5, atol=1e-14)
+    a0 = ref['baseline_activity']['value']
+    np.testing.assert_allclose(first.outputs['pts_signal']['activity'], a0, atol=2e-2)
     np.testing.assert_array_equal(first.world.groups['cells'].positions_um, second.world.groups['cells'].positions_um)
 
 
 def test_presets_share_signal_and_only_accept_settled_flux():
-    a, b = [build_center_project(m, 'small', release='strong', spacing_um=1., signal_profile='responsive') for m in ('a','b')]
-    signal = lambda p: next(n for n in p['graph']['nodes'] if n['id']=='pts_signal')
-    assert signal(a) == signal(b)
+    a, b = [build_center_project(m, 'small', release='strong', spacing_um=1.) for m in ('a','b')]
+    assert signal_node(a) == signal_node(b)
     for m in ('a','b'):
         for feedback in (True,False):
-            p = build_center_project(m, 'small', feedback=feedback, release='strong', spacing_um=1., signal_profile='responsive')
+            p = build_center_project(m, 'small', feedback=feedback, release='strong', spacing_um=1.)
             assert p == make_example(p['id'])
             assert all(n['id']!='memory_motor' for n in p['graph']['nodes'])
             incoming = [e for e in p['graph']['edges'] if e['to']['node']=='pts_signal']
@@ -91,17 +133,21 @@ def test_presets_share_signal_and_only_accept_settled_flux():
 
 def test_invalid_initial_methylation_rejected_before_run():
     p = build_center_project('a','small')
-    next(n for n in p['graph']['nodes'] if n['id']=='pts_signal')['parameters']['initial_methylation']['value']=5.
+    signal_node(p)['parameters']['initial_methylation']['value']=5.
     with pytest.raises(Exception, match='methylation'): simulation_from_project(p)
 
 
 def test_coupled_dynamics_converge_to_independent_rk4():
     p = parameters()
-    def rhs(state):
+    a0 = p.baseline_activity
+    _, gain_m = activity_coupling(p)
+    def rhs(state, flux=100.):
         e, m, y = state
-        a = 1/(1+np.exp(2*e-(m-2)))
-        return np.array([1*(1-e)-e, .5-a, a*(10-y)-y])
-    reference = np.array([0., 2., 10./3.])
+        a = np.clip(a0 - e + gain_m*(m - p.methylation_min), 0., 1.)
+        on = flux*p.ei_dephos_per_molecule
+        return np.array([on*(1-e) - p.ei_rephos_s*e, p.adaptation_rate_s*(a0-a),
+                         a*p.chea_total_uM*p.chey_phos_per_uM_s*(p.chey_total_uM-y) - p.chey_dephos_s*y])
+    reference = np.array(initial_state())
     h = 2./2000
     for _ in range(2000):
         k1 = rhs(reference); k2 = rhs(reference+h*k1/2)

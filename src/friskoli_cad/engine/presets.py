@@ -8,6 +8,8 @@ from importlib.resources import files
 import json
 import math
 import numpy as np
+from friskoli_cad.science import pts as _pts
+from friskoli_cad.science.pts_methylation import self_consistent_motor_half
 from .science_extensions import modular_registry
 
 TABLE = json.loads(files('friskoli_cad.science').joinpath('data', 'chip_parameters.json').read_text(encoding='utf-8'))['parameters']
@@ -54,6 +56,8 @@ def build_chip_project(condition, seed, overrides=None):
             "species": ("ligand", "low_uM"), "lower_um": ([x0, 0.0, 0.0], "boundary_rate_s"), "upper_um": ([x1, width, height], "boundary_rate_s"),
             "target_um": (target, target_key), "rate_s": (v["boundary_rate_s"], "boundary_rate_s")})
 
+    chip_chey0 = (v["chey_total_um"] * v["baseline_activity"] * v["chea_total_um"] * v["chey_phos_per_um_s"]
+                 / (v["chey_phos_per_um_s"] * v["chea_total_um"] * v["baseline_activity"] + v["chey_dephos_s"]))
     nodes = [
         node("ligand_field", "field.diffusive_local", "2.0.0", "environment", {
             "species": ("ligand", "low_uM"), "diffusivity_um2_s": (v["diffusivity_um2_s"], "diffusivity_um2_s"),
@@ -68,9 +72,9 @@ def build_chip_project(condition, seed, overrides=None):
             "adaptation_rate_s": (v["adaptation_rate_s"], "adaptation_rate_s"), "baseline_activity": (v["baseline_activity"], "baseline_activity"),
             "chea_total_um": (v["chea_total_um"], "chea_total_um"), "chey_total_um": (v["chey_total_um"], "chey_total_um"),
             "chey_phos_per_um_s": (v["chey_phos_per_um_s"], "chey_phos_per_um_s"), "chey_dephos_s": (v["chey_dephos_s"], "chey_dephos_s"),
-            "motor_hill": (v["motor_hill"], "motor_hill"), "motor_half_um": (v["motor_half_um"], "motor_half_um"),
-            "initial_chey_p_um": (v["chey_total_um"] * v["baseline_activity"] * v["chea_total_um"] * v["chey_phos_per_um_s"]
-                                  / (v["chey_phos_per_um_s"] * v["chea_total_um"] * v["baseline_activity"] + v["chey_dephos_s"]), "baseline_activity")}),
+            "motor_hill": (v["motor_hill"], "motor_hill"),
+            "motor_half_um": (self_consistent_motor_half(chip_chey0, v["baseline_activity"], v["motor_hill"]), "baseline_activity"),
+            "initial_chey_p_um": (chip_chey0, "baseline_activity")}),
         node("motility", "motion.hazard_run_tumble", "1.0.0", "population", {
             "tumble_mode": (v["tumble_mode"], "tumble_mode"), "turn_kernel": (v["turn_kernel"], "turn_kernel"), "speed_um_s": (v["speed_um_s"], "speed_um_s"),
             "minimum_tumble_rate_s": (v["minimum_tumble_rate_s"], "minimum_tumble_rate_s"), "maximum_tumble_rate_s": (v["maximum_tumble_rate_s"], "maximum_tumble_rate_s"),
@@ -120,34 +124,128 @@ def build_chip_project(condition, seed, overrides=None):
     }
 
 
-RELEASE = {'baseline': (1000., .5), 'strong': (4000., 130.)}
+# Surface display level and per-enzyme turnover: (copies per cell, kcat 1/s).
+# Only the product sets the release rate; (4000, 130), (200, 2600) and (400, 1300)
+# give bit-identical fields, so the factorisation is chosen for plausibility, not
+# for effect. 200 copies is a realistic level for a single-gene outer-membrane
+# display construct. 130/s suits a glucosidase acting on a soluble substrate,
+# which is what material.degradable_box represents; it is NOT a processive
+# cellulase on solid cellulose, whose turnover is 0.01-1/s. The weak arm keeps
+# the copy number and drops the turnover instead, so both arms share one construct.
+RELEASE = {'baseline': (200., 2.5), 'strong': (200., 130.)}
 
-SIGNAL_PROFILES = {
-    'current': {
-        'ei_dephos_per_molecule': .01, 'ei_rephos_s': 1.,
-        'pts_energy_gain': 2., 'methylation_energy': 1., 'methylation_reference': 2., 'methylation_max': 4.,
-        'adaptation_rate_s': 1., 'baseline_activity': .5, 'initial_methylation': 2.,
-        'chea_total_um': 1., 'chey_total_um': 10., 'chey_phos_per_um_s': 1.,
-        'chey_dephos_s': 1., 'motor_hill': 4., 'motor_half_um': 3.5,
-        'initial_ei_fraction': 0., 'initial_chey_p_um': 10. / 3.,
-    },
-    'responsive': {
-        'ei_dephos_per_molecule': .05, 'ei_rephos_s': 5.,
-        'pts_energy_gain': 2., 'methylation_energy': 1., 'methylation_reference': 2., 'methylation_max': 4.,
-        'adaptation_rate_s': .2, 'baseline_activity': .5, 'initial_methylation': 2.,
-        'chea_total_um': 1., 'chey_total_um': 10., 'chey_phos_per_um_s': 5.,
-        'chey_dephos_s': 5., 'motor_hill': 4., 'motor_half_um': 3.5,
-        'initial_ei_fraction': 0., 'initial_chey_p_um': 10. / 3.,
-    },
+# The center study is an open system: released product leaves through the domain
+# boundary instead of accumulating in a closed box. Without this the cells' own
+# release fills the domain to a flat plateau within ~60 s and the gradient the
+# cells could follow disappears. Six non-overlapping slabs partition the boundary
+# shell exactly once; rate_s is the same first-order relaxation the chip uses.
+BOUNDARY_SINK = {'thickness_um': 4., 'rate_s': 5., 'target_um': 0.}
+
+# Literature values and physical bounds only. Nothing here is a gain: the two
+# activity couplings, the sensor working point, the CheY cycle rates and the
+# initial state are all derived from these by friskoli_cad.science.pts_methylation.
+SIGNAL_CONSTANTS = {
+    'baseline_activity': 1. / 3.,   # motor CW bias at the adapted state; NModel uses 0.35
+    'motor_hill': 10.3,             # flagellar motor Hill coefficient (Cluzel et al. 2000)
+    'methylation_min': 0.,          # unmethylated receptor
+    'methylation_max': 4.,          # MCP methylation sites
+    'tau_methylation_s': 4.,        # methylation adaptation time (Barkai & Leibler 1997)
+    'tau_chey_s': .1,               # CheY-P response time
+    'chea_total_uM': 1.,            # assumed scale for the sensory complex
+    'chey_total_uM': 10.,           # ~8000 CheY per cell in ~1 fL
+    'ei_rephos_s': 1.,              # EI autophosphorylation relaxation
 }
 
 
-def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1, spacing_um=1., release='baseline', signal_profile='current'):
+def pre_adapted_signal_state(constants, ambient_uM, functional_copies, turnover_s, half_saturation_um):
+    """Complete signal parameter set for cells already adapted to an ambient sugar level.
+
+    Every entry is derived rather than chosen:
+      ei_dephos   EI half-dephosphorylated exactly where PTS uptake is half-saturated
+      e0          e = J*k/(J*k + k_rephos), with J the uptake flux at the ambient
+      m0          activity(e0, m0) == a0, so the run starts adapted
+      chey rates  balanced at a0, with response time tau_chey_s
+      y0          half of CheY phosphorylated, the balanced steady state
+      motor_half  bias(y0) == a0 (criterion 0)
+    Starting from the zero-flux state instead leaves a loading transient inside every run.
+    """
+    from friskoli_cad.science import pts as _pts
+    from friskoli_cad.science import pts_methylation as _pm
+    flux = float(np.asarray(_pts.pts_request(np.array([ambient_uM]), np.array([functional_copies]),
+                                             turnover_s, half_saturation_um)).ravel()[0])
+    dephos = float(np.asarray(_pm.ei_dephos_per_molecule(
+        constants['ei_rephos_s'], functional_copies, turnover_s)).ravel()[0])
+    on = flux * dephos
+    e0 = on / (on + constants['ei_rephos_s']) if on + constants['ei_rephos_s'] > 0 else 0.
+    phos, chey_dephos = _pm.chey_rates(constants['tau_chey_s'], constants['chey_total_uM'],
+                                       constants['baseline_activity'], constants['chea_total_uM'])
+    y0 = constants['chey_total_uM'] / 2.
+    rate = float(np.asarray(_pm.methylation_rate(
+        constants['tau_methylation_s'], constants['methylation_min'],
+        constants['methylation_max'])).ravel()[0])
+    derived = {**constants, 'ei_dephos_per_molecule': dephos, 'initial_ei_fraction': e0,
+               'adaptation_rate_s': rate,
+               'initial_chey_p_um': y0,
+               'chey_phos_per_um_s': float(phos), 'chey_dephos_s': float(chey_dephos),
+               'motor_half_um': 1.}
+    probe = _pm.PTSMethylationParameters(ei_rephos_s=derived['ei_rephos_s'],
+        methylation_min=derived['methylation_min'], methylation_max=derived['methylation_max'],
+        adaptation_rate_s=derived['adaptation_rate_s'], baseline_activity=derived['baseline_activity'],
+        chea_total_uM=derived['chea_total_uM'], chey_total_uM=derived['chey_total_uM'],
+        motor_hill=derived['motor_hill'], motor_half_uM=derived['motor_half_um'],
+        ei_dephos_per_molecule=derived['ei_dephos_per_molecule'],
+        chey_phos_per_uM_s=derived['chey_phos_per_um_s'], chey_dephos_s=derived['chey_dephos_s'])
+    derived['initial_methylation'] = float(np.asarray(_pm.adapted_methylation(e0, probe)).ravel()[0])
+    derived['motor_half_um'] = float(np.asarray(_pm.self_consistent_motor_half(
+        y0, constants['baseline_activity'], constants['motor_hill'])).ravel()[0])
+    # Node parameter names are the lowercased dataclass fields; the module adapter
+    # maps them back, so the two spellings must stay in step.
+    return {k.lower(): v for k, v in {
+        'ei_rephos_s': ('EI autophosphorylation relaxation', derived['ei_rephos_s']),
+        'ei_dephos_per_molecule': ('EI half-dephosphorylated where PTS uptake is half-saturated',
+                                   derived['ei_dephos_per_molecule']),
+        'methylation_min': ('unmethylated receptor', derived['methylation_min']),
+        'methylation_max': ('MCP methylation sites', derived['methylation_max']),
+        'adaptation_rate_s': ('1/(tau_Methylation * methylation gain), tau_M = 4 s',
+                              derived['adaptation_rate_s']),
+        'baseline_activity': ('motor CW bias at the adapted state (Cluzel 2000)', derived['baseline_activity']),
+        'chea_total_uM': ('assumed scale for the sensory complex', derived['chea_total_uM']),
+        'chey_total_uM': ('~8000 CheY per cell in ~1 fL', derived['chey_total_uM']),
+        'chey_phos_per_uM_s': ('CheY phosphorylation, balanced at baseline with tau = 0.1 s',
+                               derived['chey_phos_per_um_s']),
+        'chey_dephos_s': ('CheY dephosphorylation, balanced at baseline with tau = 0.1 s',
+                          derived['chey_dephos_s']),
+        'motor_hill': ('flagellar motor Hill coefficient (Cluzel 2000)', derived['motor_hill']),
+        'motor_half_um': ('criterion 0: bias(y0) == baseline_activity', derived['motor_half_um']),
+        'initial_ei_fraction': (f'fixed point of the ambient {ambient_uM:.4g} uM',
+                                derived['initial_ei_fraction']),
+        'initial_methylation': (f'adapted to the ambient {ambient_uM:.4g} uM',
+                                derived['initial_methylation']),
+        'initial_chey_p_um': ('half of CheY phosphorylated at the adapted state',
+                              derived['initial_chey_p_um']),
+    }.items()}
+
+
+def _boundary_slabs(extent, thickness):
+    """Six slabs covering the boundary shell once, with no overlapping corners."""
+    t = float(thickness)
+    if not 0. < 2. * t < float(np.min(extent)):
+        raise ValueError('boundary sink thickness must leave an interior region')
+    x, y, z = (float(v) for v in extent)
+    return [
+        ('x', 'lo', [0., 0., 0.], [t, y, z]),
+        ('x', 'hi', [x - t, 0., 0.], [x, y, z]),
+        ('y', 'lo', [t, 0., 0.], [x - t, t, z]),
+        ('y', 'hi', [t, y - t, 0.], [x - t, y, z]),
+        ('z', 'lo', [t, t, 0.], [x - t, y - t, t]),
+        ('z', 'hi', [t, t, z - t], [x - t, y - t, z]),
+    ]
+
+
+def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1, spacing_um=1., release='baseline'):
     """Matched square-domain PTS/surface-enzyme study and feedback-disabled control."""
     if release not in RELEASE:
         raise ValueError('Unknown center-study release setting')
-    if signal_profile not in SIGNAL_PROFILES:
-        raise ValueError('Unknown center-study signal profile')
     if mechanism not in ('a', 'b') or scale not in ('small', 'medium'):
         raise ValueError('Center study requires mechanism a/b and scale small/medium')
     registry = modular_registry()
@@ -166,7 +264,6 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
             'owner': {'kind': 'population' if population else 'environment', 'id': 'cells' if population else nid},
             'parameters': {k: {'value': v, **({'unit': m['parameters'][k]['unit']} if 'unit' in m['parameters'][k] else {}),
                 'provenance': {'kind': 'example', 'reference': reference}} for k, v in params.items()}}
-    signal = {'species': 'sugar', **SIGNAL_PROFILES[signal_profile]}
     capacity = {'g_requested':2., 'reference_pts_copies':100.}
     capacity.update({'basal_inner_fraction':.5, 'pts_max_available_fraction':.4, 'ascf_area_um2':.001} if mechanism == 'a'
                     else {'g_cap':3., 'reference_area_um2':5.})
@@ -177,6 +274,24 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
     values = np.exp(-np.sum((positions-center)**2, axis=-1)/(2*(8.*factor)**2))
     blocked = np.all((positions >= lower) & (positions < upper), axis=-1)
     values[blocked] = 0.
+    points = [[float(center[0]+20.*factor*math.cos(2*math.pi*i/16)), float(center[1]+20.*factor*math.sin(2*math.pi*i/16)), float(h)]
+              for h in [extent[2]/4,extent[2]/2,3*extent[2]/4] for i in range(16)]
+    # Cells start where the initial field already stands, so their internal state must be the
+    # fixed point of that background rather than the zero-flux state.
+    _ambient = float(np.mean([values[int(min(p_[2]/spacing_um, values.shape[0]-1)),
+                                      int(min(p_[1]/spacing_um, values.shape[1]-1)),
+                                      int(min(p_[0]/spacing_um, values.shape[2]-1))] for p_ in points]))
+    _area = _pts.capsule_area_um2(2., .8)
+    if mechanism == 'a':
+        _cap = _pts.rebuilt_capacity(_area, capacity['g_requested'], _pts.RebuiltCapacityParameters(
+            capacity['reference_pts_copies'], capacity['basal_inner_fraction'],
+            capacity['pts_max_available_fraction'], capacity['ascf_area_um2']))
+    else:
+        _cap = _pts.simplified_capacity(_area, capacity['g_requested'], _pts.SimplifiedCapacityParameters(
+            capacity['reference_pts_copies'], capacity['g_cap'], capacity['reference_area_um2']))
+    _copies = float(np.asarray(_cap.functional_copies).ravel()[0])
+    derived = pre_adapted_signal_state(SIGNAL_CONSTANTS, _ambient, _copies, 2., 1.)
+    signal = {'species': 'sugar', **{k: v for k, (_, v) in derived.items()}}
     nodes = [
         node('sugar_field', 'field.diffusive_local', {'species':'sugar', 'diffusivity_um2_s':10.,
             'gradient_x_um_per_um':0., 'gradient_y_um_per_um':0., 'gradient_z_um_per_um':0.}, '2.0.0', False),
@@ -194,6 +309,10 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
             **{f'{side}_{axis}_um':float(value[i]) for side, value in [('lower',lower),('upper',upper)] for i, axis in enumerate('xyz')},
             'initial_molecules':100000000.}, population=False),
         node('contact_hydrolysis', 'reaction.contact_degradation', {'kcat_s':RELEASE[release][1], 'contact_range_um':.5}, population=False),
+        *[node(f'sink_{axis}_{side}', 'field.boundary_exchange',
+               {'species':'sugar', 'lower_um':lower_um, 'upper_um':upper_um,
+                'target_um':BOUNDARY_SINK['target_um'], 'rate_s':BOUNDARY_SINK['rate_s']}, population=False)
+          for axis, side, lower_um, upper_um in _boundary_slabs(extent, BOUNDARY_SINK['thickness_um'])],
         node('reserve', 'metabolism.reserve_balance', {'species':'sugar', 'initial_molecules':1000000., 'maintenance_molecules_s':10.}),
     ]
     if not feedback:
@@ -221,8 +340,21 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
                       ('reserve','intracellular_molecules'),('motility','blocked')]:
         n = by_id[nid]; p = registry.get(n['module_id'],n['module_version']).manifest['outputs'][port]
         channels[nid+'.'+port] = {'node':nid,'port':port,'group_id':'cells',**{k:p[k] for k in ('shape','quantity','unit')}}
-    points = [[float(center[0]+20.*factor*math.cos(2*math.pi*i/16)), float(center[1]+20.*factor*math.sin(2*math.pi*i/16)), float(h)]
-              for h in [extent[2]/4,extent[2]/2,3*extent[2]/4] for i in range(16)]
+    for _n in nodes:
+        if _n['id'] == 'pts_signal':
+            for _k, (_why, _) in derived.items():
+                _n['parameters'][_k]['provenance'] = {'kind': 'example',
+                    'reference': _why + '; derived by friskoli_cad.science.pts_methylation'}
+        # The release rate is the product of these two; the split is stated
+        # explicitly because only the product is observable in the model.
+        if _n['id'] == 'surface_enzyme':
+            _n['parameters']['enzyme_copies']['provenance'] = {'kind': 'example',
+                'reference': 'single-gene outer-membrane display level; release rate is cuts x kcat, '
+                             'so the copy number is chosen for plausibility, not for effect'}
+        if _n['id'] == 'contact_hydrolysis':
+            _n['parameters']['kcat_s']['provenance'] = {'kind': 'example',
+                'reference': 'per-enzyme turnover on a soluble substrate; a processive cellulase on '
+                             'solid cellulose turns over at 0.01-1/s, which is the weak arm'}
     rng = np.random.default_rng(seed)
     quats = rng.normal(size=(len(points),4)); quats /= np.linalg.norm(quats,axis=1,keepdims=True)
     name = f'center-pts-{mechanism}-{scale}' + ('' if release == 'baseline' else '-' + release) + ('' if feedback else '-control')
@@ -262,5 +394,5 @@ def template_catalog():
     return [{'id':name,'version':'1.0.0','label':label,'description':description,'example_id':name,'maturity':'exploratory',
         'source':'docs/first-release/science.md; constructed research settings, not experimental validation',
         'module_keys':sorted({n['module_id']+'@'+n['module_version'] for n in make_example(name)['graph']['nodes']}),
-        'recommended_settings':{'dt_s':.1,'steps':1200 if name.startswith(('chip-','center-')) else 20,'frame_every_steps':10 if name.startswith(('chip-','center-')) else 1,'include_fields':False if name.startswith(('chip-','center-')) else True}}
+        'recommended_settings':{'dt_s':.05,'steps':2400 if name.startswith(('chip-','center-')) else 40,'frame_every_steps':20 if name.startswith(('chip-','center-')) else 1,'include_fields':False if name.startswith(('chip-','center-')) else True}}
         for name,(label,description) in EXAMPLES.items()]
