@@ -77,7 +77,11 @@ def test_initial_array_zeroes_obstacle_voxels_so_the_source_can_move():
     solid voxel carries no concentration.
     """
     from friskoli_cad.engine.presets import build_center_project
-    for shift in (0., 1., -1., 3.):
+    # Shifts stay inside +-1 um. The substrate is a 24 um cube in a 64 x 64 x 32
+    # domain and the cells start on a 20 um ring, so a larger shift would put a
+    # cell inside the solid, which is a real InitialOverlapError and not the
+    # behaviour under test here.
+    for shift in (0., 1., -1.):
         p = build_center_project('a', 'small', release='strong', spacing_um=1.)
         sub = next(n for n in p['graph']['nodes'] if n['id'] == 'central_substrate')['parameters']
         for axis in 'xyz':

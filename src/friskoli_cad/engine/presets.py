@@ -141,6 +141,11 @@ RELEASE = {'baseline': (200., 2.5), 'strong': (200., 130.)}
 # shell exactly once; rate_s is the same first-order relaxation the chip uses.
 BOUNDARY_SINK = {'thickness_um': 4., 'rate_s': 5., 'target_um': 0.}
 
+# The substrate is a cube centred on the domain, scaled as a whole rather than
+# stretched per axis. 24 um in the 64 x 64 x 32 um small domain is a 3x scale of
+# the original 8 um block and exactly fills the interior left by the 4 um sinks.
+SUBSTRATE_EDGE_UM = 24.
+
 # Literature values and physical bounds only. Nothing here is a gain: the two
 # activity couplings, the sensor working point, the CheY cycle rates and the
 # initial state are all derived from these by friskoli_cad.science.pts_methylation.
@@ -256,7 +261,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
         raise ValueError('Grid spacing must divide each study extent')
     counts = counts.astype(int)
     center = extent / 2
-    lower, upper = center - 4. * factor, center + 4. * factor
+    lower, upper = center - SUBSTRATE_EDGE_UM * factor / 2, center + SUBSTRATE_EDGE_UM * factor / 2
     reference = 'docs/first-release/science.md: constructed center-substrate study; no parameter fitting'
     def node(nid, mid, params, version='1.0.0', population=True):
         m = registry.get(mid, version).manifest
