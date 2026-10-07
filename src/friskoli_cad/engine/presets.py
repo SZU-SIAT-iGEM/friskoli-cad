@@ -148,6 +148,10 @@ BOUNDARY_SINK = {'thickness_um': 4., 'rate_s': 5., 'target_um': 0.}
 # radii are capped at 16 um while a cube's circumradius is edge*sqrt(3)/2.
 SUBSTRATE_EDGE_UM = 16.
 
+# One source for the contact threshold: reaction.contact_degradation releases only from
+# cells inside this range, and the observation reports the fraction that are.
+CONTACT_RANGE_UM = .5
+
 # Literature values and physical bounds only. Nothing here is a gain: the two
 # activity couplings, the sensor working point, the CheY cycle rates and the
 # initial state are all derived from these by friskoli_cad.science.pts_methylation.
@@ -318,7 +322,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
         node('central_substrate', 'material.degradable_box', {'species':'sugar',
             **{f'{side}_{axis}_um':float(value[i]) for side, value in [('lower',lower),('upper',upper)] for i, axis in enumerate('xyz')},
             'initial_molecules':100000000.}, population=False),
-        node('contact_hydrolysis', 'reaction.contact_degradation', {'kcat_s':RELEASE[release][1], 'contact_range_um':.5}, population=False),
+        node('contact_hydrolysis', 'reaction.contact_degradation', {'kcat_s':RELEASE[release][1], 'contact_range_um':CONTACT_RANGE_UM}, population=False),
         *[node(f'sink_{axis}_{side}', 'field.boundary_exchange',
                {'species':'sugar', 'lower_um':lower_um, 'upper_um':upper_um,
                 'target_um':BOUNDARY_SINK['target_um'], 'rate_s':BOUNDARY_SINK['rate_s']}, population=False)
@@ -381,6 +385,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
         # sat inside a larger one and reported region_fraction, ever_arrived_fraction and
         # mean_residence_s as permanently zero.
         'observation':{'id':'center_region','label':'Center-substrate neighborhood','axis':0,
+            'contact_range_um':CONTACT_RANGE_UM,
             'region_lower_um':(center-(_half+4.)).tolist(),'region_upper_um':(center+(_half+4.)).tolist(),
             'radial_center_um':center.tolist(),
             'radial_radii_um':[_half+1.,(_half+1.+_sphere_cap)/2.,_sphere_cap]}}

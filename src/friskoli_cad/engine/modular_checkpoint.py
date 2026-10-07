@@ -182,7 +182,7 @@ def restore_checkpoint(project, payload, registry=None):
         sim.observation_state = validate_observation_state(raw['observation_state'], project, sim.current.cell_frame)
     except ValueError as error:
         raise SimulationError('modular.checkpoint_observation', str(error)) from error
-    observed = observation_metrics(sim.observation_state, sim.current.cell_frame)
+    observed = observation_metrics(sim.observation_state, sim.current.cell_frame, sim.obstacles)
     if observed['observation_id'] != sim.metrics.get('observation_id') or any(
         any(sim.metrics.get('by_group', {}).get(gid, {}).get(key) != value for key, value in values.items())
         for gid, values in observed['by_group'].items()):

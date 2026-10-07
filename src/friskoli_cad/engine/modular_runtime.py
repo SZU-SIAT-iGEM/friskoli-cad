@@ -313,8 +313,9 @@ class ModularSimulation:
             guard_motion(caps, caps, extent_um=world.grid.extent_um, obstacles=obstacles, geometry=world.grid.geometry)
         snapshot = self._snapshot(world, fields, outputs, self.time_s + dt, self.frame_index + (not initialize), events, metrics)
         from .observations import initial_observation, advance_observation, observation_metrics
-        observation = initial_observation(self.project, snapshot.cell_frame) if initialize else advance_observation(self.observation_state, snapshot.cell_frame)
-        metrics.update(observation_metrics(observation, snapshot.cell_frame))
+        observation = (initial_observation(self.project, snapshot.cell_frame, obstacles) if initialize
+                       else advance_observation(self.observation_state, snapshot.cell_frame, obstacles))
+        metrics.update(observation_metrics(observation, snapshot.cell_frame, obstacles))
         for gid, values in metrics['by_group'].items():
             converted = math.fsum(item.get('degradation_by_group', {}).get(gid, 0.) for item in ledger.values())
             values['cumulative_degradation_molecules'] = converted

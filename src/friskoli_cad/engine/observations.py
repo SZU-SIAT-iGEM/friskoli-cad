@@ -17,6 +17,8 @@ DEFINITIONS = [
     {"id": "region_fraction", "label": "Region occupancy", "unit": "1", "description": "Fraction of all currently living cells whose centers are in the closed observation box. Null for an empty living group."},
     {"id": "ever_arrived_fraction", "label": "Cohort arrival fraction", "unit": "1", "description": "Fraction of initial cell IDs observed in the region at any committed step boundary, including t=0. Null for an initially empty group."},
     {"id": "mean_residence_s", "label": "Cohort residence time", "unit": "s", "description": "Initial-cohort mean of the left-endpoint region occupancy integral over numerical steps. Death stops accumulation. Null for an initially empty group."},
+    {"id": "contact_fraction", "label": "Surface contact fraction", "unit": "1", "description": "Fraction of currently living cells whose capsule surface lies within contact_range_um of a material obstacle. Distance is measured capsule-to-box, the same quantity reaction.contact_degradation tests, not centre-to-box. Null unless the definition declares contact_range_um and for an empty living group."},
+    {"id": "contact_cell_seconds", "label": "Cohort contact integral", "unit": "cell*s", "description": "Sum over the initial cohort of the left-endpoint contact occupancy integral. Death stops accumulation. Null unless the definition declares contact_range_um."},
 ]
 DEFINITIONS.extend({'id': 'radial.' + key, 'label': label, 'unit': unit,
     'description': description + ' Optional system observation radial-spheres@1: declared center and strictly increasing radii; computed for every group. Definition: docs/science/n5-b-lifecycle.md.'}
@@ -39,7 +41,8 @@ def observation_definition(project):
         'axis': 0, 'region_lower_um': [0., 0., 0.], 'region_upper_um': extent}))
     base = {'id', 'label', 'axis', 'region_lower_um', 'region_upper_um'}
     radial = {'radial_center_um', 'radial_radii_um'}
-    if (type(value) is not dict or set(value) not in (base, base | radial)
+    contact = {'contact_range_um'}
+    if (type(value) is not dict or set(value) not in (base, base | radial, base | contact, base | radial | contact)
         or not isinstance(value['id'], str) or not value['id'] or not isinstance(value['label'], str)
         or not value['label'] or type(value['axis']) is not int or value['axis'] not in (0, 1, 2)):
         raise ValueError('Invalid observation definition')
@@ -58,14 +61,32 @@ def observation_definition(project):
             or any(a >= b for a, b in zip(radii, radii[1:]))
             or any(c - radii[-1] < 0 or c + radii[-1] > size for c, size in zip(center, extent))):
             raise ValueError('Radial observation requires finite center and increasing positive radii, with complete spheres inside the domain')
+    if 'contact_range_um' in value:
+        reach = value['contact_range_um']
+        if type(reach) not in (int, float) or not math.isfinite(reach) or reach <= 0:
+            raise ValueError('Contact observation requires a finite positive contact_range_um')
     return value
+
+
+def _contact_hits(cells, obstacles, reach):
+    """Capsule-surface distance to the nearest obstacle, matching the degradation rule."""
+    from .collision import Capsule, capsule_box_gap
+    from .motion import heading_from_orientation
+    hits = {}
+    for cell in cells:
+        geometry = cell['geometry']
+        heading = heading_from_orientation([cell['orientation_xyzw']])[0]
+        capsule = Capsule(cell['id'], tuple(cell['position_um']), tuple(heading),
+                          geometry['length_um'], geometry['diameter_um'])
+        hits[cell['id']] = any(capsule_box_gap(capsule, box) <= reach for box in obstacles)
+    return hits
 
 
 def _inside(position, definition):
     return all(lo <= p <= hi for p, lo, hi in zip(position, definition['region_lower_um'], definition['region_upper_um']))
 
 
-def initial_observation(project, frame):
+def initial_observation(project, frame, obstacles=()):
     definition = observation_definition(project)
     result = {'observation_state_version': '1.0.0', 'definition': definition,
         'time_s': frame['time_s'], 'groups': sorted(project['groups']),
@@ -74,6 +95,12 @@ def initial_observation(project, frame):
             'last_position_um': list(cell['position_um']), 'alive': True,
             'arrived': _inside(cell['position_um'], definition), 'residence_s': 0.}
             for cell in frame['cells']}}
+    if 'contact_range_um' in definition:
+        hits = _contact_hits(frame['cells'], obstacles, definition['contact_range_um'])
+        for cid, item in result['cohort'].items():
+            item['last_contact'] = bool(hits.get(cid, False))
+            item['contact_ever'] = bool(hits.get(cid, False))
+            item['contact_residence_s'] = 0.
     if 'radial_center_um' in definition:
         result['radial_domain_volume_um3'] = math.prod(a * b for a, b in zip(project['domain']['counts_xyz'], project['domain']['spacing_um_xyz']))
         for item in result['cohort'].values():
@@ -83,15 +110,19 @@ def initial_observation(project, frame):
     return result
 
 
-def advance_observation(state, frame):
+def advance_observation(state, frame, obstacles=()):
     next_state = deepcopy(state)
     dt = frame['time_s'] - state['time_s']
     if not math.isfinite(dt) or dt <= 0:
         raise ValueError('Observation time must increase')
     current = {cell['id']: cell for cell in frame['cells']}
+    reach = state['definition'].get('contact_range_um')
+    hits = _contact_hits(frame['cells'], obstacles, reach) if reach is not None else {}
     for cid, item in next_state['cohort'].items():
         if item['alive'] and _inside(item['last_position_um'], state['definition']):
             item['residence_s'] += dt
+        if reach is not None and item['alive'] and item.get('last_contact'):
+            item['contact_residence_s'] += dt      # left endpoint, as residence above
         cell = current.get(cid)
         if 'radial_center_um' in state['definition']:
             center = state['definition']['radial_center_um']
@@ -107,6 +138,11 @@ def advance_observation(state, frame):
                 raise ValueError('A cohort ID cannot reappear or change group')
             item['last_position_um'] = list(cell['position_um'])
             item['arrived'] = item['arrived'] or _inside(cell['position_um'], state['definition'])
+            if reach is not None:
+                item['last_contact'] = bool(hits.get(cid, False))
+                item['contact_ever'] = item.get('contact_ever', False) or item['last_contact']
+        elif reach is not None:
+            item['last_contact'] = False
         item['alive'] = cell is not None
     next_state['time_s'] = frame['time_s']
     if 10. - 1e-10 <= frame['time_s'] <= 120. + 1e-10:
@@ -121,7 +157,7 @@ def advance_observation(state, frame):
     return next_state
 
 
-def observation_metrics(state, frame):
+def observation_metrics(state, frame, obstacles=()):
     by_group, axis = {}, state['definition']['axis']
     for gid in state['groups']:
         cohort = [v for v in state['cohort'].values() if v['group_id'] == gid]
@@ -155,12 +191,17 @@ def observation_metrics(state, frame):
                     'founder_mean_residence_s': math.fsum(v['radial_residence_s'][i] for v in cohort) / len(cohort) if cohort else None,
                     'founder_mean_first_arrival_s': math.fsum(arrivals) / len(arrivals) if arrivals else None})
             by_group[gid]['radial'] = radial
+        if 'contact_range_um' in state['definition']:
+            hits = _contact_hits(live, obstacles, state['definition']['contact_range_um'])
+            by_group[gid]['contact_fraction'] = sum(hits.values()) / len(live) if live else None
+            by_group[gid]['contact_cell_seconds'] = math.fsum(v['contact_residence_s'] for v in cohort) if cohort else None
     return {'metric_version': '0.1.0', 'observation_id': state['definition']['id'], 'by_group': by_group}
 
 
 def validate_observation_state(state, project, frame):
     """Strict checkpoint state validation; no history is invented during restore."""
     radial = 'radial_center_um' in project.get('observation', {})
+    contact = 'contact_range_um' in project.get('observation', {})
     extra = {'radial_domain_volume_um3'} if radial else set()
     if type(state) is not dict or set(state) != {'observation_state_version', 'definition', 'time_s', 'groups', 'cohort', 'regression'} | extra:
         raise ValueError('Malformed observation state')
@@ -185,9 +226,15 @@ def validate_observation_state(state, project, frame):
     current = {c['id']: c for c in frame['cells']}
     for cid, (gid, position) in expected.items():
         value = state['cohort'][cid]
-        extra = {'radial_first_arrival_s', 'radial_residence_s'} if radial else set()
+        extra = ({'radial_first_arrival_s', 'radial_residence_s'} if radial else set())
+        extra |= {'last_contact', 'contact_ever', 'contact_residence_s'} if contact else set()
         if type(value) is not dict or set(value) != {'group_id', 'initial_position_um', 'last_position_um', 'alive', 'arrived', 'residence_s'} | extra:
             raise ValueError('Malformed cohort record')
+        if contact and (type(value['last_contact']) is not bool or type(value['contact_ever']) is not bool
+                        or type(value['contact_residence_s']) not in (int, float)
+                        or not math.isfinite(value['contact_residence_s'])
+                        or not 0 <= value['contact_residence_s'] <= state['time_s']):
+            raise ValueError('Invalid cohort contact accounting')
         if (value['group_id'] != gid or value['initial_position_um'] != position
             or type(value['alive']) is not bool or value['alive'] != (cid in current)
             or type(value['arrived']) is not bool or type(value['residence_s']) not in (int, float)

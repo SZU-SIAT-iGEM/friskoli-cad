@@ -33,6 +33,39 @@ class ObservationTests(unittest.TestCase):
         self.assertIsNone(metric['region_fraction'])
         self.assertEqual(validate_observation_state(state, self.project, self.frame(7, {})), state)
 
+    def test_contact_metrics_measure_the_capsule_not_the_centre(self):
+        """A 2 x 0.8 capsule reaches half its length past its own centre.
+
+        length_um is pole to pole, so the capsule body extends 1.0 um from the
+        centre (0.6 um of spine plus the 0.4 um cap radius). With the box ending at
+        x = 5 and the cell aligned with +X the surface gap is centre - 6.0, while
+        the centre gap is centre - 5.0. At a centre of 7.0 both are outside the
+        0.5 um range, and at 6.4 the surface gap is 0.4 while the centre gap is
+        still 1.4. A metric that measured centre-to-box would miss every cell in
+        that band, which is the mistake this one exists to avoid.
+        """
+        from friskoli_cad.engine.collision import BoxObstacle
+        geometry = {'shape': 'capsule', 'length_um': 2., 'diameter_um': .8}
+        def frame(t, x):
+            return {'time_s': t, 'frame_index': int(t), 'cells': [{'id': 'p', 'group_id': 'a',
+                'position_um': [x, 2., 1.], 'orientation_xyzw': [0., 0., 0., 1.], 'geometry': geometry}]}
+        project = copy.deepcopy(self.project)
+        project['observation']['contact_range_um'] = .5
+        box = BoxObstacle('substrate', (0., 0., 0.), (5., 10., 2.))
+        state = initial_observation(project, frame(0, 7.0), [box])
+        self.assertEqual(observation_metrics(state, frame(0, 7.0), [box])['by_group']['a']['contact_fraction'], 0.)
+        state = advance_observation(state, frame(1, 6.4), [box])
+        metric = observation_metrics(state, frame(1, 6.4), [box])['by_group']['a']
+        self.assertEqual(metric['contact_fraction'], 1.)
+        self.assertEqual(metric['contact_cell_seconds'], 0.)   # left endpoint: t=0 was clear
+        state = advance_observation(state, frame(2, 6.4), [box])
+        metric = observation_metrics(state, frame(2, 6.4), [box])['by_group']['a']
+        self.assertEqual(metric['contact_cell_seconds'], 1.)
+        # Removing the declaration removes the keys rather than reporting zeros.
+        plain = copy.deepcopy(self.project)
+        other = initial_observation(plain, frame(0, 7.0), [box])
+        self.assertNotIn('contact_fraction', observation_metrics(other, frame(0, 7.0), [box])['by_group']['a'])
+
     def test_restore_validation_and_no_mutation(self):
         f = self.frame(0, {'p': [1, 2, 1]})
         state = initial_observation(self.project, f)
