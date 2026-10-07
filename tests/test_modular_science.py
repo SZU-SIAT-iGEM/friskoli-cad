@@ -67,6 +67,30 @@ def test_initial_array_viscosity_oxygen_advection_are_runtime_modules():
     assert restored.fields.diffusivities_um2_s['nutrient'] == .5
 
 
+def test_initial_array_zeroes_obstacle_voxels_so_the_source_can_move():
+    """Moving the substrate must not require rewriting the initial field.
+
+    field.diffusive_local already zeroes its own obstacle voxels. The initial
+    array rejected a project whose array was non-zero there instead, which made
+    every edit of an obstacle's geometry fail at step 0 with no way to repair it
+    by hand: values_um holds the whole ZYX grid. Both modules now agree that a
+    solid voxel carries no concentration.
+    """
+    from friskoli_cad.engine.presets import build_center_project
+    for shift in (0., 1., -1., 3.):
+        p = build_center_project('a', 'small', release='strong', spacing_um=1.)
+        sub = next(n for n in p['graph']['nodes'] if n['id'] == 'central_substrate')['parameters']
+        for axis in 'xyz':
+            sub[f'lower_{axis}_um']['value'] += shift
+            sub[f'upper_{axis}_um']['value'] += shift
+        sim = simulation_from_project(p)
+        sim.step(.05)
+        concentration = np.asarray(sim.fields.concentrations_uM['sugar'], dtype=float)
+        blocked = np.asarray(sim.fields.blocked, bool)
+        assert blocked.any(), 'the substrate should still mark voxels as solid'
+        np.testing.assert_array_equal(concentration[blocked], 0.)
+
+
 def test_shared_maintenance_growth_accounts_accepted_once():
     p = project()
     old = next(n for n in p['graph']['nodes'] if n['module_id'] == 'metabolism.reserve_balance')

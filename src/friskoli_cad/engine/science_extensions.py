@@ -137,10 +137,15 @@ def initial_array(c, initial):
     values = law.nonnegative(c.parameters['values_um'])
     if values.shape != tuple(c.world['grid_shape_zyx']):
         raise ValueError('initial array must use exact ZYX grid shape')
-    mask = np.asarray(c.world['blocked'], bool).reshape(values.shape)
-    if np.any(values[mask] != 0):
-        raise ValueError('initial array must be zero inside obstacles')
-    return _proposal({'initialized': 1.}, effects=[Effect('field.initial', c.parameters['species'], values)] if initial else [])
+    # Obstacle voxels are solid, so whatever the array carries there has no
+    # physical meaning. Zero it the same way field.diffusive_local does instead
+    # of rejecting the project: the strict form made every edit of an obstacle's
+    # geometry a hard failure, and the array holds the whole ZYX grid, so the
+    # author had no way to repair it by hand.
+    values = values.copy()
+    values[np.asarray(c.world['blocked'], bool).reshape(values.shape)] = 0.
+    return _proposal({'initialized': 1.},
+                     effects=[Effect('field.initial', c.parameters['species'], values)])
 
 
 def reservoir_exchange(c, initial):
