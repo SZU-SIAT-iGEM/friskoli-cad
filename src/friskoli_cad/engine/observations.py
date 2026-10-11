@@ -21,7 +21,7 @@ DEFINITIONS = [
     {"id": "contact_cell_seconds", "label": "Cohort contact integral", "unit": "cell*s", "description": "Sum over the initial cohort of the left-endpoint contact occupancy integral. Death stops accumulation. Null unless the definition declares contact_range_um."},
 ]
 DEFINITIONS.extend({'id': 'radial.' + key, 'label': label, 'unit': unit,
-    'description': description + ' Optional system observation radial-spheres@1: declared center and strictly increasing radii; computed for every group. Definition: docs/science/n5-b-lifecycle.md.'}
+    'description': description + ' Optional system observation radial-spheres@1: declared center and strictly increasing radii; computed for every group. Definition: docs/DEVELOPMENT.md.'}
     for key, label, unit, description in [
         ('mean_distance_um', 'Mean distance to center', 'um', 'Mean radius over living cells; null for no living cells.'),
         ('mean_inward_displacement_um', 'Founder inward displacement', 'um', 'Mean initial radius minus current radius over surviving initial IDs; null if none survive.'),

@@ -1,75 +1,102 @@
 # Friskoli-CAD
 
-A modular simulation and design tool for chemotactic engineered bacteria. You describe a 3D scene (cell populations, nutrient fields, obstacles), wire computation modules together in a typed graph (PTS signalling, MCP adaptation, run/tumble motion, uptake, growth), run it, and replay results cell by cell.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue.svg)](pyproject.toml)
 
-Friskoli-CAD 是面向趋化工程菌设计的模块化仿真与可视化工具：在三维场景中放置菌群、营养场与障碍物，用带类型和单位的端口连接计算模块，运行后逐菌体回放结果。
+Friskoli-CAD is a local simulation and design application developed for **Friskoli**, the engineered-bacteria project of the **SZU-SIAT iGEM team**. It belongs to the [SZU-SIAT-iGEM organization](https://github.com/SZU-SIAT-iGEM) and is released as an open-source research tool.
 
-## Quick start
+The project explores how nutrient uptake, chemotactic signalling and cell motion interact with surface-enzyme substrate conversion. Friskoli-CAD provides a shared workspace for building these models, comparing parameter choices and controls, and sharing reproducible simulation records. Its name refers to computer-aided design of model configurations and research scenarios; it does not generate DNA sequences or manufacturing drawings.
 
-Requires Python 3.11+.
+**Version 1.0.0 is the first stable software release.** Model parameters remain exploratory: software stability does not establish experimental calibration or a biological performance benefit.
 
-```powershell
-# Windows: double-click run.cmd, or
-.\start.ps1                 # serves http://127.0.0.1:8765 and opens the browser
-.\start.ps1 -Port 9000 -NoBrowser
-```
+## Features
+
+- **Build a 3D scene:** configure cell populations, nutrient fields, sources, material objects and obstacles.
+- **Compose mechanisms:** connect modules through ports with declared types, units, owners and explicit timing. Inspect equations and parameter provenance.
+- **Run locally:** simulate diffusion, uptake, PTS/MCP signalling, run-and-tumble motion, growth, division and observations through one modular engine.
+- **Compare designs:** generate parameter candidates, run independent seeds, retain failed attempts and compare recorded outcomes against controls.
+- **Inspect results:** replay saved frames in 3D, focus individual cells, view field slices, metrics and trajectories.
+- **Save and share:** export portable `.friskoli` packages with frozen inputs and results, resume compatible checkpoints, or build a static viewer for completed records.
+- **Export standards:** create an OMEX archive and, with an optional dependency, an explicitly declared SBOL Component subset.
+
+The application runs a Python service on your computer and displays its interface in a browser. JavaScript, Three.js and KaTeX assets are bundled locally. CPU use needs no Node.js installation; Node.js is used for frontend tests. The interface supports English and Simplified Chinese.
+
+## Get started
+
+Install **Python 3.11 or later**, then clone the repository:
 
 ```bash
-# Any platform
-pip install -e .
+git clone https://github.com/SZU-SIAT-iGEM/friskoli-cad.git
+cd friskoli-cad
+python -m venv .venv
+```
+
+On Windows:
+
+```powershell
+.\.venv\Scripts\python -m pip install .
+.\start.ps1
+```
+
+You can also double-click `run.cmd`. The launcher prefers `.venv`, checks dependencies and opens the browser. If PowerShell blocks the script, start directly:
+
+```powershell
+.\.venv\Scripts\python -m friskoli_cad.replay_service --port 8765
+```
+
+On Linux or macOS:
+
+```bash
+source .venv/bin/activate
+python -m pip install .
 python -m friskoli_cad.replay_service --port 8765
 ```
 
-`start.ps1` prefers a project-local `.venv`, installs missing dependencies on first run (network needed once), and then works offline. Optional extras: `pip install -e ".[standards]"` for SBOL export, `".[cuda11]"` for GPU diffusion.
+Open **http://127.0.0.1:8765**, load **Modular foundation**, and run its short default configuration. Inspect **Results → Data**, then replay the saved frames. Stop the service with `Ctrl+C`. Installation needs network access for dependencies; the installed application can run locally offline.
 
-## First run
-
-1. Load **模块基础 / Modular foundation** and run its short default configuration.
-2. Load **MCP 梯度芯片 / MCP gradient chip** and its zero-gradient control for the measurement benchmark, or **PTS A/B · 小域 · 强释放** and their matched controls for center-substrate research.
-3. Use Design for parameter candidates and multiple seeds. Inspect recorded metrics in Results → Data.
-4. Replay in 3D. Small cells have 4 px position markers; select a cell and use **Focus cell** to inspect its actual capsule geometry.
-5. Export a portable `.friskoli` research package and reopen it through File → Open. Frozen inputs, metrics, saved frames and requested arrays travel with it.
-
-The sole current execution profile is `modular-spatial-v1`. See the [support matrix](docs/first-release/support.md), [scientific scope](docs/first-release/science.md), [acceptance evidence](docs/first-release/acceptance.md), and [installation/user checklist](docs/first-release/install-and-use.md).
-
-The four center-substrate presets use a **1 µm grid**, the `responsive` PTS methylation profile, and 4,000 surface enzymes at kcat = 130/s. A/B both follow accepted PTS uptake → EI → methylation feedback → CheY-P → motor → motion. These are exploratory settings; the dated studies in `docs/first-release/evidence/` describe earlier configurations.
+Downloadable packages are listed under [releases](https://github.com/SZU-SIAT-iGEM/friskoli-cad/releases). Install a wheel with `python -m pip install /path/to/friskoli_cad-1.0.0-py3-none-any.whl`, then start the same Python service.
 
 ## Documentation
 
-| Read this | For |
+| Document | Contents |
 | --- | --- |
-| [docs/module-guide.md](docs/module-guide.md) | Choosing examples, connecting modules, tuning parameters |
-| [docs/module-reference.md](docs/module-reference.md) | Registered module reference |
-| [docs/frontend-user-journey.md](docs/frontend-user-journey.md) | Workspace walkthrough |
-| [docs/design-workflow.md](docs/design-workflow.md) | Candidates, controls, comparison reports |
-| [docs/science/README.md](docs/science/README.md) | Model equations, parameter sources, limits |
-| [docs/standards-export.md](docs/standards-export.md) | Supported SBOL/OMEX export and what is not supported |
-| [docs/architecture.md](docs/architecture.md), [docs/system-execution.md](docs/system-execution.md) | How the system is built and executed |
-| [docs/README.md](docs/README.md), [CONTRIBUTING.md](CONTRIBUTING.md) | Documentation index and development setup |
-| [docs/archive/](docs/archive/) | Development records, verification logs, superseded protocols |
+| [User guide](docs/USER_GUIDE.md) | Installation, examples, editing, Design, results, packages, exports and troubleshooting |
+| [Development guide](docs/DEVELOPMENT.md) | Current architecture, contracts, scientific assumptions, extension points, checks and release maintenance |
+| [Contributing](CONTRIBUTING.md) | Development setup and contribution expectations |
 
-## Known limitations
+## Included examples
 
-- Parameters are source-derived or constructed demonstration values. **Nothing is calibrated against wet-lab data**, and no 12-hour biological prediction is claimed.
-- A omits surface sugar pools, contact QSSA and adhesion feedback; B uses documented research simplifications. Null or negative outcomes are retained. Long-term and large-domain studies require separate validation.
-- SBML, SED-ML and GenBank/FASTA export are not supported. SBOL export covers Component core properties only.
-- Browser-size simulation and pointer-logic tests have been done; physical-device testing has not.
-- Old project/task/checkpoint formats are rejected. New same-version checkpoints retain RNG, inventories, identity and observation state.
-- User-owned A/B materials are authorized under MIT. Vendored Three.js, KaTeX and third-party dependencies keep their own license notices.
+| Example | Purpose |
+| --- | --- |
+| Modular foundation | A short introduction to fields, uptake, reserves, motion and sources |
+| Material and lifecycle | Material conversion, enzyme providers, geometry and lineage |
+| MCP gradient / zero-gradient chip | A receptor-based chemotaxis benchmark with a matched zero-gradient comparison |
+| PTS A / B, small domain, strong release | Two center-substrate research approximations, each with a matched no-feedback control |
 
-## Repository layout
+Eight presets ship with the application. The execution profile is `modular-spatial-v1`. PTS presets use a 1 µm grid and the `responsive` methylation configuration; these fine-grid scenes need more resources than the introductory example.
 
+## Scientific scope and compatibility
+
+Parameters include literature-derived relationships and constructed demonstration values. **The models have not been calibrated against wet-lab measurements.** Numerical tests assess the implemented equations and software contracts. They do not validate engineered-bacteria performance or long-term biological predictions.
+
+PTS A omits surface sugar pools, contact QSSA and adhesion feedback. B also uses documented simplifications. MCP is a measurement benchmark with an approximate adaptation law. Report aggregation and substrate conversion separately, retain null or negative outcomes, and treat independent runs as the units of replication. See the [scientific assumptions](docs/DEVELOPMENT.md#scientific-assumptions).
+
+Version 1.0.0 supports the current project, workspace and task contracts. Retired formats are rejected. Checkpoint continuation requires compatible implementation and random-number environment locks; keep the exact software version used to produce a run. SBML, SED-ML and GenBank/FASTA export are unavailable. Browser-size and pointer-logic checks do not constitute physical-device testing.
+
+## Development
+
+```bash
+python -m pip install -e ".[dev,standards,research]"
+npm ci
+python -m pytest tests -q
+npm test
+python -m build
 ```
-src/friskoli_cad/   engine, protocol schemas, task service, web frontend
-tests/              Python (pytest) and frontend (.mjs) tests
-examples/protocol/  protocol examples
-research/           reproducible study and export scripts
-docs/               current documentation; docs/archive/ holds history
-archive/            retired implementation, tests and presets
-```
 
-For development, install with `python -m pip install -e ".[dev,standards]"` and `npm ci`, then run `python -m pytest tests -q` and `npm test`. Build the current installable wheel with `python -m build --wheel`; see [CONTRIBUTING.md](CONTRIBUTING.md) for study dependencies and service restarts after source changes.
+Python 3.11+ and Node.js 22+ are required for this workflow. Source, bundled examples and web assets live in `src/friskoli_cad/`; tests in `tests/`; reproducible study scripts in `research/`; current guides in `docs/`. Generated outputs and local historical archives are excluded from Git.
 
-## License
+## Support and license
 
-[MIT](LICENSE).
+Report reproducible problems through [GitHub Issues](https://github.com/SZU-SIAT-iGEM/friskoli-cad/issues), including the version, steps, diagnostic and a minimal shareable input. Contribution guidance is in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Friskoli-CAD and the team's own A/B model material are distributed under the [MIT License](LICENSE). See [third-party notices](THIRD_PARTY_NOTICES.md) for bundled Three.js, KaTeX, font licenses and declared dependencies. Scientific publications cited by the project remain the work of their authors.

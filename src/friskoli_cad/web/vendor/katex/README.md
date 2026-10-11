@@ -1,6 +1,6 @@
 # KaTeX 0.18.9
 
-Pinned browser runtime from the official npm package. License: MIT (see LICENSE).
+Pinned browser runtime from the official npm package. JavaScript/CSS license: MIT (see LICENSE). Bundled fonts retain SIL Open Font License 1.1 notices in their metadata; see fonts/OFL.txt.
 Upstream: https://github.com/KaTeX/KaTeX
 Package: https://registry.npmjs.org/katex/-/katex-0.18.9.tgz
 Verified package integrity (SHA-512, base64):

@@ -1,13 +1,25 @@
 [build-system]
-requires = ["setuptools>=69", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "friskoli-cad"
-version = "0.2.0"
-description = "Modular chemotaxis CAD contracts and numerical engine"
-license = { text = "MIT" }
+version = "1.0.0"
+description = "Modular chemotaxis simulation, design and replay for the Friskoli project"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.11"
+authors = [{ name = "SZU-SIAT iGEM / Friskoli-CAD contributors" }]
+keywords = ["chemotaxis", "simulation", "synthetic-biology", "igem", "friskoli"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+
 dependencies = ["jsonschema>=4.23,<5", "numpy>=1.26,<3", "rfc8785==0.1.4", "psutil==7.2.2"]
 
 [project.optional-dependencies]
@@ -16,6 +28,11 @@ research = ["matplotlib>=3.8,<4"]
 standards = ["sbol3==1.2.0.post0"]
 cuda11 = ["cupy-cuda11x==13.6.0"]
 
+[project.urls]
+Repository = "https://github.com/SZU-SIAT-iGEM/friskoli-cad"
+Documentation = "https://github.com/SZU-SIAT-iGEM/friskoli-cad/blob/main/docs/USER_GUIDE.md"
+Issues = "https://github.com/SZU-SIAT-iGEM/friskoli-cad/issues"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
@@ -23,4 +40,4 @@ where = ["src"]
 "friskoli_cad.protocol" = ["schemas/*.json"]
 "friskoli_cad.science" = ["data/*.json"]
 "friskoli_cad.engine" = ["manifests/*.json", "declarations/*.json"]
-"friskoli_cad" = ["examples/*.json", "web/*.html", "web/*.css", "web/*.mjs", "web/*.js", "web/assets/*.svg", "web/vendor/three/build/*.js", "web/vendor/three/examples/jsm/controls/*.js", "web/vendor/three/LICENSE", "web/vendor/katex/*.mjs", "web/vendor/katex/*.css", "web/vendor/katex/LICENSE", "web/vendor/katex/README.md", "web/vendor/katex/fonts/*.woff2", "web/vendor/katex/fonts/*.woff", "web/vendor/katex/fonts/*.ttf"]
+"friskoli_cad" = ["examples/*.json", "web/*.html", "web/*.css", "web/*.mjs", "web/*.js", "web/assets/*.svg", "web/vendor/three/build/*.js", "web/vendor/three/examples/jsm/controls/*.js", "web/vendor/three/LICENSE", "web/vendor/katex/*.mjs", "web/vendor/katex/*.css", "web/vendor/katex/LICENSE", "web/vendor/katex/README.md", "web/vendor/katex/fonts/*.woff2", "web/vendor/katex/fonts/*.woff", "web/vendor/katex/fonts/*.ttf", "web/vendor/katex/fonts/OFL.txt"]

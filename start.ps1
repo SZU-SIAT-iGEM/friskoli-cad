@@ -1,13 +1,13 @@
-﻿<#
-    Friskoli-CAD 本地启动脚本
+<#
+    Friskoli-CAD local launcher
 
-    用法:
-        .\start.ps1                 # 默认端口 8765，自动打开浏览器
-        .\start.ps1 -Port 9000      # 换端口
-        .\start.ps1 -SyncOnly       # 只用旧的同步接口，不启用异步任务服务
-        .\start.ps1 -NoBrowser      # 不自动打开浏览器
+    Usage:
+        .\start.ps1                 # Port 8765; open the browser
+        .\start.ps1 -Port 9000      # Use a different port
+        .\start.ps1 -SyncOnly       # Use the bounded synchronous API without the asynchronous task service
+        .\start.ps1 -NoBrowser      # Leave browser opening to the user
 
-    按 Ctrl+C 停止服务。
+    Press Ctrl+C to stop the service.
 #>
 [CmdletBinding()]
 param(
@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $url = "http://127.0.0.1:$Port"
 
-# 发一个 HTTP GET，只在服务真的返回 200 时判为已就绪（不依赖 System.Net.Http）
+# Check readiness with an HTTP GET; require status 200 without System.Net.Http.
 function Test-Capabilities {
     param([int]$TargetPort)
 
@@ -41,32 +41,32 @@ function Test-Capabilities {
     finally { $client.Dispose() }
 }
 
-# 1. 选解释器：优先项目内 .venv，否则用 PATH 上的 python
+# Prefer the project-local .venv, then Python on PATH.
 $venvPython = Join-Path $root '.venv\Scripts\python.exe'
 if (Test-Path $venvPython) {
     $python = $venvPython
 }
 else {
     $found = Get-Command python -ErrorAction SilentlyContinue
-    if (-not $found) { throw "找不到 Python。请安装 Python 3.11+，或在项目里创建 .venv。" }
+    if (-not $found) { throw "Python was not found. Install Python 3.11+ or create a project-local .venv." }
     $python = $found.Source
 }
 
-# 2. 检查依赖，缺了就装（需要网络）
+# Check dependencies and install missing packages (network required).
 $checkScript = "import importlib.util as u; print(' '.join(m for m in ('jsonschema', 'numpy', 'rfc8785', 'psutil') if u.find_spec(m) is None))"
 $missing = ([string](& $python -c $checkScript)).Trim()
 if ($missing) {
-    Write-Host "缺少依赖: $missing，正在安装 ..." -ForegroundColor Yellow
+    Write-Host "Missing dependencies: $missing. Installing ..." -ForegroundColor Yellow
     & $python -m pip install -e $root
     $missing = ([string](& $python -c $checkScript)).Trim()
     if ($missing) {
-        throw "依赖仍然缺失: $missing`n请手动执行: `"$python`" -m pip install -e `"$root`""
+        throw "Dependencies are still missing: $missing`nRun manually: `"$python`" -m pip install -e `"$root`""
     }
 }
 
-# 3. 端口占用检查
+# Check whether the port is already in use.
 if (Test-Capabilities -TargetPort $Port) {
-    Write-Host "Friskoli-CAD 已经在运行: $url" -ForegroundColor Yellow
+    Write-Host "Friskoli-CAD is already running: $url" -ForegroundColor Yellow
     if (-not $NoBrowser) { Start-Process $url }
     exit 0
 }
@@ -75,30 +75,30 @@ $inUse = $false
 $probe = New-Object System.Net.Sockets.TcpClient
 try { $probe.Connect('127.0.0.1', $Port); $inUse = $true } catch { } finally { $probe.Dispose() }
 if ($inUse) {
-    Write-Host "端口 $Port 已被其他程序占用。换一个端口: .\start.ps1 -Port 8766" -ForegroundColor Red
+    Write-Host "Port $Port is used by another application. Choose another port: .\start.ps1 -Port 8766" -ForegroundColor Red
     exit 1
 }
 
-# 4. 启动服务（从源码运行，所以设置 PYTHONPATH）
+# Start the service from this checkout by setting PYTHONPATH.
 $env:PYTHONPATH = Join-Path $root 'src'
 $serverArgs = @('-m', 'friskoli_cad.replay_service', '--port', "$Port")
 if ($SyncOnly) { $serverArgs += '--sync-only' }
 
-Write-Host "启动 Friskoli-CAD  (python: $python)" -ForegroundColor Cyan
+Write-Host "Starting Friskoli-CAD  (python: $python)" -ForegroundColor Cyan
 $proc = Start-Process -FilePath $python -ArgumentList $serverArgs -NoNewWindow -PassThru
 
 try {
-    # 5. 等接口响应，确认服务真的起来了
+    # Wait for the API to confirm service readiness.
     $ready = $false
     foreach ($attempt in 1..80) {
-        if ($proc.HasExited) { throw "服务进程已退出（退出码 $($proc.ExitCode)），原因见上方输出。" }
+        if ($proc.HasExited) { throw "The service exited (code $($proc.ExitCode)). See the output above." }
         if (Test-Capabilities -TargetPort $Port) { $ready = $true; break }
         Start-Sleep -Milliseconds 250
     }
-    if ($proc.HasExited) { throw "服务进程已退出（退出码 $($proc.ExitCode)），原因见上方输出。" }
-    if (-not $ready) { throw "等待服务就绪超时（$url）。" }
+    if ($proc.HasExited) { throw "The service exited (code $($proc.ExitCode)). See the output above." }
+    if (-not $ready) { throw "Timed out waiting for service readiness ($url)." }
 
-    Write-Host "已就绪: $url   按 Ctrl+C 停止" -ForegroundColor Green
+    Write-Host "Ready: $url   Press Ctrl+C to stop" -ForegroundColor Green
     if (-not $NoBrowser) { Start-Process $url }
 
     Wait-Process -Id $proc.Id
@@ -106,6 +106,6 @@ try {
 finally {
     if (-not $proc.HasExited) {
         Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
-        Write-Host "服务已停止。" -ForegroundColor DarkGray
+        Write-Host "Service stopped." -ForegroundColor DarkGray
     }
 }

@@ -10,11 +10,12 @@ from friskoli_cad.protocol import (
 )
 
 
-EXAMPLES = Path(__file__).resolve().parents[1] / "examples" / "protocol"
+# Synthetic contract fixtures are independent of registered runtime presets.
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "protocol"
 
 
 def load(relative_path: str):
-    return json.loads((EXAMPLES / relative_path).read_text(encoding="utf-8"))
+    return json.loads((FIXTURES / relative_path).read_text(encoding="utf-8"))
 
 
 def manifests():

@@ -271,7 +271,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
     lower, upper = center - _half, center + _half
     # Largest radius whose sphere still fits inside the domain, with a 1 um margin.
     _sphere_cap = float(np.min(extent)) / 2. - 1.
-    reference = 'docs/first-release/science.md: constructed center-substrate study; no parameter fitting'
+    reference = 'docs/DEVELOPMENT.md: constructed center-substrate study; no parameter fitting'
     def node(nid, mid, params, version='1.0.0', population=True):
         m = registry.get(mid, version).manifest
         return {'id': nid, 'module_id': mid, 'module_version': version,
@@ -412,7 +412,7 @@ def make_example(name='modular-foundation'):
 
 def template_catalog():
     return [{'id':name,'version':'1.0.0','label':label,'description':description,'example_id':name,'maturity':'exploratory',
-        'source':'docs/first-release/science.md; constructed research settings, not experimental validation',
+        'source':'docs/DEVELOPMENT.md; constructed research settings, not experimental validation',
         'module_keys':sorted({n['module_id']+'@'+n['module_version'] for n in make_example(name)['graph']['nodes']}),
         'recommended_settings':{'dt_s':.05,'steps':2400 if name.startswith(('chip-','center-')) else 40,'frame_every_steps':20 if name.startswith(('chip-','center-')) else 1,'include_fields':False if name.startswith(('chip-','center-')) else True}}
         for name,(label,description) in EXAMPLES.items()]

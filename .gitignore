@@ -28,4 +28,5 @@ tmp/
 .DS_Store
 Thumbs.db
 .playwright-cli/
-docs/first-release/artifacts/*-wiki/
+# Local historical records, retired code and previous build artifacts
+/archive/

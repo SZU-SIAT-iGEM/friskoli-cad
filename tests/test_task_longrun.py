@@ -20,14 +20,14 @@ def body(service, steps=5):
         'output_plan':{'frame_every_steps':3,'checkpoint_every_steps':2,'observables':list(project['run']['channels']),'include_fields':True}}
 
 
-def wait(service, identifier):
-    deadline = time.monotonic() + 40
+def wait(service, identifier, *, timeout_s=40):
+    deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
         item = service.get(identifier)
         if item['status'] in ('completed','failed','paused','cancelled','interrupted'):
             return item
         time.sleep(.02)
-    raise AssertionError('Task did not stop')
+    raise AssertionError(f"Task did not stop within {timeout_s} s: {item['status']} at {item['progress']}")
 
 
 class LongrunTests(unittest.TestCase):
@@ -269,7 +269,9 @@ class LongrunTests(unittest.TestCase):
                 self.assertGreaterEqual(stopped['checkpoint']['step_index'],2)
             with TaskService(folder) as service:
                 resumed,_ = service.resume(task['run_id'],{'request_id':'after-reopen','edit_revision':'1'},'after-reopen')
-                complete = wait(service,resumed['run_id'])
+                # Per-step frames and frequent durable checkpoints can exceed
+                # 40 s on Windows even when continuation makes steady progress.
+                complete = wait(service,resumed['run_id'],timeout_s=120)
                 self.assertEqual(complete['status'],'completed',complete['issues'])
                 path,_ = service.artifact(resumed['run_id'],'checkpoint')
                 restored = load_task_checkpoint(path,maximum=service.limits.estimated_memory_bytes)

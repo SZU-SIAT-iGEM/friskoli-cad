@@ -1,36 +1,33 @@
-# 开发与复现
+# Contributing to Friskoli-CAD
 
-需要 Python 3.11+；前端测试需要 Node.js 22+。
+Friskoli-CAD is maintained in the SZU-SIAT-iGEM organization for the Friskoli project. Contributions should make model behaviour, assumptions and simulation records easier to inspect and reproduce.
 
-```powershell
-python -m venv .venv
-.\.venv\Scripts\python -m pip install -e ".[dev,standards,research]"
+## Set up
+
+Use Python 3.11+ and Node.js 22+. Create and activate a virtual environment, then install:
+
+```bash
+python -m pip install -e ".[dev,standards,research]"
 npm ci
-.\start.ps1 -NoBrowser
 ```
 
-Linux/macOS 在激活虚拟环境后使用 `python -m pip install -e ".[dev,standards,research]"` 和 `python -m friskoli_cad.replay_service --port 8765`。
+On Windows, run Python commands with `.\.venv\Scripts\python` if the environment is not activated. Node.js is required only for frontend tests. CUDA is optional and requires compatible hardware and the `cuda11` extra.
 
-## 检查与打包
+## Check a change
 
-```powershell
-.\.venv\Scripts\python -m pytest tests -q
+```bash
+python -m pytest tests -q
 npm test
-.\.venv\Scripts\python -m build --wheel
+python -m build
+git diff --check
 ```
 
-`standards` 安装 SBOL 测试依赖，`research` 安装研究脚本的绘图依赖。GPU 测试需要对应硬件和 `cuda11`；CPU 可以完成普通运行。`npm ci` 安装 IndexedDB 测试依赖，避免持久化测试因缺包跳过。应用运行时不依赖 Node.js。
+Restart the service after changing backend code, model declarations or presets: a running service retains its startup source lock. Preserve frozen historical inputs and results. Use `runs/` for generated studies; keep archives and build outputs out of commits.
 
-修改引擎、模型或预设源码后，停止旧服务并重新运行 `start.ps1`，再用服务当前的 version lock 提交任务。运行中的服务保留启动时的源码锁；修改源码后直接提交会报告 `task.source_changed`。
+## Submit a contribution
 
-当前 wheel 生成在 `dist/`。`docs/first-release/artifacts/` 保存 2026-10-04 的交付记录，重现当前版本请从当前源码重新打包。仿真输出写入 `runs/`，不会进入 Git。
+Open an issue for a substantial change, then submit a pull request describing the problem, resulting behaviour, relevant assumptions and checks actually performed. Keep changes focused. Include tests for changed numerical or data-contract behaviour; documentation edits should be checked for working links and accurate commands.
 
-## 文件目录
+Write documentation, code comments and docstrings in English. Preserve the application's English and Simplified Chinese localization. Record parameter sources and distinguish constructed values from experimental measurements. Retain third-party license notices.
 
-- `src/friskoli_cad/`：当前程序、网页资源和八个可运行预设。
-- `tests/`：当前合同、科学计算、任务服务和前端测试。
-- `research/`：芯片、中心底物与研究导出脚本；小实验串行运行。
-- `docs/`：从[文档索引](docs/README.md)进入当前指南和科学说明。
-- `archive/legacy-runtime/` 与 `docs/archive/`：历史实现、旧预设和阶段记录，不属于当前运行入口。
-
-中心场默认 DX=1 µm。默认发布预设使用 strong 释放和 responsive 信号参数；旧研究的 seed、网格、参数及结果应按各自日期阅读。新的科学结论需要新的运行记录。
+The [development guide](docs/DEVELOPMENT.md) describes contracts, module extension points and validation limits. Contributions are distributed under the repository's MIT license.
