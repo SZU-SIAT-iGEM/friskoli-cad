@@ -1,7 +1,7 @@
 """Finite-capsule clearance and conservative whole-proposal motion rejection.
 
 Distances are micrometres. This is a kinematic safety guard, not contact dynamics.
-See docs/DEVELOPMENT.md for interpolation and numerical limits.
+See docs/MODEL_REFERENCE.md for interpolation and numerical limits.
 """
 from __future__ import annotations
 

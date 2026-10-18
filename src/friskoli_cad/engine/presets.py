@@ -116,7 +116,6 @@ def build_chip_project(condition, seed, overrides=None):
             "value": (low + high) / 2, "unit": "uM", "provenance": provenance("low_uM", overrides, PROJECT_KIND)}}},
         "groups": {"cells": {"ids": [f"cell-{i:04d}" for i in range(len(points))], "positions_um": [p.tolist() for p in points],
                              "orientation_xyzw": quats.tolist(), "initial_geometry": [dict(geometry) for _ in points]}},
-        "controls": {},
         "graph": {"protocol_version": "0.2.0", "id": f"{name}-graph", "nodes": nodes, "edges": edges},
         "run": {"protocol_version": "0.1.0", "run_id": f"{name}-run", "graph_id": f"{name}-graph", "groups": ["cells"], "channels": channels},
         "observation": {"id": "high_half", "label": "High-concentration half (+X)", "axis": 0,
@@ -167,13 +166,31 @@ SIGNAL_CONSTANTS = {
     'ei_rephos_s': 1.,              # EI autophosphorylation relaxation
 }
 
+# The strain that defines G = 1 (reference_pts_copies in the capacity modules) and
+# the uptake turnover of one transporter. EI dephosphorylation per transported
+# molecule is a property of the PTS phosphoryl relay, not of how many transporters a
+# cell expresses, so it is fixed once here: EI is half dephosphorylated where the
+# reference strain's uptake is half saturated. A cell expressing more transporters
+# then drives EI harder at the same concentration. Deriving the constant from each
+# cell's own copy number instead would cancel the expression level out of EI(C), and
+# PTS overexpression could never change what the cell senses.
+REFERENCE_STRAIN = {'pts_copies': 100., 'turnover_s': 2.}
+
+
+def ei_coupling_constant(constants=SIGNAL_CONSTANTS, reference=REFERENCE_STRAIN):
+    """EI dephosphorylation per transported molecule, anchored to the reference strain."""
+    from friskoli_cad.science import pts_methylation as _pm
+    return float(np.asarray(_pm.ei_dephos_per_molecule(
+        constants['ei_rephos_s'], reference['pts_copies'], reference['turnover_s'])).ravel()[0])
+
 
 def pre_adapted_signal_state(constants, ambient_uM, functional_copies, turnover_s, half_saturation_um):
     """Complete signal parameter set for cells already adapted to an ambient sugar level.
 
     Every entry is derived rather than chosen:
-      ei_dephos   EI half-dephosphorylated exactly where PTS uptake is half-saturated
-      e0          e = J*k/(J*k + k_rephos), with J the uptake flux at the ambient
+      ei_dephos   EI half-dephosphorylated where the reference strain's uptake is
+                  half-saturated (REFERENCE_STRAIN); independent of this cell's copies
+      e0          e = J*k/(J*k + k_rephos), with J this cell's uptake flux at the ambient
       m0          activity(e0, m0) == a0, so the run starts adapted
       chey rates  balanced at a0, with response time tau_chey_s
       y0          half of CheY phosphorylated, the balanced steady state
@@ -184,8 +201,7 @@ def pre_adapted_signal_state(constants, ambient_uM, functional_copies, turnover_
     from friskoli_cad.science import pts_methylation as _pm
     flux = float(np.asarray(_pts.pts_request(np.array([ambient_uM]), np.array([functional_copies]),
                                              turnover_s, half_saturation_um)).ravel()[0])
-    dephos = float(np.asarray(_pm.ei_dephos_per_molecule(
-        constants['ei_rephos_s'], functional_copies, turnover_s)).ravel()[0])
+    dephos = ei_coupling_constant(constants)
     on = flux * dephos
     e0 = on / (on + constants['ei_rephos_s']) if on + constants['ei_rephos_s'] > 0 else 0.
     phos, chey_dephos = _pm.chey_rates(constants['tau_chey_s'], constants['chey_total_uM'],
@@ -213,7 +229,9 @@ def pre_adapted_signal_state(constants, ambient_uM, functional_copies, turnover_
     # maps them back, so the two spellings must stay in step.
     return {k.lower(): v for k, v in {
         'ei_rephos_s': ('EI autophosphorylation relaxation', derived['ei_rephos_s']),
-        'ei_dephos_per_molecule': ('EI half-dephosphorylated where PTS uptake is half-saturated',
+        'ei_dephos_per_molecule': ('EI half-dephosphorylated where reference-strain uptake (G=1, '
+                                   f"{REFERENCE_STRAIN['pts_copies']:g} copies x {REFERENCE_STRAIN['turnover_s']:g}/s) "
+                                   'is half-saturated; fixed relay property, independent of expression',
                                    derived['ei_dephos_per_molecule']),
         'methylation_min': ('unmethylated receptor', derived['methylation_min']),
         'methylation_max': ('MCP methylation sites', derived['methylation_max']),
@@ -257,10 +275,10 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
     """Matched square-domain PTS/surface-enzyme study and feedback-disabled control."""
     if release not in RELEASE:
         raise ValueError('Unknown center-study release setting')
-    if mechanism not in ('a', 'b') or scale not in ('small', 'medium'):
-        raise ValueError('Center study requires mechanism a/b and scale small/medium')
+    if mechanism not in ('a', 'b') or scale not in ('assay', 'small', 'medium'):
+        raise ValueError('Center study requires mechanism a/b and scale assay/small/medium')
     registry = modular_registry()
-    factor = 1. if scale == 'small' else 2.
+    factor = 2. if scale == 'medium' else 1.
     extent = np.array([64., 64., 32.]) * factor
     counts = extent / spacing_um
     if spacing_um <= 0 or not np.equal(counts, np.rint(counts)).all():
@@ -271,7 +289,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
     lower, upper = center - _half, center + _half
     # Largest radius whose sphere still fits inside the domain, with a 1 um margin.
     _sphere_cap = float(np.min(extent)) / 2. - 1.
-    reference = 'docs/DEVELOPMENT.md: constructed center-substrate study; no parameter fitting'
+    reference = 'docs/MODEL_REFERENCE.md: constructed center-substrate study; no parameter fitting'
     def node(nid, mid, params, version='1.0.0', population=True):
         m = registry.get(mid, version).manifest
         return {'id': nid, 'module_id': mid, 'module_version': version,
@@ -290,6 +308,13 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
     values[blocked] = 0.
     points = [[float(center[0]+20.*factor*math.cos(2*math.pi*i/16)), float(center[1]+20.*factor*math.sin(2*math.pi*i/16)), float(h)]
               for h in [extent[2]/4,extent[2]/2,3*extent[2]/4] for i in range(16)]
+    if scale == 'assay':
+        # A small cohort near four material faces exercises contact and release
+        # in short runs. Initial orientations remain isotropic and seed matched.
+        offset = _half + 2.5
+        points = [[float(center[0]+dx), float(center[1]+dy), float(h)]
+                  for h in (center[2]-4., center[2]+4.)
+                  for dx, dy in ((-offset, 0.), (offset, 0.), (0., -offset), (0., offset))]
     # Cells start where the initial field already stands, so their internal state must be the
     # fixed point of that background rather than the zero-flux state.
     _ambient = float(np.mean([values[int(min(p_[2]/spacing_um, values.shape[0]-1)),
@@ -377,7 +402,7 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
         'domain':{'geometry':'volume','counts_xyz':counts.tolist(),'spacing_um_xyz':[spacing_um]*3},
         'species':{'sugar':{'concentration_unit':'uM','initial_concentration':{'value':0.,'unit':'uM','provenance':{'kind':'example','reference':reference}}}},
         'groups':{'cells':{'ids':[f'cell-{i:04d}' for i in range(len(points))], 'positions_um':points,
-            'orientation_xyzw':quats.tolist(),'initial_geometry':[deepcopy(geom) for _ in points]}},'controls':{},
+            'orientation_xyzw':quats.tolist(),'initial_geometry':[deepcopy(geom) for _ in points]}},
         'graph':{'protocol_version':'0.2.0','id':name+'-graph','nodes':nodes,'edges':edges},
         'run':{'protocol_version':'0.1.0','run_id':name+'-run','graph_id':name+'-graph','groups':['cells'],'channels':channels},
         # Both the observation box and the radial spheres are derived from the substrate
@@ -391,16 +416,182 @@ def build_center_project(mechanism='a', scale='small', *, feedback=True, seed=1,
             'radial_radii_um':[_half+1.,(_half+1.+_sphere_cap)/2.,_sphere_cap]}}
 
 
+ENCOUNTER = {'extent_um': (160., 160., 96.), 'spacing_um': 4., 'source_shell_um': 4., 'source_rate_s': 5.,
+             'surface_uM': 1., 'cells': 64, 'start_gap_um': 36.}
+
+
+def encounter_geometry(extent_um=ENCOUNTER['extent_um']):
+    extent = np.asarray(extent_um, dtype=float)
+    center = extent / 2
+    half = SUBSTRATE_EDGE_UM / 2
+    return extent, center, center - half, center + half
+
+
+def encounter_steady_field(surface_uM=ENCOUNTER['surface_uM'], *, tolerance=1e-12, max_iterations=200000):
+    """Discrete steady state of D*lap(C) + k*mask*(T - C) = 0 for the encounter geometry.
+
+    Same voxel boxes as the project's exchange nodes (source shell around the cube,
+    six sink slabs), 7-point finite-volume Laplacian with closed faces at the solid and
+    at the outer boundary; over-relaxed red-black Gauss-Seidel. Returns (field ZYX, info).
+    """
+    spacing = ENCOUNTER['spacing_um']
+    extent, center, lower, upper = encounter_geometry()
+    counts = np.rint(extent / spacing).astype(int)
+    z, y, x = np.indices(tuple(counts[::-1]))
+    centers = np.stack(((x + .5) * spacing, (y + .5) * spacing, (z + .5) * spacing), axis=-1)
+    solid = np.all((centers >= lower) & (centers < upper), axis=-1)
+    shell = ENCOUNTER['source_shell_um']
+    source = np.all((centers >= lower - shell) & (centers < upper + shell), axis=-1) & ~solid
+    sink = np.zeros_like(solid)
+    for _, _, lo, hi in _boundary_slabs(extent, BOUNDARY_SINK['thickness_um']):
+        sink |= np.all((centers >= lo) & (centers < hi), axis=-1)
+    fluid = ~solid
+    coupling = 10. / spacing**2   # D / dx^2 with the presets' diffusivity
+    k = np.where(source, ENCOUNTER['source_rate_s'], 0.) + np.where(sink, BOUNDARY_SINK['rate_s'], 0.)
+    target = np.where(source, surface_uM, 0.)
+
+    def neighbour_sum(values):
+        total = np.zeros(solid.shape)
+        for axis in range(3):
+            for shift in (1, -1):
+                rolled = np.roll(values, shift, axis=axis)
+                edge = [slice(None)] * 3
+                edge[axis] = 0 if shift == 1 else -1
+                rolled[tuple(edge)] = 0
+                total += rolled
+        return total
+
+    denominator = coupling * neighbour_sum(fluid.astype(float)) * fluid + k
+    value = np.where(source, surface_uM, 0.).astype(float)
+    parity = (np.indices(solid.shape).sum(axis=0) % 2).astype(bool)
+    change, iteration = math.inf, 0
+    for iteration in range(1, max_iterations + 1):
+        change = 0.
+        for colour in (parity, ~parity):
+            mask = colour & fluid
+            update = (coupling * neighbour_sum(value * fluid)[mask] + (k * target)[mask]) / denominator[mask]
+            delta = 1.9 * (update - value[mask])
+            change = max(change, float(np.abs(delta).max()))
+            value[mask] += delta
+        if change < tolerance:
+            break
+    value[solid] = 0.
+    return value, {'iterations': iteration, 'final_update_uM': change}
+
+
+def encounter_ring(cells=ENCOUNTER['cells'], start_gap_um=ENCOUNTER['start_gap_um']):
+    """Cells on a horizontal circle of radius edge/2 + start_gap_um around the cube centre.
+
+    The gap to the cube is start_gap_um opposite a face and smaller towards the vertical
+    edges (by edge/2 * (sqrt(2) - 1), 3.3 um for the 16 um cube); keep start_gap_um > 4.
+    """
+    _, center, _, _ = encounter_geometry()
+    radius = SUBSTRATE_EDGE_UM / 2 + start_gap_um
+    return [[float(center[0] + radius * math.cos(2 * math.pi * i / cells)),
+             float(center[1] + radius * math.sin(2 * math.pi * i / cells)),
+             float(center[2] + (4. if i % 2 else -4.))] for i in range(cells)]
+
+
+def build_encounter_project(mechanism='a', *, feedback=True, seed=1, cells=ENCOUNTER['cells'],
+                            start_gap_um=ENCOUNTER['start_gap_um'], surface_uM=ENCOUNTER['surface_uM'], field=None):
+    """Maintained-gradient encounter study: cells start several runs away from the material.
+
+    The center assay's mechanism graph is reused unchanged on a 160 x 160 x 96 um domain.
+    A first-order exchange shell holds the material surface near ``surface_uM`` and the
+    outer boundary is the presets' open sink, so cells meet a maintained gradient rather
+    than a decaying initial pulse; the field starts at that geometry's discrete steady
+    state. Cells start adapted to the ring concentration. The control differs only in the
+    motor-to-motion edge (fixed baseline bias).
+    """
+    spacing = ENCOUNTER['spacing_um']
+    extent, center, lower, upper = encounter_geometry()
+    counts = np.rint(extent / spacing).astype(int)
+    project = build_center_project(mechanism, 'assay', feedback=feedback, seed=seed, spacing_um=spacing, release='strong')
+    project['id'] = f'center-pts-{mechanism}-encounter' + ('' if feedback else '-control')
+    project['graph']['id'] = project['run']['graph_id'] = project['id'] + '-graph'
+    project['run']['run_id'] = project['id'] + '-run'
+    project['domain']['counts_xyz'] = counts.tolist()
+    nodes = {n['id']: n for n in project['graph']['nodes']}
+    reference = 'docs/MODEL_REFERENCE.md: constructed maintained-gradient encounter study; no parameter fitting'
+    for i, axis in enumerate('xyz'):
+        nodes['central_substrate']['parameters'][f'lower_{axis}_um']['value'] = float(lower[i])
+        nodes['central_substrate']['parameters'][f'upper_{axis}_um']['value'] = float(upper[i])
+    for axis, side, lo, hi in _boundary_slabs(extent, BOUNDARY_SINK['thickness_um']):
+        params = nodes[f'sink_{axis}_{side}']['parameters']
+        params['lower_um']['value'], params['upper_um']['value'] = list(lo), list(hi)
+    source = deepcopy(nodes['sink_x_lo'])
+    source['id'] = 'surface_source'
+    source['owner'] = {'kind': 'environment', 'id': 'surface_source'}
+    shell = ENCOUNTER['source_shell_um']
+    source['parameters']['lower_um']['value'] = (lower - shell).tolist()
+    source['parameters']['upper_um']['value'] = (upper + shell).tolist()
+    source['parameters']['target_um']['value'] = float(surface_uM)
+    source['parameters']['rate_s']['value'] = ENCOUNTER['source_rate_s']
+    for entry in source['parameters'].values():
+        entry['provenance'] = {'kind': 'example', 'reference': reference + '; maintained material-surface concentration '
+                               '(stands in for continuing release by already attached cells)'}
+    project['graph']['nodes'].insert(project['graph']['nodes'].index(nodes['sink_x_lo']), source)
+    if field is None:
+        field, _ = encounter_steady_field(surface_uM)
+    nodes['initial_product']['parameters']['values_um']['value'] = field.tolist()
+    nodes['initial_product']['parameters']['values_um']['provenance'] = {
+        'kind': 'example', 'reference': reference + '; discrete steady state of this source/sink geometry'}
+    points = encounter_ring(cells, start_gap_um)
+    group = project['groups']['cells']
+    group['positions_um'] = points
+    group['ids'] = [f'cell-{i:04d}' for i in range(cells)]
+    group['initial_geometry'] = [deepcopy(group['initial_geometry'][0]) for _ in range(cells)]
+    rng = np.random.default_rng(seed)
+    quats = rng.normal(size=(cells, 4))
+    group['orientation_xyzw'] = (quats / np.linalg.norm(quats, axis=1, keepdims=True)).tolist()
+    index = [tuple(min(int(p[a] // spacing), counts[a] - 1) for a in (2, 1, 0)) for p in points]
+    ambient = float(np.mean([field[i] for i in index]))
+    capacity = {k: v['value'] for k, v in nodes['capacity']['parameters'].items()}
+    area = _pts.capsule_area_um2(2., .8)
+    if mechanism == 'a':
+        readout = _pts.rebuilt_capacity(area, capacity['g_requested'], _pts.RebuiltCapacityParameters(
+            capacity['reference_pts_copies'], capacity['basal_inner_fraction'],
+            capacity['pts_max_available_fraction'], capacity['ascf_area_um2']))
+    else:
+        readout = _pts.simplified_capacity(area, capacity['g_requested'], _pts.SimplifiedCapacityParameters(
+            capacity['reference_pts_copies'], capacity['g_cap'], capacity['reference_area_um2']))
+    copies = float(np.asarray(readout.functional_copies).ravel()[0])
+    for key, (why, value) in pre_adapted_signal_state(SIGNAL_CONSTANTS, ambient, copies, 2., 1.).items():
+        nodes['pts_signal']['parameters'][key].update(value=value, provenance={'kind': 'example',
+            'reference': why + '; derived by friskoli_cad.science.pts_methylation'})
+    if not feedback:
+        signal = {k: v['value'] for k, v in nodes['pts_signal']['parameters'].items()}
+        y0 = signal['initial_chey_p_um']
+        nodes['constant_motor']['parameters']['bias']['value'] = y0**signal['motor_hill'] / (
+            signal['motor_half_um']**signal['motor_hill'] + y0**signal['motor_hill'])
+    project['observation']['region_lower_um'] = (lower - 4.).tolist()
+    project['observation']['region_upper_um'] = (upper + 4.).tolist()
+    project['observation']['radial_center_um'] = center.tolist()
+    cap = float(min(extent)) / 2. - 1.
+    project['observation']['radial_radii_um'] = [SUBSTRATE_EDGE_UM / 2 + 1., (SUBSTRATE_EDGE_UM / 2 + 1. + cap) / 2., cap]
+    return project
+
+
 EXAMPLES = {
     'modular-foundation': ('模块基础 / Modular foundation', 'Field, uptake, reserve, death, motion and explicit sources.'),
     'modular-material': ('材料与生命周期 / Material and lifecycle', 'Cellulose stoichiometry, catalyst providers, erosion and lineage.'),
+    **{f'center-pts-{m}-assay-strong'+('' if feedback else '-control'):
+       (f'PTS {m.upper()} · 接触测试 / Contact assay'+('' if feedback else ' · 无反馈 / No feedback'),
+        'Eight cells near four substrate faces in a constructed contact assay. A coarse 4 um grid supports short software checks; use grid sensitivity before interpreting interfacial concentrations.')
+       for m in ('a', 'b') for feedback in (True, False)},
     **{f'chip-mcp-{c}': ('MCP 梯度芯片 / MCP gradient chip' if c == 'gradient' else 'MCP 零梯度芯片 / MCP zero-gradient chip',
          'Wild-type MCP–MeAsp benchmark along the short horizontal X axis; finite boundary relaxation; constructed parameters.') for c in ('gradient','zero')},
     **{f'center-pts-{m}-small-strong'+('-control' if not f else ''):
         (f'PTS {m.upper()} · 小域 · 强释放'+(' · 无反馈对照' if not f else ''),
-         'Strong-release center-substrate study with the responsive PTS methylation profile; 4000 surface enzymes '
-         'at kcat 130/s and a 1 um grid resolve the interfacial concentration layer. Exploratory constructed setting, not calibrated.')
+         'Strong-release center-substrate study on the shared signal.pts_methylation adaptation law; 200 surface '
+         'enzymes at kcat 130/s and a 1 um grid resolve the interfacial concentration layer. Exploratory constructed setting, not calibrated.')
        for m in ('a','b') for f in (True, False)},
+    **{'center-pts-a-encounter' + ('' if f else '-control'):
+        ('PTS A · 持续梯度遭遇 / Maintained-gradient encounter' + ('' if f else ' · 无反馈 / No feedback'),
+         'Sixty-four cells start 33-36 um from a 16 um material cube whose surface is held near 1 uM in a 160 x 160 x 96 um '
+         'open domain. Separates first contact, dwell and conversion over 60 s. PTS B gives identical output at G = 2 '
+         'because neither capacity rule binds. Constructed setting, not calibrated.')
+       for f in (True, False)},
 }
 
 
@@ -412,7 +603,17 @@ def make_example(name='modular-foundation'):
 
 def template_catalog():
     return [{'id':name,'version':'1.0.0','label':label,'description':description,'example_id':name,'maturity':'exploratory',
-        'source':'docs/DEVELOPMENT.md; constructed research settings, not experimental validation',
+        'source':'docs/MODEL_REFERENCE.md; constructed research settings, not experimental validation',
         'module_keys':sorted({n['module_id']+'@'+n['module_version'] for n in make_example(name)['graph']['nodes']}),
-        'recommended_settings':{'dt_s':.05,'steps':2400 if name.startswith(('chip-','center-')) else 40,'frame_every_steps':20 if name.startswith(('chip-','center-')) else 1,'include_fields':False if name.startswith(('chip-','center-')) else True}}
+        'recommended_settings':_recommended_settings(name)}
         for name,(label,description) in EXAMPLES.items()]
+
+
+def _recommended_settings(name):
+    if '-assay-' in name:
+        return {'dt_s': .02, 'steps': 25, 'frame_every_steps': 5, 'include_fields': False}
+    if '-encounter' in name:
+        return {'dt_s': .05, 'steps': 1200, 'frame_every_steps': 20, 'include_fields': False}
+    if name.startswith(('chip-', 'center-')):
+        return {'dt_s': .05, 'steps': 2400, 'frame_every_steps': 20, 'include_fields': False}
+    return {'dt_s': .05, 'steps': 40, 'frame_every_steps': 1, 'include_fields': True}

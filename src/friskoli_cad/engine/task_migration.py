@@ -130,7 +130,7 @@ def migrate_simulation(sim, target_project, mapping):
     modular = sim.project.get('execution_profile') == 'modular-spatial-v1'
     target_project = deepcopy(target_project)
     if scientific_identity(sim.project) != scientific_identity(target_project):
-        raise ValueError('Identity module-state mapping requires unchanged graph, stocks, IDs and schedules')
+        raise ValueError('Identity module-state mapping requires unchanged graph, stocks and IDs')
     target = simulation_from_project(target_project, seed=sim.seed, field_backend=sim.field_backend)
     source_grid, grid = sim.world.grid, target.world.grid
     changed_domain = not np.allclose(source_grid.extent_um,grid.extent_um,rtol=1e-12,atol=1e-12)
@@ -205,4 +205,4 @@ def migrate_simulation(sim, target_project, mapping):
         'domain_rule':{'coordinates':'unchanged-physical-xyz','outside_source':'zero','crop':'reject-nonzero-inventory','external_transfer_molecules':0},
         'source_grid':asdict(source_grid),'target_grid':asdict(grid),'inventories':audits,'field_components':component_audits,
         'origin_project_sha256':_hash(getattr(candidate,'migration_origin_project',candidate.project)),
-        'preserved':['time','cell IDs','physical coordinates','RNG','non-field module state','source stocks','future schedules']}
+        'preserved':['time','cell IDs','physical coordinates','RNG','non-field module state','source stocks']}

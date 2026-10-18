@@ -49,7 +49,9 @@
             "mean_position_um",
             "drift_um_s",
             "cumulative_degradation_molecules",
-            "degradation_per_initial_cell_molecules"
+            "degradation_per_initial_cell_molecules",
+            "contact_fraction",
+            "contact_cell_seconds"
           ]
         },
         "direction": {
@@ -223,7 +225,9 @@
               "mean_position_um",
               "drift_um_s",
               "cumulative_degradation_molecules",
-              "degradation_per_initial_cell_molecules"
+              "degradation_per_initial_cell_molecules",
+              "contact_fraction",
+              "contact_cell_seconds"
             ]
           },
           "group_id": {

@@ -9,7 +9,7 @@ const vector = (v, positive = false) => Array.isArray(v) && v.length === 3 &&
 
 const nonempty = v => typeof v === 'string' && v.trim().length > 0;
 export function validateDesignBrief(brief) {
-  const metrics=METRIC_KEYS.slice(2);
+  const metrics=METRIC_KEYS.slice(2).filter(key=>brief?.brief_version==='0.3.0'||!key.startsWith('contact_'));
   if (!brief || !['0.1.0','0.2.0','0.3.0'].includes(brief.brief_version) || !nonempty(brief.id) || !nonempty(brief.name) ||
     !metrics.includes(brief.goal?.metric) || !['maximize','minimize'].includes(brief.goal?.direction) || !nonempty(brief.goal?.group_id) ||
     !nonempty(brief.chassis?.name) || !nonempty(brief.chassis?.provenance) || !Array.isArray(brief.variables) || !brief.variables.length ||
@@ -45,7 +45,8 @@ export function readWorkspace(document) {
       !Number.isSafeInteger(project.random_seed) || project.random_seed < 0 ||
       !vector(project.domain?.counts_xyz, true) || !project.domain.counts_xyz.every(Number.isInteger) ||
       !vector(project.domain.spacing_um_xyz, true) || !['thin_layer', 'volume'].includes(project.domain.geometry) ||
-      !project.groups || !project.species || !project.controls || !Array.isArray(project.graph?.nodes) ||
+      !project.groups || !project.species || !Array.isArray(project.graph?.nodes) ||
+      (project.controls!==undefined&&(project.controls===null||Array.isArray(project.controls)||typeof project.controls!=='object'||Object.keys(project.controls).length>0)) ||
       !Array.isArray(project.graph?.edges) || !Array.isArray(project.run?.groups) || !project.run.channels ||
       project.graph.protocol_version !== '0.2.0' || project.run.protocol_version !== '0.1.0') throw new Error('Only modular Project 0.6 / Workspace 0.7 is supported; check project structure');
   const nodeIds = new Set();
@@ -126,7 +127,8 @@ export function draftSnapshot(project) {
 
 export function blankProject(template) {
   const project = structuredClone(template);
-  project.id = 'untitled-project'; project.groups = {}; project.controls = {};
+  project.id = 'untitled-project'; project.groups = {};
+  delete project.controls;
   project.graph.nodes = []; project.graph.edges = [];
   project.run.groups = []; project.run.channels = {}; project.run.run_id = 'draft';
   return project;

@@ -14,7 +14,7 @@ from friskoli_cad.protocol import ProtocolError
 from friskoli_cad.engine.core import SimulationError
 from friskoli_cad.protocol.task_validation import canonical_bytes, TaskValidationError
 
-METRICS = frozenset(('mean_position_um', 'drift_um_s', 'mean_displacement_um', 'region_fraction', 'ever_arrived_fraction', 'mean_residence_s', 'cumulative_degradation_molecules', 'degradation_per_initial_cell_molecules'))
+METRICS = frozenset(('mean_position_um', 'drift_um_s', 'mean_displacement_um', 'region_fraction', 'ever_arrived_fraction', 'mean_residence_s', 'contact_fraction', 'contact_cell_seconds', 'cumulative_degradation_molecules', 'degradation_per_initial_cell_molecules'))
 MAX_CANDIDATES = 16
 MAX_RUNS = 32
 
@@ -120,6 +120,8 @@ def validate_design_brief(project, brief, registry=None):
     _object(goal, ('metric', 'direction', 'group_id'), path='/brief/goal')
     if goal['metric'] not in METRICS or goal['direction'] not in ('maximize', 'minimize'):
         _fail('Unsupported metric or optimization direction', '/brief/goal')
+    if goal['metric'].startswith('contact_') and 'contact_range_um' not in project.get('observation', {}):
+        _fail('Contact objectives require an observation with contact_range_um', '/brief/goal/metric')
     if type(goal['group_id']) is not str or goal['group_id'] not in project['groups']:
         _fail('Goal population does not exist', '/brief/goal/group_id')
     if not project['groups'][goal['group_id']]['ids']:
@@ -151,6 +153,8 @@ def validate_design_brief(project, brief, registry=None):
             result_ids.add(constraint['id'])
             if constraint['metric'] not in METRICS or constraint['kind'] not in ('hard', 'soft') or constraint['operator'] not in ('<=', '>='):
                 _fail('Unsupported result constraint', path)
+            if constraint['metric'].startswith('contact_') and 'contact_range_um' not in project.get('observation', {}):
+                _fail('Contact constraints require an observation with contact_range_um', path + '/metric')
             if constraint['group_id'] not in project['groups'] or not project['groups'][constraint['group_id']]['ids']:
                 _fail('Result constraint requires a populated initial group', path + '/group_id')
             _number(constraint['value'], path + '/value')

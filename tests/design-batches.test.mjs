@@ -1,9 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {planDesignBatch} from '../src/friskoli_cad/web/design-panel.mjs';
+import {planDesignBatch,enableResultEvaluation} from '../src/friskoli_cad/web/design-panel.mjs';
 import {TaskStore,buildSubmission,TASK_STORAGE_KEY} from '../src/friskoli_cad/web/task-store.mjs';
 const design={id:'d',brief:{seeds:[1,2,3]},candidates:[{id:'a',name:'A',kind:'candidate',project:{run:{channels:{}}}},{id:'b',name:'B',kind:'control',project:{run:{channels:{}}}}]};
 const run=(seed,status='completed',candidate='a')=>({design_ref:{design_id:'d',candidate_id:candidate},submission:{execution:{seed}},status,completeness:status==='completed'?'complete':'none'});
+test('editing a version 0.3 brief preserves its evaluation rules and long-run contract',()=>{
+  const brief={brief_version:'0.3.0',result_constraints:[{id:'keep'}],selection_policy:{min_repeats:4,min_control_improvement:2}};
+  const before=structuredClone(brief);
+  assert.equal(enableResultEvaluation(brief),false);
+  assert.deepEqual(brief,before);
+});
 test('bounded batches skip complete and uncertain repeats, retain failures, and select candidates/seeds',()=>{
   const history=[run(1),run(2,'failed'),run(3,'submission_unknown')],before=structuredClone(history),plan=planDesignBatch(design,history);
   assert.deepEqual(plan.queue.map(q=>[q.design_ref.candidate_id,q.seed]),[['a',2],['b',1],['b',2],['b',3]]);assert.equal(plan.completed,1);assert.equal(plan.active,1);assert.deepEqual(history,before);

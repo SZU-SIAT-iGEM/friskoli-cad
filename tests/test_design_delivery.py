@@ -17,7 +17,7 @@ from friskoli_cad.engine.presets import make_example
 
 @pytest.fixture(scope='module')
 def prototype():
-    project = make_example('center-pts-a-small-strong')
+    project = make_example('center-pts-a-assay-strong')
     brief = {'brief_version': '0.1.0', 'id': 'native', 'name': 'Native design',
         'goal': {'metric': 'mean_displacement_um', 'direction': 'maximize', 'group_id': 'cells'},
         'chassis': {'name': 'Example', 'provenance': 'Constructed; not calibrated'},
@@ -158,6 +158,7 @@ def test_html_escapes_and_csv_neutralizes_formula_names(payload):
     assert first_summary(payload)['candidate_name'].startswith("'")
 
 
+@pytest.mark.filterwarnings('ignore:Duplicate name:UserWarning')
 @pytest.mark.parametrize('name', ['../escape', '/absolute', 'C:/drive', 'design\\package.json', 'extra.py'])
 def test_unexpected_and_unsafe_paths_rejected(payload, name):
     archive = rewrite(export_design_package(payload), lambda entries: entries.update({name: b'bad'}))

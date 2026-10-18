@@ -516,7 +516,7 @@ class ModularSimulation:
                 blocked |= mask
             elif spec['kind'] == 'residues':
                 for body in spec['bodies']:
-                    center = np.asarray(body['position_um']); radius = body['diameter_um'] / 2
+                    center = np.asarray(body['position_um'])
                     # Porous capsule envelope is represented conservatively by
                     # an axis-aligned box; it does not remove solvent volume.
                     half = np.full(3, body['length_um'] / 2)
@@ -553,7 +553,7 @@ class ModularSimulation:
             groups[effect.target] = CellGroup(group.id, group.ids, group.positions_um, group.orientation_xyzw, geometry)
             elongations.append((nid, effect.target))
         if not proposals and not elongations: return world
-        candidate = World(world.grid, groups, world.species_initial_uM, world.schedules)
+        candidate = World(world.grid, groups, world.species_initial_uM)
         # Capsule guard does not interpolate size; static validation identifies
         # every conflicting body and refunds those proposals in stable ID order.
         blocked = set()
@@ -578,7 +578,7 @@ class ModularSimulation:
                             geometry[i] = original.geometry[i]; blocked.add(cid); changed = True
                     groups[gid] = CellGroup(gid, group.ids, group.positions_um, group.orientation_xyzw, tuple(geometry))
                 if not changed: raise
-                candidate = World(world.grid, groups, world.species_initial_uM, world.schedules)
+                candidate = World(world.grid, groups, world.species_initial_uM)
         for nid, gid, value, realized, available in proposals:
             mask = np.asarray([cid in blocked for cid in groups[gid].ids]); used = np.where(mask, 0., realized.used_molecules)
             volume = physiology.capsule_volume_um3([g.length_um for g in groups[gid].geometry], [g.diameter_um for g in groups[gid].geometry])
@@ -677,7 +677,7 @@ class ModularSimulation:
                 outputs[nid]['blocked'] = np.asarray([float(c in blocked) for c in group.ids])
                 state[nid]['heading'] = group_headings
                 for i, heading in enumerate(group_headings): state[nid]['walks'][i]['heading'] = heading.tolist()
-        return World(world.grid, groups, world.species_initial_uM, world.schedules), []
+        return World(world.grid, groups, world.species_initial_uM), []
 
     def _lifecycle_effects(self, world, effects, outputs, state, dead, time):
         deaths = {cid for nid, e in effects if e.kind == 'lifecycle.death' for cid in e.value['ids']}
@@ -703,7 +703,7 @@ class ModularSimulation:
                     for key, value in collection[node.id].items():
                         if specs[key]['shape'].startswith('cell.'):
                             collection[node.id][key] = [value[i] for i in keep] if specs[key]['shape'].endswith('.record') else np.asarray(value)[keep]
-        return World(world.grid, groups, world.species_initial_uM, world.schedules), events, dead
+        return World(world.grid, groups, world.species_initial_uM), events, dead
 
     def _division_effects(self, world, effects, outputs, state, obstacles, time, next_id):
         from friskoli_cad.science import physiology
@@ -736,7 +736,7 @@ class ModularSimulation:
                 geometry = list(group.geometry) + [shapes[1]]; geometry[index] = shapes[0]
                 proposed = CellGroup(gid, group.ids + (child,), positions,
                     np.vstack((group.orientation_xyzw, group.orientation_xyzw[index])), tuple(geometry))
-                candidate = World(world.grid, {**groups, gid: proposed}, world.species_initial_uM, world.schedules)
+                candidate = World(world.grid, {**groups, gid: proposed}, world.species_initial_uM)
                 from .collision import InitialOverlapError
                 try:
                     capsules = self._capsules(candidate)
@@ -775,7 +775,7 @@ class ModularSimulation:
                 details.append({'parent_id': parent, 'child_id': child,
                     'added_membrane_area_um2': math.pi * old.diameter_um * (shapes[0].length_um + shapes[1].length_um - old.length_um),
                     'membrane_assumption': 'new geometric membrane area is implicitly available; no membrane material budget'})
-        return World(world.grid, groups, world.species_initial_uM, world.schedules), events, details, next_id
+        return World(world.grid, groups, world.species_initial_uM), events, details, next_id
 
     def _validate_values(self, world, fields, outputs, state):
         from .port_semantics import validate_port_value

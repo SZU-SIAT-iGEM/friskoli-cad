@@ -76,7 +76,7 @@ def restore_checkpoint(project, payload, registry=None):
         if set(record) != {'ids', 'positions_um', 'orientation_xyzw', 'geometry'}: raise SimulationError('modular.checkpoint_groups', 'Population fields differ')
         groups[gid] = CellGroup(gid, tuple(record['ids']), np.asarray(record['positions_um']).reshape(-1, 3),
             np.asarray(record['orientation_xyzw']).reshape(-1, 4), tuple(CapsuleGeometry(**value) for value in record['geometry']))
-    world = World(sim.world.grid, groups, sim.world.species_initial_uM, sim.world.schedules)
+    world = World(sim.world.grid, groups, sim.world.species_initial_uM)
     fields_raw = deepcopy(raw['local_fields'])
     # The bounded binary container already validates dtypes/hash; the field
     # constructor still validates shape, positivity, mask and physical units.

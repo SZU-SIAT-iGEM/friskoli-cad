@@ -16,10 +16,15 @@ class ModuleRegistry:
                 raise SimulationError("module.duplicate", f"module {key} is registered twice")
             by_key[key] = module
         self._modules = MappingProxyType(by_key)
-        self._catalog = build_catalog(by_key.values(), execution_semantics)
+        self._execution_semantics = execution_semantics
+        self._catalog = None
 
     @property
     def catalog(self) -> dict:
+        # Admission and execution need manifests, not editor templates. Build the
+        # catalog only when requested so validation never rereads every preset.
+        if self._catalog is None:
+            self._catalog = build_catalog(self._modules.values(), self._execution_semantics)
         return deepcopy(self._catalog)
 
     @property

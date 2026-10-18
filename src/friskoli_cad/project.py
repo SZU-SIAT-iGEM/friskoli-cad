@@ -1,11 +1,9 @@
-"""Versioned, self-contained project snapshots and scheduled external inputs."""
+"""Versioned, self-contained project snapshots."""
 
 from __future__ import annotations
 
 import json
 import math
-from bisect import bisect_right
-from dataclasses import dataclass
 from functools import lru_cache
 from importlib.resources import files
 from typing import Mapping
@@ -14,54 +12,6 @@ import numpy as np
 from jsonschema import Draft202012Validator
 
 from friskoli_cad.protocol import ProtocolError, validate_graph, validate_run_metadata
-
-
-@dataclass(frozen=True, slots=True)
-class ControlSchedule:
-    species: str
-    changes: tuple[tuple[float, float], ...]
-    repeat_period_s: float | None = None
-
-    def __post_init__(self) -> None:
-        changes = tuple((float(time), float(rate)) for time, rate in self.changes)
-        times = tuple(time for time, _ in changes)
-        if (
-            not self.species or not changes or times[0] != 0
-            or any(not math.isfinite(time) or not math.isfinite(rate) for time, rate in changes)
-            or any(later <= earlier for earlier, later in zip(times, times[1:]))
-            or (
-                self.repeat_period_s is not None
-                and (
-                    not math.isfinite(self.repeat_period_s)
-                    or self.repeat_period_s <= times[-1]
-                )
-            )
-        ):
-            raise ValueError("schedule needs finite, ordered changes starting at zero")
-        object.__setattr__(self, "changes", changes)
-
-    def rate_and_next_change(self, time_s: float) -> tuple[float, float]:
-        """Return the rate active at a time boundary and the next boundary."""
-        times = tuple(change[0] for change in self.changes)
-        tolerance = 8 * max(
-            math.ulp(time_s), math.ulp(times[-1]),
-            math.ulp(self.repeat_period_s) if self.repeat_period_s is not None else 0,
-        )
-        if self.repeat_period_s is None:
-            index = bisect_right(times, time_s + tolerance) - 1
-            next_change = times[index + 1] if index + 1 < len(times) else math.inf
-            return self.changes[index][1], next_change
-        period = self.repeat_period_s
-        phase = time_s % period
-        if math.isclose(phase, period, rel_tol=0, abs_tol=tolerance):
-            phase = 0.0
-        index = bisect_right(times, phase + tolerance) - 1
-        cycle_start = time_s - phase
-        if index + 1 < len(times):
-            next_change = cycle_start + times[index + 1]
-        else:
-            next_change = cycle_start + period
-        return self.changes[index][1], next_change
 
 
 @lru_cache(maxsize=1)
@@ -101,7 +51,6 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
     validate_modular_project(document, manifests, registry=registry)
     manifest_by_key = {(item["id"], item["version"]): item for item in manifests}
     providers: dict[str, int] = {}
-    control_uses: dict[str, int] = {}
     for node in graph["nodes"]:
         manifest = manifest_by_key[(node["module_id"], node["module_version"])]
         if "species" in manifest["parameters"]:
@@ -123,27 +72,8 @@ def validate_project(document: Mapping[str, object], manifests: tuple[Mapping[st
                 document["species"][species]["initial_concentration"]["value"]
             ):
                 _fail("project.initial", "/graph", f"initial concentration differs for {species}")
-        if "schedule_id" in manifest["parameters"]:
-            schedule_id = node["parameters"]["schedule_id"]["value"]
-            schedule = document["controls"].get(schedule_id)
-            if schedule is None:
-                _fail("project.control", "/graph", f"unknown control {schedule_id}")
-            if node["parameters"]["species"]["value"] != schedule["species"]:
-                _fail("project.control", "/graph", f"species differs for control {schedule_id}")
-            control_uses[schedule_id] = control_uses.get(schedule_id, 0) + 1
     if any(count != 1 for count in providers.values()):
         _fail("project.species", "/graph", "an active species needs exactly one concentration field")
-    if set(control_uses) != set(document["controls"]) or any(count != 1 for count in control_uses.values()):
-        _fail("project.control", "/controls", "each control needs exactly one source node")
-    for schedule_id, schedule in document["controls"].items():
-        if schedule["species"] not in document["species"]:
-            _fail("project.control", f"/controls/{schedule_id}", "control species is undeclared")
-        times = [change["time_s"] for change in schedule["changes"]]
-        if times[0] != 0 or any(later <= earlier for earlier, later in zip(times, times[1:])):
-            _fail("project.control_time", f"/controls/{schedule_id}", "times must start at 0 and increase")
-        period = schedule.get("repeat_period_s")
-        if period is not None and times[-1] >= period:
-            _fail("project.control_time", f"/controls/{schedule_id}", "changes must precede the repeat boundary")
 
 
 def simulation_from_project(document: Mapping[str, object], registry=None, *, seed=None, field_backend='numpy-cpu'):
@@ -181,14 +111,6 @@ def simulation_from_project(document: Mapping[str, object], registry=None, *, se
         for group_id, group in document["groups"].items()
     }
     initial = {species: entry["initial_concentration"]["value"] for species, entry in document["species"].items()}
-    controls = {
-        schedule_id: ControlSchedule(
-            entry["species"],
-            tuple((change["time_s"], change["rate_uM_s"]) for change in entry["changes"]),
-            entry.get("repeat_period_s"),
-        )
-        for schedule_id, entry in document["controls"].items()
-    }
-    world = World(grid, groups, initial, controls)
+    world = World(grid, groups, initial)
     from friskoli_cad.engine.modular_runtime import ModularSimulation
     return ModularSimulation(world, document, registry, seed=seed, field_backend=field_backend)

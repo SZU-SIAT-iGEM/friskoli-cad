@@ -142,7 +142,6 @@ class World:
     grid: GridDomain
     groups: Mapping[str, CellGroup]
     species_initial_uM: Mapping[str, float] = field(default_factory=dict)
-    schedules: Mapping[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         groups = dict(self.groups)
@@ -186,7 +185,6 @@ class World:
             raise SimulationError("project.species", "species initial concentrations must be nonnegative")
         object.__setattr__(self, "groups", MappingProxyType(groups))
         object.__setattr__(self, "species_initial_uM", MappingProxyType(species))
-        object.__setattr__(self, "schedules", MappingProxyType(dict(self.schedules)))
 
 
 @dataclass(frozen=True, slots=True)

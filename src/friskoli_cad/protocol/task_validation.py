@@ -209,6 +209,16 @@ def sha256(obj: Any) -> str:
     return hashlib.sha256(canonical_bytes(obj)).hexdigest()
 
 
+def source_digest(path: Any) -> str:
+    """SHA-256 of a source file, with CRLF normalised to LF.
+
+    Source locks describe source content, not the checkout's line-ending style,
+    so a Windows working tree and a fresh LF clone hash identically.
+    """
+    data = path.read_bytes().replace(b"\r\n", b"\n")
+    return hashlib.sha256(data).hexdigest()
+
+
 @lru_cache(maxsize=16)
 def _validator(definition: str, version: str = VERSION) -> Draft202012Validator:
     folder = files("friskoli_cad.protocol").joinpath("schemas")

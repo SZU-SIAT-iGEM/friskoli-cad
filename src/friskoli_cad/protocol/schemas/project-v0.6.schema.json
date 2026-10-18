@@ -10,13 +10,18 @@
   "domain",
   "groups",
   "species",
-  "controls",
   "graph",
   "run",
   "execution_profile",
   "random_seed"
  ],
  "properties": {
+  "controls": {
+   "type": "object",
+   "maxProperties": 0,
+   "deprecated": true,
+   "description": "Optional empty field retained for existing Project 0.6 files. Schedule mechanisms are graph nodes."
+  },
   "system_limits": {
    "type": "object",
    "additionalProperties": false,
@@ -201,62 +206,6 @@
         "$ref": "#/$defs/provenance"
        }
       }
-     }
-    }
-   }
-  },
-  "controls": {
-   "type": "object",
-   "propertyNames": {
-    "$ref": "#/$defs/id"
-   },
-   "additionalProperties": {
-    "type": "object",
-    "additionalProperties": false,
-    "required": [
-     "species",
-     "scope",
-     "rate_unit",
-     "changes"
-    ],
-    "properties": {
-     "species": {
-      "$ref": "#/$defs/id"
-     },
-     "scope": {
-      "const": "whole_domain"
-     },
-     "rate_unit": {
-      "const": "uM/s"
-     },
-     "changes": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-       "type": "object",
-       "additionalProperties": false,
-       "required": [
-        "time_s",
-        "rate_uM_s",
-        "provenance"
-       ],
-       "properties": {
-        "time_s": {
-         "type": "number",
-         "minimum": 0
-        },
-        "rate_uM_s": {
-         "type": "number"
-        },
-        "provenance": {
-         "$ref": "#/$defs/provenance"
-        }
-       }
-      }
-     },
-     "repeat_period_s": {
-      "type": "number",
-      "exclusiveMinimum": 0
      }
     }
    }

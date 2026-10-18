@@ -1137,7 +1137,7 @@ async function openMechanismLibrary() {
   } catch(error) {status('editFailed',{message:error.message},true);}
 }
 function renderDesign(){renderDesignPanel($('design-view'),state,{
-  render:renderDesign,changed, error:error=>{state.designError=error.message;renderDesign();},
+  render:renderDesign,settingsChanged:renderAll,changed, error:error=>{state.designError=error.message;renderDesign();},
   async generate(brief){
     if(state.batch)return;
     const draftToken=state.draftToken,revision=state.revision,requestBrief=structuredClone(brief);

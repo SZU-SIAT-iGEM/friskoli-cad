@@ -55,7 +55,7 @@ const messages = {
     noResults:'Run a project to inspect its results.',earlierRevision:'Result from an earlier draft',completed:'Completed',failed:'Failed',runs:'Runs',
     updated:'Draft updated',rotation:'Rotation',hidden:'Hidden in Scene',locked:'Lock volume',duplicate:'Duplicate volume',delete:'Delete population',
     thinLayer:'Thin layer',spacing:'Grid spacing',apply:'Apply',projectData:'Project data',
-    dataHint:'Species, schedules and result channels use the backend project schema. Drafts may contain incomplete connections.',
+    dataHint:'Species and result channels use the backend project schema. Drafts may contain incomplete connections.',
     unchecked:'Not checked since the latest edit.',checkPassed:'Initial state valid · {cells} cells · {voxels} voxels. Numerical step constraints are checked when running.',
     checked:'Initial state checked',checkFailed:'Check failed. See Checks.',missingConnections:'Connect all required inputs first.',
     recoveryFailed:'Local recovery unavailable; download the workspace to keep edits.',replaceDraft:'Replace this modified draft? Download it with Save first if needed.',
@@ -168,7 +168,7 @@ const messages = {
     noResults:'运行项目后，可在这里检查结果。',earlierRevision:'来自较早草稿的结果',completed:'已完成',failed:'失败',runs:'运行记录',
     updated:'草稿已更新',rotation:'旋转',hidden:'在空间视图中隐藏',locked:'锁定体积块',duplicate:'复制体积块',delete:'删除菌群',
     thinLayer:'薄层',spacing:'格距',apply:'应用',projectData:'项目数据',
-    dataHint:'物种、输入日程和结果通道遵循后端项目格式。草稿允许包含尚未连完的行为图。',
+    dataHint:'物种和结果通道遵循后端项目格式。草稿允许包含尚未连完的行为图。',
     unchecked:'最近一次修改后尚未检查。',checkPassed:'初始状态有效 · {cells} 个菌体 · {voxels} 个格点。数值步约束在运行时检查。',
     checked:'已检查初始状态',checkFailed:'检查未通过，请查看检查面板。',missingConnections:'需要连接全部必需输入。',
     recoveryFailed:'本地恢复不可用，请下载工作区保存修改。',replaceDraft:'要替换这份已修改的草稿吗？如需保留，请先点击保存下载。',
@@ -279,6 +279,9 @@ Object.assign(messages['zh-CN'], {
   initial_count:'初始数量',live_count:'存活数量',mean_displacement_um:'平均轴向位移 [µm]',region_fraction:'区域内比例 [1]',ever_arrived_fraction:'曾到达比例 [1]',mean_residence_s:'平均停留时间 [s]',metric:'指标',mean:'均值',
   scatterPackingFailed:'当前数量无法无重叠放入。请减少数量或菌体尺寸，或扩大菌群体积。散布使用保守包围球检查。',invalidControls:'请输入正步长和服务器上限以内的整数步数。',welcomeScope:'示例使用已声明的探索性参数，可用于机制比较和数值检查，尚不代表经实验标定的预测。',
 });
+
+Object.assign(messages.en,{contact_fraction:'Surface contact fraction',contact_cell_seconds:'Cohort contact integral (cell·s)'});
+Object.assign(messages['zh-CN'],{contact_fraction:'表面接触比例',contact_cell_seconds:'初始菌群累计接触时间（cell·s）'});
 
 let language = 'en';
 try { if (localStorage.getItem('friskoli.language') === 'zh-CN') language = 'zh-CN'; } catch { /* storage unavailable */ }

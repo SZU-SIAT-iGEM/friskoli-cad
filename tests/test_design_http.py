@@ -33,8 +33,8 @@ def request(root, path, value):
     return urlopen(Request(root + path, data=data, headers={'Content-Type': 'application/json'}), timeout=30)
 
 
-def design_input():
-    project = make_example('center-pts-a-small-strong')
+def design_input(preset='center-pts-a-assay-strong'):
+    project = make_example(preset)
     return {'project': project, 'settings': {'dt_s': .05, 'steps': 2, 'include_fields': True},
         'brief': {'brief_version': '0.1.0', 'id': 'http-design', 'name': 'Transport capacity study',
             'goal': {'metric': 'mean_displacement_um', 'direction': 'maximize', 'group_id': 'cells'},
@@ -43,8 +43,9 @@ def design_input():
             'constraints': [], 'seeds': [0, 1], 'max_runs': 32}}
 
 
-def test_design_generation_and_native_package_roundtrip_over_http(server_url):
-    source = design_input()
+@pytest.mark.parametrize('preset', ['center-pts-a-assay-strong', 'center-pts-a-small-strong'])
+def test_design_generation_and_native_package_roundtrip_over_http(server_url, preset):
+    source = design_input(preset)
     original = deepcopy(source)
     with request(server_url, '/api/design/generate', source) as response:
         design = json.load(response)

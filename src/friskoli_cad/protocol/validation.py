@@ -23,7 +23,7 @@ class ProtocolError(ValueError):
         super().__init__(f"{code} at {path}: {message}")
 
 
-@lru_cache(maxsize=4)
+@lru_cache(maxsize=32)
 def _validator(name: str) -> Draft202012Validator:
     resource = files("friskoli_cad.protocol").joinpath("schemas", f"{name}.schema.json")
     schema = json.loads(resource.read_text(encoding="utf-8"))
@@ -58,6 +58,24 @@ def _fail(code: str, path: str, message: str) -> None:
 
 
 def validate_manifest(manifest: Mapping[str, object]) -> None:
+    """Validate by content so repeated graph checks share successful results.
+
+    The key includes every field. Editing a manifest always triggers validation;
+    neither object identity nor a reused module version can bypass the checks.
+    """
+    try:
+        encoded = json.dumps(manifest, sort_keys=True, separators=(',', ':'), allow_nan=False)
+    except (TypeError, ValueError):
+        return _validate_manifest(manifest)
+    _validated_manifest(encoded)
+
+
+@lru_cache(maxsize=512)
+def _validated_manifest(encoded: str) -> None:
+    _validate_manifest(json.loads(encoded))
+
+
+def _validate_manifest(manifest: Mapping[str, object]) -> None:
     """Check a module declaration, including semantic references inside it."""
     _check_schema("module-v0.2", manifest)
     parameters = manifest["parameters"]
@@ -104,6 +122,12 @@ def validate_manifest(manifest: Mapping[str, object]) -> None:
                             _fail('port.semantic_binding', path, 'Semantic bindings must name string parameters')
 
 
+@lru_cache(maxsize=16)
+def _structured_parameter_error(schema_json: str, value_json: str):
+    error = next(Draft202012Validator(json.loads(schema_json)).iter_errors(json.loads(value_json)), None)
+    return (tuple(error.path), error.message) if error is not None else None
+
+
 def _parameter_value(node: Mapping[str, object], index: int, name: str, definition: Mapping[str, object]) -> None:
     entry = node["parameters"][name]
     value = entry["value"]
@@ -132,6 +156,17 @@ def _parameter_value(node: Mapping[str, object], index: int, name: str, definiti
             _fail("parameter.unit", path, "structured parameter unit differs")
     elif "unit" in entry:
         _fail("parameter.unit", path, "non-numeric parameter has a unit")
+    if declared in ('array', 'object'):
+        # Dense initial fields recur unchanged across candidates and admission
+        # passes. Cache their content, never a mutable array or its identity.
+        schema_json = json.dumps(definition, sort_keys=True, separators=(',', ':'))
+        value_json = json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False)
+        check = _structured_parameter_error if len(value_json) <= 4 * 1024 * 1024 else _structured_parameter_error.__wrapped__
+        issue = check(schema_json, value_json)
+        if issue is not None:
+            parts, message = issue
+            _fail('parameter.schema', path + '/value' + (_pointer(parts) if parts else ''), message)
+        return
     error = next(Draft202012Validator(definition).iter_errors(value), None)
     if error is not None:
         _fail("parameter.schema", path + "/value" + ("" if not error.path else _pointer(error.path)), error.message)

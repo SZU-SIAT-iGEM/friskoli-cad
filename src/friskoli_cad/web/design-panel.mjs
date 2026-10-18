@@ -1,4 +1,5 @@
 import {currentLanguage,t} from './i18n.mjs';
+import {METRIC_KEYS} from './metrics.mjs';
 const text=(en,zh)=>currentLanguage()==='zh-CN'?zh:en;
 const el=(tag,value='',className='')=>{const n=document.createElement(tag);n.textContent=value;n.className=className;return n;};
 const batchPreferenceKey=design=>`friskoli-design-batch:${design.id}`;
@@ -40,7 +41,7 @@ export function defaultAssemblyMetadata(project,groupId){
   return {id:`${String(name).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')||'assembly'}-assembly`,name:`${name} mechanism`,version:'1.0.0',kind:'part',biological_role:'population mechanism',provenance:{kind:'user',reference:'Friskoli-CAD workspace'}};
 }
 export function enableResultEvaluation(brief){
-  if(brief.brief_version==='0.2.0')return false;
+  if(['0.2.0','0.3.0'].includes(brief.brief_version))return false;
   brief.brief_version='0.2.0';brief.result_constraints=[];brief.selection_policy={min_repeats:2,min_control_improvement:0};return true;
 }
 const evaluationReasons={
@@ -67,7 +68,7 @@ export function renderDesignEvaluation(root,evaluation){
   panel.append(el('h3',evaluation.status==='recommended'?text('Exploratory recommendation','探索性推荐'):text('No recommendation','未给出推荐')));
   if(evaluation.recommended_candidate_id){const chosen=evaluation.candidates.find(c=>c.candidate_id===evaluation.recommended_candidate_id);panel.append(el('p',`${chosen?.name??''} · ${evaluation.recommended_candidate_id}`,'design-recommendation'));}
   for(const reason of evaluation.reasons??[])panel.append(el('p',evaluationReason(reason),'task-note'));
-  panel.append(el('p',text('Uses complete, matched seed repeats. A recommendation requires every paired improvement to exceed the declared threshold. These simulations do not establish statistical significance or experimental performance.','使用完整且 seed 匹配的重复。推荐要求每次配对改善都超过声明的阈值；仿真结果不代表统计显著性或实验性能。'),'task-note'));
+  panel.append(el('p',text('Complete runs are paired by seed and evaluated against the declared thresholds. The table retains paired changes and variation between repeats.','按相同 seed 配对比较完整运行，依据声明的阈值评价。表中保留配对变化与重复间差异。'),'task-note'));
   const scroll=el('div','','design-table-scroll'),table=el('table','','design-evaluation-table'),head=el('tr');
   for(const title of [text('Candidate / ID','候选 / ID'),text('Decision','评价'),text('Objective mean ± SD (n)','目标均值 ± SD（n）'),text('Paired improvement mean ± SD [min, max]','配对改善均值 ± SD［最小, 最大］')])head.append(el('th',title));
   const thead=el('thead');thead.append(head);table.append(thead);const body=el('tbody');
@@ -95,12 +96,23 @@ export function renderDesignPanel(root,state,actions){
   button(toolbar,'Import .friskoli','导入 .friskoli',actions.import);root.append(toolbar);
   if(state.project?.execution_profile!=='modular-spatial-v1'){root.append(el('p',text('Open a first-release modular project to start a design.','打开第一版模块化项目后即可建立设计。')));return;}
   const groupIds=Object.keys(state.project.groups??{});
+  if(!state.design&&state.project.id==='modular-foundation')button(toolbar,'Use a short speed study','短时速度比较示例',()=>{
+    state.designBrief={brief_version:'0.3.0',id:`design-${Date.now()}`,name:text('Compare swimming speeds','比较游动速度'),
+      goal:{metric:'mean_displacement_um',direction:'maximize',group_id:'cells'},
+      chassis:{name:'Modular foundation',provenance:'Constructed teaching example'},
+      variables:[{node_id:'motility',parameter:'speed_um_s',values:[5,10]}],constraints:[],result_constraints:[],
+      selection_policy:{min_repeats:2,min_control_improvement:0},seeds:[0,1],max_runs:6};
+    state.settings={...state.settings,dt_s:.01,steps:12,frame_every_steps:3,include_fields:false,include_final_fields:false};
+    state.designNotice=text('Short study ready: speeds 5 and 10 µm/s, seeds 0 and 1, 12 steps of 0.01 s, one frame every 3 steps. Generate candidates to review six planned runs.',
+      '已设置速度 5、10 µm/s，seed 0、1，时间步长 0.01 s、12 步，每 3 步保存一帧。生成候选后可检查计划中的 6 次运行。');
+    actions.changed();if(actions.settingsChanged)actions.settingsChanged();else actions.render();
+  },Boolean(state.batch||state.designBusy));
   if(groupIds.length){
     const fallback=defaultAssemblyMetadata(state.project,groupIds[0]);
     const draft=state.assemblyDraft??=({...structuredClone(fallback),group_id:groupIds[0],provenance_kind:fallback.provenance.kind,provenance_reference:fallback.provenance.reference});
     if(!groupIds.includes(draft.group_id))draft.group_id=groupIds[0];
     draft.provenance??=structuredClone(fallback.provenance);
-    const panel=el('details','','design-assemblies');panel.open=true;panel.append(el('summary',text('Biological chassis / component assembly','生物底盘 / 元件 assembly')));
+    const panel=el('details','','design-assemblies');panel.append(el('summary',text('Biological chassis / component assembly','生物底盘 / 元件 assembly')));
     panel.append(el('p',text('A reusable assembly contains one population and its owned workflow branch. External environment providers are checked when it is applied.','可复用 assembly 包含一个菌群及其所属 workflow 分支；应用时会检查外部环境提供者。'),'task-note'));
     const fields=el('div','','design-assembly-form');
     const field=(label,key,type='text')=>{const row=el('label','','design-field');row.append(el('span',label));const input=document.createElement('input');input.type=type;input.value=draft[key]??'';input.required=true;input.addEventListener('change',()=>{draft[key]=input.value;});row.append(input);fields.append(row);return input;};
@@ -124,14 +136,14 @@ export function renderDesignPanel(root,state,actions){
   }
   const params=numericDesignParameters(state.project,state.modules),first=params.find(p=>/copies|bias|speed/.test(p.parameter))??params[0];
   if(!first){root.append(el('p',text('No registered numeric parameters are available.','没有可用的已注册数值参数。')));return;}
-  const brief=state.designBrief??=structuredClone(state.design?.brief??{brief_version:'0.2.0',id:`design-${Date.now()}`,name:'Parameter scan',goal:{metric:'mean_displacement_um',direction:'maximize',group_id:Object.keys(state.project.groups)[0]},chassis:{name:state.project.id,provenance:'User-defined exploratory design'},variables:[{node_id:first.node_id,parameter:first.parameter,values:[first.value,first.value===0?1:first.value*1.2]}],constraints:[],result_constraints:[],selection_policy:{min_repeats:2,min_control_improvement:0},seeds:[0,1,2],max_runs:32});
+  const brief=state.designBrief??=structuredClone(state.design?.brief??{brief_version:'0.3.0',id:`design-${Date.now()}`,name:'Parameter scan',goal:{metric:'mean_displacement_um',direction:'maximize',group_id:Object.keys(state.project.groups)[0]},chassis:{name:state.project.id,provenance:'User-defined exploratory design'},variables:[{node_id:first.node_id,parameter:first.parameter,values:[first.value,first.value===0?1:first.value*1.2]}],constraints:[],result_constraints:[],selection_policy:{min_repeats:2,min_control_improvement:0},seeds:[0,1,2],max_runs:32});
   const markEdited=()=>{const upgraded=enableResultEvaluation(brief);actions.changed();if(upgraded)actions.render();};
   const form=el('form','','design-form');form.addEventListener('submit',event=>{event.preventDefault();actions.generate(brief).catch(actions.error);});root.append(form);
   const input=(parent,label,value,change,type='text')=>{const row=el('label','','design-field');row.append(el('span',label));const i=el('input');i.type=type;if(type==='number')i.step='any';i.value=value;i.required=true;i.addEventListener('change',()=>{change(i.value);markEdited();});row.append(i);parent.append(row);return i;};
   const select=(parent,label,options,value,change)=>{const row=el('label','','design-field');row.append(el('span',label));const s=el('select');for(const [key,name] of options)s.append(new Option(name,key));s.value=value;s.addEventListener('change',()=>{change(s.value);markEdited();});row.append(s);parent.append(row);return s;};
   input(form,text('Design name','设计名称'),brief.name,v=>brief.name=v);input(form,text('Design ID','设计 ID'),brief.id,v=>brief.id=v);
   input(form,text('Chassis / strain','底盘 / 菌株说明'),brief.chassis.name,v=>brief.chassis.name=v);input(form,text('Chassis source / rationale','底盘来源 / 依据'),typeof brief.chassis.provenance==='string'?brief.chassis.provenance:JSON.stringify(brief.chassis.provenance),v=>brief.chassis.provenance=v);
-  select(form,text('Objective metric','目标指标'),['mean_position_um','drift_um_s','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s','cumulative_degradation_molecules','degradation_per_initial_cell_molecules'].map(k=>[k,t(k)]),brief.goal.metric,v=>brief.goal.metric=v);
+  select(form,text('Objective metric','目标指标'),METRIC_KEYS.slice(2).filter(key=>brief.brief_version==='0.3.0'||!key.startsWith('contact_')).map(k=>[k,t(k)]),brief.goal.metric,v=>brief.goal.metric=v);
   select(form,text('Direction','优化方向'),[['maximize',text('Maximize','最大化')],['minimize',text('Minimize','最小化')]],brief.goal.direction,v=>brief.goal.direction=v);
   select(form,text('Population','菌群'),Object.keys(state.project.groups).map(k=>[k,k]),brief.goal.group_id,v=>brief.goal.group_id=v);
   input(form,text('Execution seeds (comma-separated)','执行 seed（逗号分隔）'),brief.seeds.join(', '),v=>brief.seeds=v.split(/[,，\s]+/).filter(Boolean).map(Number));
@@ -156,7 +168,7 @@ export function renderDesignPanel(root,state,actions){
     brief.result_constraints.forEach((constraint,index)=>{const row=el('div','','design-row');
       input(row,text('Threshold ID','阈值 ID'),constraint.id,v=>constraint.id=v);
       select(row,text('Kind','类型'),[['hard',text('Hard','硬约束')],['soft',text('Soft','软约束')]],constraint.kind,v=>constraint.kind=v);
-      select(row,text('Metric','指标'),['mean_position_um','drift_um_s','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s','cumulative_degradation_molecules','degradation_per_initial_cell_molecules'].map(k=>[k,t(k)]),constraint.metric,v=>constraint.metric=v);
+      select(row,text('Metric','指标'),METRIC_KEYS.slice(2).filter(key=>brief.brief_version==='0.3.0'||!key.startsWith('contact_')).map(k=>[k,t(k)]),constraint.metric,v=>constraint.metric=v);
       select(row,text('Population','菌群'),Object.keys(state.project.groups).map(k=>[k,k]),constraint.group_id,v=>constraint.group_id=v);
       select(row,text('Operator','关系'),[['<=','≤'],['>=','≥']],constraint.operator,v=>constraint.operator=v);
       input(row,text('Limit','界限'),constraint.value,v=>constraint.value=Number(v),'number');

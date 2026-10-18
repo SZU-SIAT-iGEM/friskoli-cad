@@ -1,5 +1,6 @@
 from dataclasses import fields, replace
 from copy import deepcopy
+import math
 import numpy as np
 import pytest
 
@@ -101,21 +102,50 @@ def test_no_concentration_bypass_when_pts_is_disabled(mechanism):
     for node in other['graph']['nodes']:
         if node['id'] == 'initial_product':
             node['parameters']['values_um']['value'] = (np.asarray(node['parameters']['values_um']['value'])*100).tolist()
-    # The 100x field would (correctly) pre-adapt a different initial state; this test is
-    # about a runtime bypass, so both sides start from the same fixed point.
+    # With uptake disabled the only consistent start is the zero-flux fixed point (EI fully
+    # phosphorylated, methylation at its minimum). Both sides start there, so any departure
+    # from baseline activity, or any difference between the 1x and 100x fields, would be a
+    # concentration bypass around the PTS input.
     ref = signal_node(project)['parameters']
-    for node in other['graph']['nodes']:
-        if node['id'] == 'pts_signal':
-            for k in ('initial_ei_fraction', 'initial_methylation', 'initial_chey_p_um', 'motor_half_um'):
-                node['parameters'][k]['value'] = ref[k]['value']
+    for p in (project, other):
+        for node in p['graph']['nodes']:
+            if node['id'] == 'pts_signal':
+                node['parameters']['initial_ei_fraction']['value'] = 0.
+                node['parameters']['initial_methylation']['value'] = ref['methylation_min']['value']
+                for k in ('initial_chey_p_um', 'motor_half_um'):
+                    node['parameters'][k]['value'] = ref[k]['value']
     first, second = simulation_from_project(project), simulation_from_project(other)
     for _ in range(4):
         first.step(.1); second.step(.1)
         for port in ('ei_fraction','methylation','activity','chey_p','motor_bias'):
             np.testing.assert_array_equal(first.outputs['pts_signal'][port],second.outputs['pts_signal'][port])
     a0 = ref['baseline_activity']['value']
-    np.testing.assert_allclose(first.outputs['pts_signal']['activity'], a0, atol=2e-2)
+    np.testing.assert_allclose(first.outputs['pts_signal']['activity'], a0, rtol=0, atol=1e-12)
     np.testing.assert_array_equal(first.world.groups['cells'].positions_um, second.world.groups['cells'].positions_um)
+
+
+def assert_same_project(built, shipped, path='', rel_tol=1e-12):
+    """Shipped presets must match the generator in structure and value.
+
+    Floats are compared to a relative tolerance: the initial fields come from
+    exp/erf, whose last-ulp results differ between platform maths libraries, so a
+    preset generated on Windows differs from a Linux rebuild only at ~1e-16.
+    """
+    if isinstance(built, float) or isinstance(shipped, float):
+        assert isinstance(built, (int, float)) and isinstance(shipped, (int, float)), path
+        assert math.isclose(built, shipped, rel_tol=rel_tol, abs_tol=0.), f'{path}: {built!r} != {shipped!r}'
+        return
+    assert type(built) is type(shipped), f'{path}: {type(built).__name__} != {type(shipped).__name__}'
+    if isinstance(built, dict):
+        assert built.keys() == shipped.keys(), f'{path}: keys differ {sorted(built.keys() ^ shipped.keys())}'
+        for key in built:
+            assert_same_project(built[key], shipped[key], f'{path}/{key}', rel_tol)
+    elif isinstance(built, list):
+        assert len(built) == len(shipped), f'{path}: length {len(built)} != {len(shipped)}'
+        for index, (x, y) in enumerate(zip(built, shipped)):
+            assert_same_project(x, y, f'{path}[{index}]', rel_tol)
+    else:
+        assert built == shipped, f'{path}: {built!r} != {shipped!r}'
 
 
 def test_presets_share_signal_and_only_accept_settled_flux():
@@ -124,7 +154,7 @@ def test_presets_share_signal_and_only_accept_settled_flux():
     for m in ('a','b'):
         for feedback in (True,False):
             p = build_center_project(m, 'small', feedback=feedback, release='strong', spacing_um=1.)
-            assert p == make_example(p['id'])
+            assert_same_project(p, make_example(p['id']))
             assert all(n['id']!='memory_motor' for n in p['graph']['nodes'])
             incoming = [e for e in p['graph']['edges'] if e['to']['node']=='pts_signal']
             assert len(incoming)==1

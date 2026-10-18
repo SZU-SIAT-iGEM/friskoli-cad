@@ -1,6 +1,6 @@
 import {meanInterval} from './result-analysis.mjs';
 // These are recorded solver observables. The viewer never estimates arrivals from saved frames.
-export const METRIC_KEYS = ['initial_count','live_count','mean_position_um','drift_um_s','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s','cumulative_degradation_molecules','degradation_per_initial_cell_molecules'];
+export const METRIC_KEYS = ['initial_count','live_count','mean_position_um','drift_um_s','mean_displacement_um','region_fraction','ever_arrived_fraction','mean_residence_s','cumulative_degradation_molecules','degradation_per_initial_cell_molecules','contact_fraction','contact_cell_seconds'];
 export function validateMetrics(metrics, project) {
   if (metrics?.metric_version !== '0.1.0' || metrics.observation_id !== (project.observation?.id ?? 'whole_domain') ||
       !metrics.by_group || Array.isArray(metrics.by_group) ||
@@ -8,9 +8,10 @@ export function validateMetrics(metrics, project) {
   for (const [id, group] of Object.entries(project.groups)) {
     const values = metrics.by_group[id];
     if (!values || values.initial_count !== group.ids.length || !Number.isSafeInteger(values.live_count) || values.live_count < 0 ||
-        METRIC_KEYS.slice(2).some(key => values[key] !== null && !Number.isFinite(values[key])) ||
-        ['region_fraction','ever_arrived_fraction'].some(key => values[key] !== null && (values[key] < 0 || values[key] > 1)) ||
-        (values.mean_residence_s !== null && values.mean_residence_s < 0)) throw new Error('task.invalid_metrics');
+        METRIC_KEYS.slice(2).some(key => !(key.startsWith('contact_')&&!Object.hasOwn(values,key)) && values[key] !== null && !Number.isFinite(values[key])) ||
+        ['region_fraction','ever_arrived_fraction','contact_fraction'].some(key => values[key] != null && (values[key] < 0 || values[key] > 1)) ||
+        (values.mean_residence_s !== null && values.mean_residence_s < 0) ||
+        (values.contact_cell_seconds != null && values.contact_cell_seconds < 0)) throw new Error('task.invalid_metrics');
     if(project.observation?.radial_center_um){
       const radial=values.radial,radii=project.observation.radial_radii_um,finiteOrNull=v=>v===null||Number.isFinite(v),nonnegative=v=>finiteOrNull(v)&&(v===null||v>=0),fraction=v=>nonnegative(v)&&(v===null||v<=1);
       if(!radial||JSON.stringify(radial.center_um)!==JSON.stringify(project.observation.radial_center_um)||!nonnegative(radial.mean_distance_um)||!finiteOrNull(radial.mean_inward_displacement_um)||![radial.live_founder_count,radial.live_descendant_count].every(v=>Number.isSafeInteger(v)&&v>=0)||radial.live_founder_count>group.ids.length||radial.live_founder_count+radial.live_descendant_count!==values.live_count||!Array.isArray(radial.shells)||radial.shells.length!==radii.length)throw Error('task.invalid_radial_metrics');

@@ -1,7 +1,6 @@
 """Allocation-free admission estimates and source-backed execution metadata."""
 from __future__ import annotations
 
-import hashlib
 import platform
 from importlib.resources import files
 
@@ -11,7 +10,7 @@ from friskoli_cad.engine.compiler import compile_graph
 from friskoli_cad.engine.field_backend import backend_environment
 from .artifacts import final_field_estimate, concentration_species
 from friskoli_cad.engine.profiles import MODULAR_PROFILE, profile_for_project, registry_for_profile, registry_for_project, task_version
-from friskoli_cad.protocol.task_validation import sha256
+from friskoli_cad.protocol.task_validation import sha256, source_digest
 
 BACKEND = "numpy-cpu"
 
@@ -30,8 +29,7 @@ def source_hashes() -> dict:
     paths.append(("tasks/worker.py", root.joinpath("tasks", "worker.py")))
     paths.append(("tasks/artifacts.py", root.joinpath("tasks", "artifacts.py")))
     paths.append(("tasks/arrays.py", root.joinpath("tasks", "arrays.py")))
-    return {name: hashlib.sha256(path.read_bytes()).hexdigest()
-            for name, path in sorted(paths)}
+    return {name: source_digest(path) for name, path in sorted(paths)}
 
 
 def registry_metadata(profile=MODULAR_PROFILE, project=None) -> tuple:

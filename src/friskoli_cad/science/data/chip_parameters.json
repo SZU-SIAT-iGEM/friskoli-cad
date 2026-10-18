@@ -107,7 +107,7 @@
    "value": "isotropic",
    "unit": "",
    "category": "assumed",
-   "source": "New heading uniform on the sphere. Model A's source uses a mean turn angle near 68 deg (docs/DEVELOPMENT.md). Open question."
+   "source": "New heading uniform on the sphere. Model A's source uses a mean turn angle near 68 deg; no document in this distribution derives that figure. Open question."
   },
   "tumble_duration_s": {
    "value": 0.1,

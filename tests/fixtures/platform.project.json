@@ -127,7 +127,7 @@
           "diameter_um": 0.8,
           "provenance": {
             "kind": "example",
-            "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
           }
         },
         {
@@ -136,7 +136,7 @@
           "diameter_um": 0.8,
           "provenance": {
             "kind": "example",
-            "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
           }
         },
         {
@@ -145,7 +145,7 @@
           "diameter_um": 0.8,
           "provenance": {
             "kind": "example",
-            "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
           }
         },
         {
@@ -154,7 +154,7 @@
           "diameter_um": 0.8,
           "provenance": {
             "kind": "example",
-            "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
           }
         },
         {
@@ -163,7 +163,7 @@
           "diameter_um": 0.8,
           "provenance": {
             "kind": "example",
-            "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
           }
         },
         {
@@ -172,7 +172,7 @@
           "diameter_um": 0.8,
           "provenance": {
             "kind": "example",
-            "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
           }
         },
         {
@@ -181,7 +181,7 @@
           "diameter_um": 0.8,
           "provenance": {
             "kind": "example",
-            "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
           }
         },
         {
@@ -190,7 +190,7 @@
           "diameter_um": 0.8,
           "provenance": {
             "kind": "example",
-            "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+            "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
           }
         }
       ]
@@ -204,12 +204,11 @@
         "unit": "uM",
         "provenance": {
           "kind": "example",
-          "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+          "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
         }
       }
     }
   },
-  "controls": {},
   "graph": {
     "protocol_version": "0.2.0",
     "id": "foundation-control-graph",
@@ -227,7 +226,7 @@
             "value": "nutrient",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           },
           "diffusivity_um2_s": {
@@ -235,7 +234,7 @@
             "unit": "um^2/s",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           },
           "gradient_x_um_per_um": {
@@ -243,7 +242,7 @@
             "unit": "uM/um",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "gradient_y_um_per_um": {
@@ -251,7 +250,7 @@
             "unit": "uM/um",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "gradient_z_um_per_um": {
@@ -259,7 +258,7 @@
             "unit": "uM/um",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           }
         }
@@ -287,7 +286,7 @@
             "value": "nutrient",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           }
         }
@@ -305,7 +304,7 @@
             "value": "nutrient",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           },
           "initial_molecules": {
@@ -313,7 +312,7 @@
             "unit": "molecule",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           }
         }
@@ -332,7 +331,7 @@
             "unit": "1",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           }
         }
@@ -350,14 +349,14 @@
             "value": "instant",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           },
           "turn_kernel": {
             "value": "rebuilt_normal",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           },
           "speed_um_s": {
@@ -365,7 +364,7 @@
             "unit": "um/s",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           },
           "minimum_tumble_rate_s": {
@@ -373,7 +372,7 @@
             "unit": "1/s",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           },
           "maximum_tumble_rate_s": {
@@ -381,7 +380,7 @@
             "unit": "1/s",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           },
           "tumble_duration_s": {
@@ -389,7 +388,7 @@
             "unit": "s",
             "provenance": {
               "kind": "example",
-              "reference": "N3 constructed numerical demonstration; docs/science/n3-mechanisms.md; not experimentally calibrated"
+              "reference": "N3 constructed numerical demonstration; docs/MODEL_REFERENCE.md; not experimentally calibrated"
             }
           }
         }
@@ -407,7 +406,7 @@
             "value": "nutrient",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "maximum_flux_molecules_s": {
@@ -415,7 +414,7 @@
             "unit": "molecule/s",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "half_saturation_um": {
@@ -423,7 +422,7 @@
             "unit": "uM",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           }
         }
@@ -441,7 +440,7 @@
             "value": "nutrient",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "initial_molecules": {
@@ -449,7 +448,7 @@
             "unit": "molecule",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "maintenance_molecules_s": {
@@ -457,7 +456,7 @@
             "unit": "molecule/s",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           }
         }
@@ -476,7 +475,7 @@
             "unit": "s",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "recovery_rate": {
@@ -484,7 +483,7 @@
             "unit": "1",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "death_rate_per_min": {
@@ -492,7 +491,7 @@
             "unit": "1/min",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           }
         }
@@ -510,7 +509,7 @@
             "value": "nutrient",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "center_x_um": {
@@ -518,7 +517,7 @@
             "unit": "um",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "center_y_um": {
@@ -526,7 +525,7 @@
             "unit": "um",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "center_z_um": {
@@ -534,7 +533,7 @@
             "unit": "um",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "radius_um": {
@@ -542,7 +541,7 @@
             "unit": "um",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "initial_molecules": {
@@ -550,7 +549,7 @@
             "unit": "molecule",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           },
           "release_rate": {
@@ -558,7 +557,7 @@
             "unit": "molecule/s",
             "provenance": {
               "kind": "example",
-              "reference": "Constructed phenomenological foundation; docs/science/foundation-composition.md; not strain calibrated"
+              "reference": "Constructed phenomenological foundation; docs/MODEL_REFERENCE.md; not strain calibrated"
             }
           }
         }

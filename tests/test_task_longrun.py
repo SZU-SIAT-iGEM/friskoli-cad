@@ -20,14 +20,18 @@ def body(service, steps=5):
         'output_plan':{'frame_every_steps':3,'checkpoint_every_steps':2,'observables':list(project['run']['channels']),'include_fields':True}}
 
 
-def wait(service, identifier, *, timeout_s=40):
+def wait(service, identifier, *, timeout_s=120):
+    # Allow process startup and durable checkpoint I/O as well as computation.
+    # Poll before checking the deadline: every exit path has a task state to report,
+    # including a non-positive budget.
     deadline = time.monotonic() + timeout_s
-    while time.monotonic() < deadline:
+    while True:
         item = service.get(identifier)
         if item['status'] in ('completed','failed','paused','cancelled','interrupted'):
             return item
+        if time.monotonic() >= deadline:
+            raise AssertionError(f"Task did not stop within {timeout_s} s: {item['status']} at {item['progress']}")
         time.sleep(.02)
-    raise AssertionError(f"Task did not stop within {timeout_s} s: {item['status']} at {item['progress']}")
 
 
 class LongrunTests(unittest.TestCase):
@@ -257,7 +261,10 @@ class LongrunTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             with TaskService(folder) as service:
                 submission = body(service,80)
-                submission['output_plan']['frame_every_steps'] = 1
+                # This checks continuation and RNG identity, independently of
+                # per-step output throughput. Keep durable writes sparse.
+                submission['output_plan']['frame_every_steps'] = 8
+                submission['output_plan']['checkpoint_every_steps'] = 8
                 task,_ = service.submit(submission,'nonzero-pause')
                 deadline = time.monotonic()+30
                 while service.get(task['run_id'])['progress']['committed_step'] < 2:
@@ -269,9 +276,7 @@ class LongrunTests(unittest.TestCase):
                 self.assertGreaterEqual(stopped['checkpoint']['step_index'],2)
             with TaskService(folder) as service:
                 resumed,_ = service.resume(task['run_id'],{'request_id':'after-reopen','edit_revision':'1'},'after-reopen')
-                # Per-step frames and frequent durable checkpoints can exceed
-                # 40 s on Windows even when continuation makes steady progress.
-                complete = wait(service,resumed['run_id'],timeout_s=120)
+                complete = wait(service,resumed['run_id'])
                 self.assertEqual(complete['status'],'completed',complete['issues'])
                 path,_ = service.artifact(resumed['run_id'],'checkpoint')
                 restored = load_task_checkpoint(path,maximum=service.limits.estimated_memory_bytes)

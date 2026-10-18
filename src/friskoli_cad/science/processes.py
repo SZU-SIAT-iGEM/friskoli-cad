@@ -1,7 +1,7 @@
 """Explicit exploratory processes, with conserved transfers and declared units.
 
 These numerical laws are not strain calibrations. Their assumptions and primary
-sources are recorded in docs/DEVELOPMENT.md.
+sources are recorded in docs/MODEL_REFERENCE.md.
 """
 from __future__ import annotations
 

@@ -55,7 +55,7 @@ class ScientificModule:
             'verification': {'status': 'unreviewed', 'tests': []},
             'assumptions': ['modular-spatial-v1; explicit registered effects, transactional commit.',
                 'Parameters must be supplied with provenance; no experimental strain calibration.',
-                'Scope and source support: docs/DEVELOPMENT.md.', *sources]}}
+                'Scope and source support: docs/MODEL_REFERENCE.md.', *sources]}}
 
     def project_preflight(self, parameters, project, owner_id):
         p = thaw(parameters)
