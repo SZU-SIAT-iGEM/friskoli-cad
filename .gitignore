@@ -20,6 +20,8 @@ output/
 .venv-wheel/
 tmp/
 *.log
+# Generated static-viewer exports (bundled record.json is unpublished research data)
+docs/**/artifacts/*-wiki/
 
 # Local settings and operating-system files
 .env

@@ -54,11 +54,20 @@ else {
 
 # Check dependencies and install missing packages (network required).
 $checkScript = "import importlib.util as u; print(' '.join(m for m in ('jsonschema', 'numpy', 'rfc8785', 'psutil') if u.find_spec(m) is None))"
-$missing = ([string](& $python -c $checkScript)).Trim()
+function Get-MissingDependencies {
+    # @() keeps this a string when the interpreter writes nothing to stdout: under
+    # $ErrorActionPreference = 'Stop' a bare [string](...) is $null, not ''.
+    $missing = (@(& $python -c $checkScript) -join ' ').Trim()
+    if ($LASTEXITCODE -ne 0) {
+        throw "Python could not run the dependency check.`nRun manually: `"$python`" -m pip install -e `"$root`""
+    }
+    return $missing
+}
+$missing = Get-MissingDependencies
 if ($missing) {
     Write-Host "Missing dependencies: $missing. Installing ..." -ForegroundColor Yellow
     & $python -m pip install -e $root
-    $missing = ([string](& $python -c $checkScript)).Trim()
+    $missing = Get-MissingDependencies
     if ($missing) {
         throw "Dependencies are still missing: $missing`nRun manually: `"$python`" -m pip install -e `"$root`""
     }

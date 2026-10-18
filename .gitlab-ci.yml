@@ -1,0 +1,62 @@
+# GitLab counterpart of .github/workflows/checks.yml.
+# Shared GitLab runners are Linux only; add a Windows runner tag to repeat the
+# Python job on Windows if that platform needs to stay covered.
+stages: [test, package]
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH
+    - if: $CI_COMMIT_TAG
+
+default:
+  interruptible: true
+
+variables:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  npm_config_cache: "$CI_PROJECT_DIR/.cache/npm"
+
+cache:
+  key: "$CI_JOB_NAME"
+  paths:
+    - .cache/
+
+python-tests:
+  stage: test
+  timeout: 45 minutes
+  image: python:$PYTHON_VERSION
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.11", "3.13"]
+  script:
+    - python -m pip install -e ".[dev,standards,research]"
+    - python -m pytest tests -q --junitxml=test-results.xml
+    - python tools/build_presets.py --check
+    - git diff --check
+  artifacts:
+    when: always
+    reports:
+      junit: test-results.xml
+
+frontend-tests:
+  stage: test
+  timeout: 15 minutes
+  image: node:22
+  script:
+    - npm ci
+    - npm test
+
+distribution:
+  stage: package
+  timeout: 30 minutes
+  image: python:3.11
+  needs: [python-tests, frontend-tests]
+  script:
+    - python -m pip install build
+    - python -m build
+    - python tools/check_distribution.py
+  artifacts:
+    paths:
+      - dist/*
+    expire_in: 30 days
