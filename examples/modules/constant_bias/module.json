@@ -1,0 +1,15 @@
+{
+  "protocol_version": "0.2.0",
+  "id": "tutorial.constant_bias",
+  "version": "1.0.0",
+  "scope": "population",
+  "phase": 8,
+  "scientific_role": "closure",
+  "maturity": "exploratory",
+  "description": "A constant motor bias for teaching module registration.",
+  "inputs": {},
+  "outputs": {"motor_bias": {"shape": "cell.scalar", "quantity": "motor_bias", "unit": "1"}},
+  "parameters": {"bias": {"type": "number", "unit": "1", "minimum": 0, "maximum": 1}},
+  "state": {},
+  "initial_outputs": ["motor_bias"]
+}

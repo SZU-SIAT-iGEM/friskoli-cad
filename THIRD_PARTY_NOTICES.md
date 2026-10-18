@@ -1,6 +1,6 @@
 # Third-party notices
 
-Friskoli-CAD is distributed under the [MIT License](LICENSE). Third-party software, fonts and dependencies retain their own copyrights and licenses. This notice identifies bundled assets and directly declared dependencies for version 1.0.0; it does not replace original license texts.
+Friskoli-CAD is distributed under the [MIT License](LICENSE). Third-party software, fonts and dependencies retain their own copyrights and licenses. This notice identifies bundled assets and directly declared dependencies for version 1.0.1; it does not replace original license texts.
 
 ## Bundled browser assets
 
@@ -42,7 +42,7 @@ Transitive dependencies, Python/Node.js runtimes and optional hardware libraries
 
 ## Scientific sources
 
-References and parameter provenance are identified in [the development guide](docs/DEVELOPMENT.md#scientific-assumptions), `src/friskoli_cad/science/data/` and module declarations. A citation does not place a paper or its figures under the project's MIT license or imply author endorsement. The team's own A/B model material belongs to the project license; any third-party implementation or dataset added later retains its original terms.
+References and parameter provenance are identified in [the model reference](docs/MODEL_REFERENCE.md#scientific-assumptions), `src/friskoli_cad/science/data/` and module declarations. A citation does not place a paper or its figures under the project's MIT license or imply author endorsement. The team's own A/B model material belongs to the project license; any third-party implementation or dataset added later retains its original terms.
 
 ## Maintaining this notice
 
